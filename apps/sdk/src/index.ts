@@ -2,31 +2,32 @@
  * LiteTrack SDK
  *
  * 默认使用官方 API 地址：
- * - 上报：POST https://api.litetrack.io/litetrack/v1/track
- * - 查询：GET  https://api.litetrack.io/litetrack/v1/track/stats
+ * - 上报：POST https://litetrack.xiaowo.live/litetrack/v1/track
+ * - 查询：GET  https://litetrack.xiaowo.live/litetrack/v1/track/stats
  */
 
-const DEFAULT_TRACK_API_URL = 'https://api.litetrack.io/litetrack/v1/track'
-const DEFAULT_STATS_API_URL = 'https://api.litetrack.io/litetrack/v1/track/stats'
+const BASE_URL = 'https://litetrack.xiaowo.live';
+const DEFAULT_TRACK_API_URL = `${BASE_URL}/litetrack/v1/track`;
+const DEFAULT_STATS_API_URL = `${BASE_URL}/litetrack/v1/track/stats`;
 
 interface SiteStatsResponse {
-  totalViews?: number
-  totalPages?: number
+  totalViews?: number;
+  totalPages?: number;
 }
 
 interface PageStatsResponse {
-  path?: string
-  count?: number
+  path?: string;
+  count?: number;
 }
 
 export interface SiteStats {
-  totalViews: number
-  totalPages: number
+  totalViews: number;
+  totalPages: number;
 }
 
 export interface PageStats {
-  path: string
-  count: number
+  path: string;
+  count: number;
 }
 
 /**
@@ -41,7 +42,7 @@ export interface PageStats {
  * @param apiUrl - 可选，自定义上报地址
  */
 export function track(token: string, path: string, apiUrl?: string): void {
-  const url = apiUrl || DEFAULT_TRACK_API_URL
+  const url = apiUrl || DEFAULT_TRACK_API_URL;
 
   // 注意：sendBeacon 不支持自定义 headers，所以只能用 fetch
   if (typeof fetch !== 'undefined') {
@@ -55,7 +56,7 @@ export function track(token: string, path: string, apiUrl?: string): void {
       keepalive: true,
     }).catch(() => {
       // 忽略网络错误，由调用方决定是否需要额外上报
-    })
+    });
   }
 }
 
@@ -68,12 +69,15 @@ export function track(token: string, path: string, apiUrl?: string): void {
  * @param token - 网站令牌
  * @param apiUrl - 可选，自定义查询地址
  */
-export async function getSiteStats(token: string, apiUrl?: string): Promise<SiteStats | null> {
+export async function getSiteStats(
+  token: string,
+  apiUrl?: string,
+): Promise<SiteStats | null> {
   if (typeof fetch === 'undefined') {
-    return null
+    return null;
   }
 
-  const url = apiUrl || DEFAULT_STATS_API_URL
+  const url = apiUrl || DEFAULT_STATS_API_URL;
 
   try {
     const response = await fetch(url, {
@@ -81,20 +85,20 @@ export async function getSiteStats(token: string, apiUrl?: string): Promise<Site
       headers: {
         'X-Site-Token': token,
       },
-    })
+    });
 
     if (!response.ok) {
-      return null
+      return null;
     }
 
-    const data = (await response.json()) as SiteStatsResponse
+    const data = (await response.json()) as SiteStatsResponse;
 
     return {
       totalViews: typeof data.totalViews === 'number' ? data.totalViews : 0,
       totalPages: typeof data.totalPages === 'number' ? data.totalPages : 0,
-    }
+    };
   } catch {
-    return null
+    return null;
   }
 }
 
@@ -108,14 +112,18 @@ export async function getSiteStats(token: string, apiUrl?: string): Promise<Site
  * @param path - 页面路径
  * @param apiUrl - 可选，自定义查询地址（基础地址，不含 query）
  */
-export async function getPageStats(token: string, path: string, apiUrl?: string): Promise<PageStats | null> {
+export async function getPageStats(
+  token: string,
+  path: string,
+  apiUrl?: string,
+): Promise<PageStats | null> {
   if (typeof fetch === 'undefined') {
-    return null
+    return null;
   }
 
-  const baseUrl = apiUrl || DEFAULT_STATS_API_URL
-  const url = new URL(baseUrl)
-  url.searchParams.set('path', path)
+  const baseUrl = apiUrl || DEFAULT_STATS_API_URL;
+  const url = new URL(baseUrl);
+  url.searchParams.set('path', path);
 
   try {
     const response = await fetch(url.toString(), {
@@ -123,19 +131,19 @@ export async function getPageStats(token: string, path: string, apiUrl?: string)
       headers: {
         'X-Site-Token': token,
       },
-    })
+    });
 
     if (!response.ok) {
-      return null
+      return null;
     }
 
-    const data = (await response.json()) as PageStatsResponse
+    const data = (await response.json()) as PageStatsResponse;
 
     return {
       path: typeof data.path === 'string' ? data.path : path,
       count: typeof data.count === 'number' ? data.count : 0,
-    }
+    };
   } catch {
-    return null
+    return null;
   }
 }
