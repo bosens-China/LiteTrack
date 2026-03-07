@@ -12,6 +12,9 @@ RUN apk add --no-cache openssl
 COPY pnpm-lock.yaml pnpm-workspace.yaml package.json ./
 COPY apps/server ./apps/server
 
+# 移除 prisma.config.ts，强制使用 schema.prisma 中的配置（避免 Prisma 7 的配置冲突）
+RUN rm apps/server/prisma.config.ts || true
+
 # 安装后端所需依赖并构建（需要 devDependencies 中的 typescript 等）
 RUN pnpm install --filter server... --frozen-lockfile
 
@@ -21,6 +24,7 @@ ENV DATABASE_URL="postgresql://user:password@localhost:5432/db"
 RUN pnpm --filter server db:generate
 RUN pnpm --filter server build:ts
 RUN pnpm --filter server deploy --prod --legacy /prod/server
+RUN rm /prod/server/prisma.config.ts || true
 RUN cd /prod/server && pnpm exec prisma generate
 
 FROM node:22-alpine AS runner
