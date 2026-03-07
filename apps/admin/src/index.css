@@ -1,0 +1,15 @@
+@import 'tailwindcss';
+
+/* Naive UI 样式覆盖 */
+.n-layout-header {
+  background: #fff;
+}
+
+.n-layout-sider {
+  background: #fff;
+}
+
+/* 通用工具类 */
+.cursor-pointer {
+  cursor: pointer;
+}

@@ -1,0 +1,266 @@
+import { FastifyPluginAsync } from 'fastify'
+import { z } from 'zod'
+import crypto from 'crypto'
+import { UserPayload } from '../../plugins/jwt.js'
+
+/**
+ * 路由参数类型
+ */
+interface SiteParams {
+  id: string
+}
+
+interface TokenParams {
+  siteId: string
+  tokenId: string
+}
+
+/**
+ * 网站验证 Schema
+ */
+const createSiteSchema = z.object({
+  domain: z.string().trim().min(1).max(255),
+  title: z.string().trim().max(255).optional(),
+  description: z.string().trim().max(1000).optional(),
+})
+
+const updateSiteSchema = z.object({
+  title: z.string().trim().max(255).optional(),
+  description: z.string().trim().max(1000).optional(),
+})
+
+const createTokenSchema = z.object({
+  name: z.string().trim().min(1).max(255),
+  description: z.string().trim().max(1000).optional(),
+})
+
+/**
+ * 网站管理路由
+ * 
+ * 网站和访问令牌的 CRUD 操作
+ * 所有路由都需要 JWT 认证
+ */
+const sites: FastifyPluginAsync = async (fastify, _opts): Promise<void> => {
+
+  /**
+   * GET /
+   * 获取当前用户的所有网站
+   */
+  fastify.get('/', { onRequest: [fastify.authenticate] }, async (request, _reply) => {
+    const { userId } = request.user as UserPayload
+
+    const sites = await fastify.prisma.site.findMany({
+      where: { userId },
+      include: {
+        _count: {
+          select: {
+            tokens: true,
+          },
+        },
+      },
+      orderBy: { createdAt: 'desc' },
+    })
+
+    return { sites }
+  })
+
+  /**
+   * POST /
+   * 为当前用户创建新网站
+   * 自动创建一个默认访问令牌
+   */
+  fastify.post('/', { onRequest: [fastify.authenticate] }, async (request, reply) => {
+    const { userId } = request.user as UserPayload
+
+    const parsed = createSiteSchema.safeParse(request.body)
+    if (!parsed.success) {
+      return reply.code(400).send({ error: parsed.error.format() })
+    }
+
+    const { domain, title, description } = parsed.data
+
+    try {
+      const site = await fastify.prisma.site.create({
+        data: {
+          userId,
+          domain,
+          title: title ?? '',
+          description: description || null,
+        },
+      })
+
+      // 生成加密安全的随机令牌
+      const token = crypto.randomBytes(32).toString('hex')
+      await fastify.prisma.siteToken.create({
+        data: {
+          siteId: site.id,
+          token,
+          name: 'default',
+          description: null,
+        },
+      })
+
+      return { site, token }
+    } catch (error: unknown) {
+      if (error && typeof error === 'object' && 'code' in error && error.code === 'P2002') {
+        return reply.code(409).send({ error: '该域名已存在' })
+      }
+      throw error
+    }
+  })
+
+  /**
+   * GET /:id
+   * 获取网站详情，包括访问令牌
+   */
+  fastify.get('/:id', { onRequest: [fastify.authenticate] }, async (request, reply) => {
+    const { userId } = request.user as UserPayload
+    const siteId = parseInt((request.params as SiteParams).id)
+
+    const site = await fastify.prisma.site.findFirst({
+      where: { id: siteId, userId },
+      include: {
+        tokens: {
+          select: {
+            id: true,
+            name: true,
+            description: true,
+            isActive: true,
+            createdAt: true,
+          },
+        },
+      },
+    })
+
+    if (!site) {
+      return reply.code(404).send({ error: '网站不存在' })
+    }
+
+    return { site }
+  })
+
+  /**
+   * PATCH /:id
+   * 更新网站信息
+   */
+  fastify.patch('/:id', { onRequest: [fastify.authenticate] }, async (request, reply) => {
+    const { userId } = request.user as UserPayload
+    const siteId = parseInt((request.params as SiteParams).id)
+
+    const parsed = updateSiteSchema.safeParse(request.body)
+    if (!parsed.success) {
+      return reply.code(400).send({ error: parsed.error.format() })
+    }
+
+    const site = await fastify.prisma.site.findFirst({
+      where: { id: siteId, userId },
+    })
+
+    if (!site) {
+      return reply.code(404).send({ error: '网站不存在' })
+    }
+
+    const updated = await fastify.prisma.site.update({
+      where: { id: siteId },
+      data: {
+        ...(parsed.data.title !== undefined ? { title: parsed.data.title } : {}),
+        ...(parsed.data.description !== undefined
+          ? { description: parsed.data.description || null }
+          : {}),
+      },
+    })
+
+    return { site: updated }
+  })
+
+  /**
+   * DELETE /:id
+   * 删除网站及其所有相关数据
+   */
+  fastify.delete('/:id', { onRequest: [fastify.authenticate] }, async (request, reply) => {
+    const { userId } = request.user as UserPayload
+    const siteId = parseInt((request.params as SiteParams).id)
+
+    const site = await fastify.prisma.site.findFirst({
+      where: { id: siteId, userId },
+    })
+
+    if (!site) {
+      return reply.code(404).send({ error: '网站不存在' })
+    }
+
+    await fastify.prisma.site.delete({
+      where: { id: siteId },
+    })
+
+    return { success: true }
+  })
+
+  /**
+   * POST /:id/tokens
+   * 为网站创建新访问令牌
+   */
+  fastify.post('/:id/tokens', { onRequest: [fastify.authenticate] }, async (request, reply) => {
+    const { userId } = request.user as UserPayload
+    const siteId = parseInt((request.params as SiteParams).id)
+    const parsed = createTokenSchema.safeParse(request.body)
+    if (!parsed.success) {
+      return reply.code(400).send({ error: parsed.error.format() })
+    }
+    const { name, description } = parsed.data
+
+    const site = await fastify.prisma.site.findFirst({
+      where: { id: siteId, userId },
+    })
+
+    if (!site) {
+      return reply.code(404).send({ error: '网站不存在' })
+    }
+
+    const token = crypto.randomBytes(32).toString('hex')
+    const created = await fastify.prisma.siteToken.create({
+      data: {
+        siteId,
+        token,
+        name,
+        description: description || null,
+      },
+      select: {
+        id: true,
+        name: true,
+        description: true,
+        token: true,
+        isActive: true,
+        createdAt: true,
+      },
+    })
+
+    return { token: created }
+  })
+
+  /**
+   * DELETE /:siteId/tokens/:tokenId
+   * 撤销（删除）访问令牌
+   */
+  fastify.delete('/:siteId/tokens/:tokenId', { onRequest: [fastify.authenticate] }, async (request, reply) => {
+    const { userId } = request.user as UserPayload
+    const siteId = parseInt((request.params as TokenParams).siteId)
+    const tokenId = parseInt((request.params as TokenParams).tokenId)
+
+    const site = await fastify.prisma.site.findFirst({
+      where: { id: siteId, userId },
+    })
+
+    if (!site) {
+      return reply.code(404).send({ error: '网站不存在' })
+    }
+
+    await fastify.prisma.siteToken.delete({
+      where: { id: tokenId, siteId },
+    })
+
+    return { success: true }
+  })
+}
+
+export default sites

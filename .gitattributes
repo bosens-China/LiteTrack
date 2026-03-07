@@ -1,0 +1,9 @@
+*.md text=lf
+*.json text=lf
+*.ts text=lf
+*.vue text=lf
+*.yaml text=lf
+*.mjs text=lf
+*.js text=lf
+*.html text=lf
+*.css text=lf

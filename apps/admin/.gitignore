@@ -1,0 +1,4 @@
+dist/
+
+# Profile
+.rspack-profile-*/
