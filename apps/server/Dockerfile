@@ -5,12 +5,19 @@ WORKDIR /app
 # 使用 pnpm（与项目一致）
 RUN corepack enable
 
+# 安装 openssl (Prisma 在 Alpine 上需要)
+RUN apk add --no-cache openssl
+
 # 仅拷贝 server 子项目，减少无关文件导致的缓存失效
 COPY pnpm-lock.yaml pnpm-workspace.yaml package.json ./
 COPY apps/server ./apps/server
 
 # 安装后端所需依赖并构建（需要 devDependencies 中的 typescript 等）
 RUN pnpm install --filter server... --frozen-lockfile
+
+# 设置临时的 DATABASE_URL 以通过 prisma generate 的验证（不需要真实连接）
+ENV DATABASE_URL="postgresql://user:password@localhost:5432/db"
+
 RUN pnpm --filter server db:generate
 RUN pnpm --filter server build:ts
 RUN pnpm --filter server deploy --prod --legacy /prod/server
