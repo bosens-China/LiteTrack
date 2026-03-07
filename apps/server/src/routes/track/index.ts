@@ -13,6 +13,13 @@ function formatDateInTimeZone(date: Date): string {
   return new Intl.DateTimeFormat('sv-SE', { timeZone: config.APP_TIMEZONE }).format(date)
 }
 
+function normalizePath(path: string): string {
+  if (path.length > 1 && path.endsWith('/')) {
+    return path.slice(0, -1)
+  }
+  return path
+}
+
 /**
  * 追踪路由
  * 
@@ -57,7 +64,8 @@ const track: FastifyPluginAsync = async (fastify, _opts): Promise<void> => {
       return reply.code(400).send({ error: parsed.error.format() })
     }
 
-    const { path } = parsed.data
+    const { path: rawPath } = parsed.data
+    const path = normalizePath(rawPath)
     const siteId = siteToken.siteId
 
     // 获取客户端 IP 用于速率限制
@@ -139,7 +147,7 @@ const track: FastifyPluginAsync = async (fastify, _opts): Promise<void> => {
     }
 
     const siteId = siteToken.siteId
-    const path = typeof request.query?.path === 'string' ? request.query.path : undefined
+    const path = typeof request.query?.path === 'string' ? normalizePath(request.query.path) : undefined
 
     if (path !== undefined) {
       // 指定页面：返回该 path 的访问量
