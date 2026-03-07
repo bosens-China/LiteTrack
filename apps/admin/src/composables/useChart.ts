@@ -1,4 +1,5 @@
 import { ref, onUnmounted, type Ref } from 'vue'
+import * as echarts from 'echarts'
 import type { ECharts, EChartsOption } from 'echarts'
 
 /**
@@ -30,12 +31,10 @@ export function useChart() {
 
     // 如果已存在实例，先销毁
     disposeChart()
-
-    // 动态导入 echarts，避免服务端渲染问题
-    import('echarts').then((echarts) => {
-      chartInstance.value = echarts.init(chartRef.value!, theme)
-      chartInstance.value.setOption(option)
-    })
+    
+    // 初始化实例并设置配置
+    chartInstance.value = echarts.init(chartRef.value!, theme)
+    chartInstance.value.setOption(option)
   }
 
   /**

@@ -5,26 +5,25 @@
 </template>
 
 <script setup lang="ts">
-import { watch, onMounted } from 'vue'
-import { NCard } from 'naive-ui'
-import { useChart } from '@/composables'
-import type { DailyView } from '@/api/stats'
-import type { EChartsOption } from 'echarts'
+import { watch, onMounted } from 'vue';
+import { NCard } from 'naive-ui';
+import { useChart } from '@/composables';
+import type { DailyView } from '@/api/stats';
+import type { EChartsOption } from 'echarts';
 
 interface Props {
-  dailyViews: DailyView[]
+  dailyViews: DailyView[];
 }
 
-const props = defineProps<Props>()
+const props = defineProps<Props>();
 
-// @ts-expect-error chartRef is used in template
-const { chartRef, initChart, setOption } = useChart()
+const { chartRef, initChart, setOption } = useChart();
 
-function updateChart() {
-  const dates = props.dailyViews.map(d => d.date.slice(5))
-  const counts = props.dailyViews.map(d => d.count)
+function getOption(): EChartsOption {
+  const dates = props.dailyViews.map((d) => d.date.slice(5));
+  const counts = props.dailyViews.map((d) => d.count);
 
-  const option: EChartsOption = {
+  return {
     tooltip: { trigger: 'axis' },
     xAxis: { type: 'category', data: dates },
     yAxis: { type: 'value' },
@@ -56,17 +55,18 @@ function updateChart() {
       bottom: '3%',
       containLabel: true,
     },
-  }
+  };
+}
 
-  if (props.dailyViews.length > 0) {
-    setOption(option)
-  }
+function updateChart() {
+  const option = getOption();
+  setOption(option);
 }
 
 onMounted(() => {
-  initChart({})
-  updateChart()
-})
+  // 初始化时直接传入当前配置，避免异步竞态问题
+  initChart(getOption());
+});
 
-watch(() => props.dailyViews, updateChart, { deep: true })
+watch(() => props.dailyViews, updateChart, { deep: true });
 </script>
