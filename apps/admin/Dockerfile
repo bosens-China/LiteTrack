@@ -17,8 +17,11 @@ FROM nginx:1.27-alpine AS runner
 
 WORKDIR /usr/share/nginx/html
 
-# 配置 SPA 路由回退，避免刷新子路由 404
-COPY apps/admin/nginx.conf /etc/nginx/conf.d/default.conf
+# 默认后端上游地址（可在运行时通过环境变量覆盖）
+ENV LITETRACK_API_UPSTREAM=server:3000
+
+# 使用 Nginx 官方模板机制，启动时自动 envsubst
+COPY apps/admin/nginx.conf /etc/nginx/templates/default.conf.template
 
 # 将构建好的静态文件复制到 Nginx 默认目录
 COPY --from=build /app/apps/admin/dist ./

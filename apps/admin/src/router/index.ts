@@ -4,7 +4,7 @@ import { useAuthStore } from '@/stores/auth'
 // 页面标题映射
 const titleMap: Record<string, string> = {
   Login: '登录',
-  AuthCallback: '癵录中',
+  AuthCallback: '登录中',
   Dashboard: '仪表盘',
   Sites: '网站管理',
   SiteDetail: '网站详情',
@@ -24,7 +24,7 @@ const router = createRouter({
       path: '/auth/callback',
       name: 'AuthCallback',
       component: () => import('@/views/AuthCallback.vue'),
-      meta: { public: true, title: '癵录中' },
+      meta: { public: true, title: '登录中' },
     },
     {
       path: '/',
