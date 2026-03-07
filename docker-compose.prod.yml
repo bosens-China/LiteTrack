@@ -1,0 +1,74 @@
+version: "3.9"
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: litetrack-postgres
+    environment:
+      POSTGRES_USER: litetrack
+      POSTGRES_PASSWORD: litetrack_password
+      POSTGRES_DB: litetrack
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    # 生产环境通常不需要暴露数据库端口，如需调试可以取消注释
+    # ports:
+    #   - "25432:5432"
+
+  redis:
+    image: redis:7-alpine
+    container_name: litetrack-redis
+    volumes:
+      - redis_data:/data
+    # 同样建议仅在内网使用，如需调试可以开放端口
+    # ports:
+    #   - "26379:6379"
+
+  server:
+    image: boses/litetrack-server:latest
+    # 如需本地构建镜像，可以取消下方 build，并在 CI 中推送到 Docker Hub
+    # build:
+    #   context: ./apps/server
+    #   dockerfile: Dockerfile
+    depends_on:
+      - postgres
+      - redis
+    environment:
+      # 数据库（生产环境请改为真实密码）
+      DATABASE_URL: postgresql://litetrack:litetrack_password@postgres:5432/litetrack
+      # Redis
+      REDIS_URL: redis://redis:6379
+      # JWT，生产环境务必使用强随机值
+      JWT_SECRET: ${JWT_SECRET}
+      # GitHub OAuth（生产环境必填）
+      GITHUB_CLIENT_ID: ${GITHUB_CLIENT_ID}
+      GITHUB_CLIENT_SECRET: ${GITHUB_CLIENT_SECRET}
+      GITHUB_CALLBACK_URL: ${GITHUB_CALLBACK_URL}
+      # 时区
+      APP_TIMEZONE: Asia/Shanghai
+      # 服务端口
+      PORT: 3000
+      HOST: 0.0.0.0
+      NODE_ENV: production
+    ports:
+      # 对外暴露 API（可放在反向代理后）
+      - "3000:3000"
+
+  admin:
+    image: boses/litetrack-admin:latest
+    # 也可以本地 build：
+    # build:
+    #   context: ./apps/admin
+    #   dockerfile: Dockerfile
+    depends_on:
+      - server
+    environment:
+      # 前端访问后端的 API 地址
+      VITE_API_BASE_URL: http://server:3000/litetrack/v1
+    ports:
+      # 对外暴露管理后台（可放在反向代理后）
+      - "8080:80"
+
+volumes:
+  postgres_data:
+  redis_data:
+
