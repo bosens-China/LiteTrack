@@ -1,0 +1,1 @@
+var LiteTrack=(function(e){function t(e,t,n){let r=n||`https://api.litetrack.io/litetrack/v1/track`;typeof fetch<`u`&&fetch(r,{method:`POST`,headers:{"Content-Type":`application/json`,"X-Site-Token":e},body:JSON.stringify({path:t}),keepalive:!0}).catch(()=>{})}return e.track=t,e})({});

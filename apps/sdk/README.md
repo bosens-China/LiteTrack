@@ -1,256 +1,90 @@
 # LiteTrack SDK
 
-轻量级、框架无关的网站访问统计 SDK
+轻量级、框架无关的网站访问统计，仅提供一个 JS 文件，通过 script 标签引入使用。
 
-## 特性
+## 使用方式
 
-- 🪶 **轻量级**：不到 2KB（gzip）
-- 🔌 **框架无关**：适用于 React、Vue、Angular、Svelte 等任何框架
-- 🚀 **高性能**：使用 `sendBeacon` API，不阻塞页面卸载
-- 📡 **自动追踪**：可选的自动路由监听
-- 🛠️ **可扩展**：提供基础 API，开发者可自由适配
-
-## 安装
-
-```bash
-npm install litetrack-sdk
-# 或
-pnpm add litetrack-sdk
-# 或
-yarn add litetrack-sdk
-```
-
-## 快速开始
-
-### 基础用法
-
-```typescript
-import { init, track } from 'litetrack-sdk'
-
-// 初始化（在应用启动时调用一次）
-init({
-  token: 'your-site-token', // 从 LiteTrack 后台获取
-})
-
-// 手动上报页面访问
-track('/blog/hello-world')
-```
-
-### 自动追踪（推荐）
-
-```typescript
-import { init, autoTrack } from 'litetrack-sdk'
-
-init({ token: 'your-site-token' })
-
-// 自动监听浏览器路由变化并上报
-autoTrack()
-```
-
-## API 参考
-
-### `init(options)`
-
-初始化 SDK
-
-```typescript
-interface LiteTrackOptions {
-  token: string      // 必填，网站访问令牌
-  apiUrl?: string    // 可选，API 地址
-  debug?: boolean    // 可选，开启调试日志
-}
-
-init({
-  token: 'your-token',
-  debug: process.env.NODE_ENV === 'development',
-})
-```
-
-### `track(path)`
-
-手动上报页面访问
-
-```typescript
-track('/blog/hello-world')
-```
-
-### `autoTrack(getPath?)`
-
-自动追踪页面访问
-
-```typescript
-// 默认使用 location.pathname
-autoTrack()
-
-// 自定义路径（适用于 hash 路由）
-autoTrack(() => window.location.hash.slice(1) || '/')
-```
-
-## 框架适配示例
-
-### React
-
-```tsx
-// hooks/useLiteTrack.ts
-import { useEffect } from 'react'
-import { init, track } from 'litetrack-sdk'
-import { useLocation } from 'react-router-dom'
-
-export function useLiteTrack(token: string) {
-  const location = useLocation()
-
-  useEffect(() => {
-    init({ token })
-  }, [token])
-
-  useEffect(() => {
-    track(location.pathname + location.search)
-  }, [location])
-}
-
-// App.tsx
-function App() {
-  useLiteTrack('your-token')
-  return <div>...</div>
-}
-```
-
-### Vue 3
-
-```typescript
-// composables/useLiteTrack.ts
-import { watch } from 'vue'
-import { useRoute } from 'vue-router'
-import { init, track } from 'litetrack-sdk'
-
-export function useLiteTrack(token: string) {
-  const route = useRoute()
-
-  init({ token })
-
-  watch(
-    () => route.path,
-    (path) => {
-      track(path)
-    },
-    { immediate: true }
-  )
-}
-
-// App.vue
-<script setup>
-useLiteTrack('your-token')
-</script>
-```
-
-### Vue 2
-
-```javascript
-// main.js
-import { init, autoTrack } from 'litetrack-sdk'
-
-init({ token: 'your-token' })
-
-// Vue Router 导航守卫
-router.afterEach((to) => {
-  track(to.path)
-})
-```
-
-### Next.js
-
-```tsx
-// components/LiteTrack.tsx
-'use client'
-import { usePathname } from 'next/navigation'
-import { useEffect } from 'react'
-import { init, track } from 'litetrack-sdk'
-
-export function LiteTrack({ token }: { token: string }) {
-  const pathname = usePathname()
-
-  useEffect(() => {
-    init({ token })
-  }, [token])
-
-  useEffect(() => {
-    if (pathname) {
-      track(pathname)
-    }
-  }, [pathname])
-
-  return null
-}
-
-// layout.tsx
-export default function RootLayout({ children }) {
-  return (
-    <html>
-      <body>
-        <LiteTrack token="your-token" />
-        {children}
-      </body>
-    </html>
-  )
-}
-```
-
-### Nuxt 3
-
-```typescript
-// plugins/litetrack.client.ts
-import { init, track } from 'litetrack-sdk'
-
-export default defineNuxtPlugin(() => {
-  const route = useRoute()
-  
-  init({ token: 'your-token' })
-
-  watch(
-    () => route.path,
-    (path) => {
-      track(path)
-    },
-    { immediate: true }
-  )
-})
-```
-
-### SvelteKit
-
-```typescript
-// hooks.client.ts
-import { init, track } from 'litetrack-sdk'
-import { page } from '$app/stores'
-
-init({ token: 'your-token' })
-
-page.subscribe(($page) => {
-  track($page.url.pathname)
-})
-```
-
-### 原生 JavaScript (CDN)
+1. 获取 `dist/index.iife.js`（可重命名为 `litetrack.js`），放到你的静态资源目录。
+2. 在页面中引入，在合适的时机调用上报与查询方法。
 
 ```html
-<script type="module">
-  import { init, track } from 'https://unpkg.com/litetrack-sdk/dist/index.mjs'
-  
-  init({ token: 'your-token' })
-  track('/')
+<script src="/js/litetrack.js" defer></script>
+<script>
+  // 上报当前页面访问
+  window.addEventListener('load', function () {
+    LiteTrack.track('your-site-token', location.pathname)
+  })
+
+  // 查询站点汇总
+  LiteTrack.getSiteStats('your-site-token').then(function (stats) {
+    if (!stats) return
+    console.log('total views:', stats.totalViews)
+    console.log('total pages:', stats.totalPages)
+  })
+
+  // 查询当前页面访问量
+  LiteTrack.getPageStats('your-site-token', location.pathname).then(function (page) {
+    if (!page) return
+    console.log('current page views:', page.count)
+  })
 </script>
 ```
 
-## 调试
+## API
 
-开启调试模式查看日志：
+### 上报
 
-```typescript
-init({
-  token: 'your-token',
-  debug: true,
-})
-```
+`LiteTrack.track(token, path, apiUrl?)`
+
+| 参数    | 说明 |
+|---------|------|
+| token   | 网站令牌，从 LiteTrack 后台获取 |
+| path    | 页面路径，如 `/blog/hello-world` |
+| apiUrl  | 可选，自定义上报地址，默认为官方上报接口 |
+
+说明：仅发送请求，不关心返回值；网络错误会被内部捕获，不会抛异常。
+
+### 查询站点汇总
+
+`LiteTrack.getSiteStats(token, apiUrl?) -> Promise<{ totalViews: number; totalPages: number } \| null>`
+
+| 参数    | 说明 |
+|---------|------|
+| token   | 网站令牌，从 LiteTrack 后台获取 |
+| apiUrl  | 可选，自定义查询地址，默认为官方 `/track/stats` 接口 |
+
+返回值：
+
+- 成功：`{ totalViews, totalPages }`
+  - `totalViews`：站点所有页面的累计访问次数（PV 总和）
+  - `totalPages`：至少被访问过一次的不同页面数量
+- 失败（网络错误、token 无效等）：`null`
+
+### 查询指定页面
+
+`LiteTrack.getPageStats(token, path, apiUrl?) -> Promise<{ path: string; count: number } \| null>`
+
+| 参数    | 说明 |
+|---------|------|
+| token   | 网站令牌，从 LiteTrack 后台获取 |
+| path    | 页面路径，如 `/blog/hello-world` |
+| apiUrl  | 可选，自定义查询地址（基础地址，不含 query），默认为官方 `/track/stats` 接口 |
+
+返回值：
+
+- 成功：`{ path, count }`
+  - `path`：实际返回的页面路径（默认等于传入的 `path`）
+  - `count`：该页面的累计访问次数
+- 失败（网络错误、token 无效等）：`null`
+
+## 避免影响首屏加载
+
+- 使用 `defer` 或把 script 放在 `</body>` 前，不要用阻塞解析的同步脚本。
+- 在 `load` 或 `DOMContentLoaded` 之后再调用 `LiteTrack.track` / 查询方法；需要时可用 `setTimeout(fn, 0)` 或 `requestIdleCallback` 延后执行。
+
+## 构建
+
+在仓库中执行 `pnpm build`，产物为 **`dist/index.iife.js`**，仅此一个文件。
 
 ## 许可证
 

@@ -3,16 +3,6 @@
   "version": "0.1.0",
   "description": "LiteTrack analytics SDK - lightweight and framework-agnostic",
   "type": "module",
-  "main": "./dist/index.cjs",
-  "module": "./dist/index.mjs",
-  "types": "./dist/index.d.cts",
-  "exports": {
-    ".": {
-      "require": "./dist/index.cjs",
-      "import": "./dist/index.mjs"
-    },
-    "./package.json": "./package.json"
-  },
   "files": [
     "dist"
   ],
@@ -20,7 +10,8 @@
     "build": "tsdown",
     "dev": "tsdown --watch",
     "type-check": "tsc --noEmit",
-    "lint": "eslint src"
+    "lint": "eslint src",
+    "test": "vitest run"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
@@ -28,7 +19,8 @@
     "globals": "^16.5.0",
     "tsdown": "^0.18.1",
     "typescript": "^5.9.3",
-    "typescript-eslint": "^8.56.1"
+    "typescript-eslint": "^8.56.1",
+    "vitest": "^4.0.18"
   },
   "keywords": [
     "analytics",
@@ -37,5 +29,8 @@
     "statistics",
     "sdk"
   ],
-  "license": "MIT"
+  "license": "MIT",
+  "exports": {
+    "./package.json": "./package.json"
+  }
 }

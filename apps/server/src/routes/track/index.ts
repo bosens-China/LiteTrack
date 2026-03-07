@@ -113,6 +113,64 @@ const track: FastifyPluginAsync = async (fastify, _opts): Promise<void> => {
   })
 
   /**
+   * GET /stats
+   * 公开查询统计（X-Site-Token 鉴权）
+   * - 无 path：返回全站总 PV、总页数
+   * - 有 path：返回该页面的访问量
+   *
+   * Query: path?: string
+   */
+  fastify.get<{
+    Querystring: { path?: string }
+  }>('/stats', async (request, reply) => {
+    const token = request.headers['x-site-token'] as string
+
+    if (!token) {
+      return reply.code(401).send({ error: '缺少令牌' })
+    }
+
+    const siteToken = await fastify.prisma.siteToken.findUnique({
+      where: { token },
+      include: { site: true },
+    })
+
+    if (!siteToken || !siteToken.isActive) {
+      return reply.code(401).send({ error: '无效的令牌' })
+    }
+
+    const siteId = siteToken.siteId
+    const path = typeof request.query?.path === 'string' ? request.query.path : undefined
+
+    if (path !== undefined) {
+      // 指定页面：返回该 path 的访问量
+      const page = await fastify.prisma.pageView.findUnique({
+        where: {
+          siteId_path: { siteId, path },
+        },
+        select: { path: true, count: true },
+      })
+      return {
+        path: path,
+        count: page?.count ?? 0,
+      }
+    }
+
+    // 全站：总 PV、总页数
+    const totalViews = await fastify.prisma.pageView.aggregate({
+      where: { siteId },
+      _sum: { count: true },
+    })
+    const totalPages = await fastify.prisma.pageView.count({
+      where: { siteId },
+    })
+
+    return {
+      totalViews: totalViews._sum.count ?? 0,
+      totalPages,
+    }
+  })
+
+  /**
    * GET /verify
    * 验证网站令牌是否有效
    * SDK 初始化验证时使用

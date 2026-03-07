@@ -1,170 +1,141 @@
 /**
  * LiteTrack SDK
- * 
- * 轻量级、框架无关的网站访问统计 SDK
- * 
- * @example
- * ```ts
- * import { init, track } from 'litetrack-sdk'
- * 
- * init({ token: 'your-site-token' })
- * 
- * // 手动上报
- * track('/blog/hello-world')
- * 
- * // 或者自动监听路由变化
- * autoTrack()
- * ```
+ *
+ * 默认使用官方 API 地址：
+ * - 上报：POST https://api.litetrack.io/litetrack/v1/track
+ * - 查询：GET  https://api.litetrack.io/litetrack/v1/track/stats
  */
 
-// SDK 配置选项
-export interface LiteTrackOptions {
-  /** 网站访问令牌 */
-  token: string
-  /** API 基础地址，默认 https://api.litetrack.io */
-  apiUrl?: string
-  /** 是否开启调试模式 */
-  debug?: boolean
+const DEFAULT_TRACK_API_URL = 'https://api.litetrack.io/litetrack/v1/track'
+const DEFAULT_STATS_API_URL = 'https://api.litetrack.io/litetrack/v1/track/stats'
+
+interface SiteStatsResponse {
+  totalViews?: number
+  totalPages?: number
 }
 
-// 内部状态
-interface LiteTrackState {
-  token: string | null
-  apiUrl: string
-  debug: boolean
-  initialized: boolean
+interface PageStatsResponse {
+  path?: string
+  count?: number
 }
 
-const state: LiteTrackState = {
-  token: null,
-  apiUrl: 'https://api.litetrack.io/litetrack/v1',
-  debug: false,
-  initialized: false,
+export interface SiteStats {
+  totalViews: number
+  totalPages: number
+}
+
+export interface PageStats {
+  path: string
+  count: number
 }
 
 /**
- * 初始化 SDK
- * 
- * @param options - 配置选项
- * @example
- * ```ts
- * init({ token: 'your-token' })
- * ```
+ * 上报页面访问（仅发送，不关心返回值）
+ *
+ * 后端要求：
+ * - Header: X-Site-Token: <token>
+ * - Body: { path: string }
+ *
+ * @param token - 网站令牌
+ * @param path - 页面路径
+ * @param apiUrl - 可选，自定义上报地址
  */
-export function init(options: LiteTrackOptions): void {
-  if (!options.token) {
-    throw new Error('[LiteTrack] token is required')
-  }
+export function track(token: string, path: string, apiUrl?: string): void {
+  const url = apiUrl || DEFAULT_TRACK_API_URL
 
-  state.token = options.token
-  state.apiUrl = options.apiUrl || state.apiUrl
-  state.debug = options.debug || false
-  state.initialized = true
-
-  log('SDK initialized')
-}
-
-/**
- * 上报页面访问
- * 
- * @param path - 页面路径，如 /blog/hello-world
- * @example
- * ```ts
- * track('/blog/hello-world')
- * track(window.location.pathname)
- * ```
- */
-export function track(path: string): void {
-  if (!state.initialized) {
-    console.warn('[LiteTrack] SDK not initialized, call init() first')
-    return
-  }
-
-  if (!path) {
-    console.warn('[LiteTrack] path is required')
-    return
-  }
-
-  const url = `${state.apiUrl}/track`
-  const data = { path }
-
-  log('Tracking:', path)
-
-  // 使用 fetch 发送数据
-  fetch(url, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'X-Site-Token': state.token!,
-    },
-    body: JSON.stringify(data),
-    keepalive: true,
-  }).catch((err) => {
-    console.error('[LiteTrack] Failed to track:', err)
-  })
-}
-
-/**
- * 自动追踪页面访问
- * 
- * 监听浏览器路由变化（popstate/hashchange）自动上报
- * 
- * @param getPath - 自定义获取路径的函数，默认使用 location.pathname
- * @example
- * ```ts
- * // 默认使用 location.pathname
- * autoTrack()
- * 
- * // 自定义路径（适用于单页应用）
- * autoTrack(() => window.location.hash.slice(1))
- * ```
- */
-export function autoTrack(getPath?: () => string): () => void {
-  if (!state.initialized) {
-    console.warn('[LiteTrack] SDK not initialized, call init() first')
-    return () => {}
-  }
-
-  const getCurrentPath = getPath || (() => window.location.pathname)
-
-  // 上报当前页面
-  track(getCurrentPath())
-
-  // 监听路由变化
-  const handleChange = () => {
-    track(getCurrentPath())
-  }
-
-  // popstate - 浏览器前进/后退
-  window.addEventListener('popstate', handleChange)
-  // hashchange - hash 路由变化
-  window.addEventListener('hashchange', handleChange)
-
-  log('Auto tracking enabled')
-
-  // 返回取消监听的函数
-  return () => {
-    window.removeEventListener('popstate', handleChange)
-    window.removeEventListener('hashchange', handleChange)
-    log('Auto tracking disabled')
+  // 注意：sendBeacon 不支持自定义 headers，所以只能用 fetch
+  if (typeof fetch !== 'undefined') {
+    fetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Site-Token': token,
+      },
+      body: JSON.stringify({ path }),
+      keepalive: true,
+    }).catch(() => {
+      // 忽略网络错误，由调用方决定是否需要额外上报
+    })
   }
 }
 
 /**
- * 获取当前配置（用于调试）
+ * 查询站点汇总数据
+ *
+ * - 不会抛出异常，失败时返回 null
+ * - 成功时返回 totalViews / totalPages
+ *
+ * @param token - 网站令牌
+ * @param apiUrl - 可选，自定义查询地址
  */
-export function getConfig(): Readonly<Partial<LiteTrackState>> {
-  return {
-    apiUrl: state.apiUrl,
-    debug: state.debug,
-    initialized: state.initialized,
-    // 不返回 token 以保护隐私
+export async function getSiteStats(token: string, apiUrl?: string): Promise<SiteStats | null> {
+  if (typeof fetch === 'undefined') {
+    return null
+  }
+
+  const url = apiUrl || DEFAULT_STATS_API_URL
+
+  try {
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: {
+        'X-Site-Token': token,
+      },
+    })
+
+    if (!response.ok) {
+      return null
+    }
+
+    const data = (await response.json()) as SiteStatsResponse
+
+    return {
+      totalViews: typeof data.totalViews === 'number' ? data.totalViews : 0,
+      totalPages: typeof data.totalPages === 'number' ? data.totalPages : 0,
+    }
+  } catch {
+    return null
   }
 }
 
-// 日志工具
-function log(...args: unknown[]): void {
-  if (state.debug) {
-    console.log('[LiteTrack]', ...args)
+/**
+ * 查询指定页面的访问量
+ *
+ * - 不会抛出异常，失败时返回 null
+ * - 成功时返回 { path, count }
+ *
+ * @param token - 网站令牌
+ * @param path - 页面路径
+ * @param apiUrl - 可选，自定义查询地址（基础地址，不含 query）
+ */
+export async function getPageStats(token: string, path: string, apiUrl?: string): Promise<PageStats | null> {
+  if (typeof fetch === 'undefined') {
+    return null
+  }
+
+  const baseUrl = apiUrl || DEFAULT_STATS_API_URL
+  const url = new URL(baseUrl)
+  url.searchParams.set('path', path)
+
+  try {
+    const response = await fetch(url.toString(), {
+      method: 'GET',
+      headers: {
+        'X-Site-Token': token,
+      },
+    })
+
+    if (!response.ok) {
+      return null
+    }
+
+    const data = (await response.json()) as PageStatsResponse
+
+    return {
+      path: typeof data.path === 'string' ? data.path : path,
+      count: typeof data.count === 'number' ? data.count : 0,
+    }
+  } catch {
+    return null
   }
 }
