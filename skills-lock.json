@@ -1,0 +1,30 @@
+{
+  "version": 1,
+  "skills": {
+    "create-adaptable-composable": {
+      "source": "vuejs-ai/skills",
+      "sourceType": "github",
+      "computedHash": "3d044f8c43ddaee6a58ab28acc9d6315775aed150c3a9ab059d2714768be5bec"
+    },
+    "fastify-best-practise": {
+      "source": "TheCodePace/fastify-skills",
+      "sourceType": "github",
+      "computedHash": "61abad28abf72555de08337de278052398d570dea227d13e9e458dfe2c61218e"
+    },
+    "vue-best-practices": {
+      "source": "vuejs-ai/skills",
+      "sourceType": "github",
+      "computedHash": "21132f6c11c765bd11d0d6ad081122dd858630073e2123b651e58f17b399b131"
+    },
+    "vue-pinia-best-practices": {
+      "source": "vuejs-ai/skills",
+      "sourceType": "github",
+      "computedHash": "ab191c9cc34d755e5e2133bbedc56bd5f9ba0841e242a7b54c818780a5c78a9c"
+    },
+    "vue-router-best-practices": {
+      "source": "vuejs-ai/skills",
+      "sourceType": "github",
+      "computedHash": "5a8f2f8021fe27cef48d8cf053b4cdb9375c0dc5d5e066330888229d0370f55c"
+    }
+  }
+}
