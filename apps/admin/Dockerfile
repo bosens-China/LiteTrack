@@ -17,6 +17,9 @@ FROM nginx:1.27-alpine AS runner
 
 WORKDIR /usr/share/nginx/html
 
+# 配置 SPA 路由回退，避免刷新子路由 404
+COPY apps/admin/nginx.conf /etc/nginx/conf.d/default.conf
+
 # 将构建好的静态文件复制到 Nginx 默认目录
 COPY --from=build /app/apps/admin/dist ./
 

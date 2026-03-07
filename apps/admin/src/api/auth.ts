@@ -31,4 +31,4 @@ export function getCurrentUser(): Promise<{ user: User }> {
 /**
  * GitHub OAuth 登录地址
  */
-export const GITHUB_LOGIN_URL = `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000/litetrack/v1'}/auth/github`
+export const GITHUB_LOGIN_URL = `${import.meta.env.VITE_API_BASE_URL || '/litetrack/v1'}/auth/github`

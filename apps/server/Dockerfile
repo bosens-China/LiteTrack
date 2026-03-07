@@ -11,6 +11,7 @@ COPY apps ./apps
 
 # 安装后端所需依赖并构建（需要 devDependencies 中的 typescript 等）
 RUN pnpm install --filter server... --frozen-lockfile
+RUN pnpm --filter server db:generate
 RUN pnpm --filter server build:ts
 
 ENV NODE_ENV=production

@@ -1,7 +1,7 @@
 import axios, { type AxiosError, type InternalAxiosRequestConfig } from 'axios'
 
 // API 基础配置
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000/litetrack/v1'
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/litetrack/v1'
 
 // 创建 axios 实例
 const request = axios.create({

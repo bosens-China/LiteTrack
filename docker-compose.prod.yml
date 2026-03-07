@@ -1,5 +1,3 @@
-version: "3.9"
-
 services:
   postgres:
     image: postgres:16-alpine
@@ -10,6 +8,7 @@ services:
       POSTGRES_DB: litetrack
     volumes:
       - postgres_data:/var/lib/postgresql/data
+    restart: unless-stopped
     # 生产环境通常不需要暴露数据库端口，如需调试可以取消注释
     # ports:
     #   - "25432:5432"
@@ -19,6 +18,7 @@ services:
     container_name: litetrack-redis
     volumes:
       - redis_data:/data
+    restart: unless-stopped
     # 同样建议仅在内网使用，如需调试可以开放端口
     # ports:
     #   - "26379:6379"
@@ -49,9 +49,10 @@ services:
       PORT: 3000
       HOST: 0.0.0.0
       NODE_ENV: production
-    ports:
-      # 对外暴露 API（可放在反向代理后）
-      - "3000:3000"
+    expose:
+      # 仅在 compose 内网暴露给 admin(Nginx) 反代
+      - "3000"
+    restart: unless-stopped
 
   admin:
     image: boses/litetrack-admin:latest
@@ -61,12 +62,10 @@ services:
     #   dockerfile: ./apps/admin/Dockerfile
     depends_on:
       - server
-    environment:
-      # 前端访问后端的 API 地址
-      VITE_API_BASE_URL: http://server:3000/litetrack/v1
     ports:
-      # 对外暴露管理后台（可放在反向代理后）
+      # 对外暴露统一入口（前端 + /litetrack 反代）
       - "8080:80"
+    restart: unless-stopped
 
 volumes:
   postgres_data:

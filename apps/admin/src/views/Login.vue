@@ -35,7 +35,7 @@ import { Icon } from '@iconify/vue'
 
 const loading = ref(false)
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000/litetrack/v1'
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/litetrack/v1'
 
 function handleLogin() {
   loading.value = true
