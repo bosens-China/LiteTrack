@@ -1,4 +1,5 @@
 @import 'tailwindcss';
+@import 'vue-echarts/style.css';
 
 /* Naive UI 样式覆盖 */
 .n-layout-header {
@@ -12,4 +13,38 @@
 /* 通用工具类 */
 .cursor-pointer {
   cursor: pointer;
+}
+
+/* 统计卡片样式 */
+.stat-card-blue {
+  background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%);
+  border: 1px solid #bfdbfe;
+  transition: all 0.3s ease;
+}
+
+.stat-card-blue:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 25px -5px rgba(59, 130, 246, 0.15);
+}
+
+.stat-card-green {
+  background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%);
+  border: 1px solid #bbf7d0;
+  transition: all 0.3s ease;
+}
+
+.stat-card-green:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 25px -5px rgba(34, 197, 94, 0.15);
+}
+
+.stat-card-purple {
+  background: linear-gradient(135deg, #faf5ff 0%, #f3e8ff 100%);
+  border: 1px solid #e9d5ff;
+  transition: all 0.3s ease;
+}
+
+.stat-card-purple:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 25px -5px rgba(168, 85, 247, 0.15);
 }

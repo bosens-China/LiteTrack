@@ -8,7 +8,7 @@ const titleMap: Record<string, string> = {
   Dashboard: '仪表盘',
   Sites: '网站管理',
   SiteDetail: '网站详情',
-  NewSite: '创建网站',
+  NotFound: '页面不存在',
 }
 
 const router = createRouter({
@@ -48,17 +48,14 @@ const router = createRouter({
           component: () => import('@/views/SiteDetail/index.vue'),
           meta: { title: '网站详情' },
         },
-        {
-          path: 'sites/new',
-          name: 'NewSite',
-          component: () => import('@/views/NewSite.vue'),
-          meta: { title: '创建网站' },
-        },
+
       ],
     },
     {
       path: '/:pathMatch(.*)*',
-      redirect: '/',
+      name: 'NotFound',
+      component: () => import('@/views/NotFound.vue'),
+      meta: { public: true, title: '页面不存在' },
     },
   ],
 })

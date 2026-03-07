@@ -7,6 +7,7 @@ import { config } from '../../lib/config.js'
  */
 const trackSchema = z.object({
   path: z.string().min(1).max(500),
+  title: z.string().max(500).optional(),
 })
 
 function formatDateInTimeZone(date: Date): string {
@@ -64,7 +65,7 @@ const track: FastifyPluginAsync = async (fastify, _opts): Promise<void> => {
       return reply.code(400).send({ error: parsed.error.format() })
     }
 
-    const { path: rawPath } = parsed.data
+    const { path: rawPath, title } = parsed.data
     const path = normalizePath(rawPath)
     const siteId = siteToken.siteId
 
@@ -92,10 +93,12 @@ const track: FastifyPluginAsync = async (fastify, _opts): Promise<void> => {
       create: {
         siteId,
         path,
+        title: title || null,
         count: 1,
       },
       update: {
         count: { increment: 1 },
+        ...(title !== undefined ? { title } : {}), // 如果有新标题则更新（包括空字符串）
       },
     })
 

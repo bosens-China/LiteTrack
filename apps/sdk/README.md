@@ -34,24 +34,47 @@
 
 ### 上报
 
-`LiteTrack.track(token, path, apiUrl?)`
+`LiteTrack.track(token, path, options?)`
 
-| 参数    | 说明 |
-|---------|------|
-| token   | 网站令牌，从 LiteTrack 后台获取 |
-| path    | 页面路径，如 `/blog/hello-world` |
-| apiUrl  | 可选，自定义上报地址，默认为官方上报接口 |
+| 参数 | 说明 |
+|------|------|
+| token | 网站令牌，从 LiteTrack 后台获取 |
+| path | 页面路径，如 `/blog/hello-world` |
+| options | 可选配置对象 |
+| options.title | 可选，页面标题，默认自动读取 `document.title` |
+| options.apiUrl | 可选，自定义上报地址，默认为官方上报接口 |
 
-说明：仅发送请求，不关心返回值；网络错误会被内部捕获，不会抛异常。
+说明：
+- 仅发送请求，不关心返回值；网络错误会被内部捕获，不会抛异常
+- 路径会自动去除末尾斜杠，确保 `/foo/` 和 `/foo` 视为同一个路径
+
+**示例：**
+
+```javascript
+// 基础用法
+LiteTrack.track('your-site-token', location.pathname)
+
+// 指定页面标题
+LiteTrack.track('your-site-token', location.pathname, { title: '文章详情' })
+
+// 使用自定义上报地址
+LiteTrack.track('your-site-token', location.pathname, { apiUrl: 'https://your-api.com/track' })
+
+// 同时使用
+LiteTrack.track('your-site-token', location.pathname, {
+  title: '文章详情',
+  apiUrl: 'https://your-api.com/track'
+})
+```
 
 ### 查询站点汇总
 
-`LiteTrack.getSiteStats(token, apiUrl?) -> Promise<{ totalViews: number; totalPages: number } \| null>`
+`LiteTrack.getSiteStats(token, apiUrl?) -> Promise<{ totalViews: number; totalPages: number } | null>`
 
-| 参数    | 说明 |
-|---------|------|
-| token   | 网站令牌，从 LiteTrack 后台获取 |
-| apiUrl  | 可选，自定义查询地址，默认为官方 `/track/stats` 接口 |
+| 参数 | 说明 |
+|------|------|
+| token | 网站令牌，从 LiteTrack 后台获取 |
+| apiUrl | 可选，自定义查询地址，默认为官方 `/track/stats` 接口 |
 
 返回值：
 
@@ -62,13 +85,13 @@
 
 ### 查询指定页面
 
-`LiteTrack.getPageStats(token, path, apiUrl?) -> Promise<{ path: string; count: number } \| null>`
+`LiteTrack.getPageStats(token, path, apiUrl?) -> Promise<{ path: string; count: number } | null>`
 
-| 参数    | 说明 |
-|---------|------|
-| token   | 网站令牌，从 LiteTrack 后台获取 |
-| path    | 页面路径，如 `/blog/hello-world` |
-| apiUrl  | 可选，自定义查询地址（基础地址，不含 query），默认为官方 `/track/stats` 接口 |
+| 参数 | 说明 |
+|------|------|
+| token | 网站令牌，从 LiteTrack 后台获取 |
+| path | 页面路径，如 `/blog/hello-world` |
+| apiUrl | 可选，自定义查询地址（基础地址，不含 query），默认为官方 `/track/stats` 接口 |
 
 返回值：
 

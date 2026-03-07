@@ -2,6 +2,7 @@ import request from './request'
 
 export interface PageView {
   path: string
+  title?: string | null
   count: number
 }
 
@@ -25,6 +26,24 @@ export interface SiteStats {
   popularPages: PageView[]
 }
 
+export interface PagesResponse {
+  pages: PageView[]
+  pagination: {
+    total: number
+    page: number
+    pageSize: number
+    totalPages: number
+  }
+}
+
+export interface PagesQuery {
+  page?: number
+  pageSize?: number
+  q?: string
+  sortBy?: string
+  sortOrder?: 'asc' | 'desc'
+}
+
 /**
  * 获取网站综合统计
  */
@@ -45,4 +64,11 @@ export function getPopularPages(siteId: number): Promise<{ popularPages: PageVie
  */
 export function getTrend(siteId: number, days?: number): Promise<{ dailyViews: DailyView[] }> {
   return request.get(`/stats/${siteId}/trend`, { params: { days } }) as Promise<{ dailyViews: DailyView[] }>
+}
+
+/**
+ * 获取所有页面统计（分页）
+ */
+export function getSitePages(siteId: number, query?: PagesQuery): Promise<PagesResponse> {
+  return request.get(`/stats/${siteId}/pages`, { params: query }) as Promise<PagesResponse>
 }

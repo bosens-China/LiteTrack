@@ -10,6 +10,14 @@ interface TrendQuery {
   days?: string
 }
 
+interface PagesQuery {
+  page?: string
+  pageSize?: string
+  q?: string
+  sortBy?: string
+  sortOrder?: 'asc' | 'desc'
+}
+
 function formatDateInTimeZone(date: Date): string {
   return new Intl.DateTimeFormat('sv-SE', { timeZone: config.APP_TIMEZONE }).format(date)
 }
@@ -123,6 +131,65 @@ const stats: FastifyPluginAsync = async (fastify, _opts): Promise<void> => {
     })
 
     return { dailyViews }
+  })
+
+  fastify.get('/:siteId/pages', { onRequest: [fastify.authenticate] }, async (request, reply) => {
+    const { userId } = request.user as UserPayload
+    const siteId = parseInt((request.params as SiteParams).siteId, 10)
+    const { 
+      page = '1', 
+      pageSize = '20', 
+      q, 
+      sortBy = 'count', 
+      sortOrder = 'desc' 
+    } = request.query as PagesQuery
+
+    const site = await fastify.prisma.site.findFirst({
+      where: { id: siteId, userId },
+    })
+
+    if (!site) {
+      return reply.code(404).send({ error: '网站不存在' })
+    }
+
+    const pageNum = Math.max(1, parseInt(page, 10))
+    const limit = Math.max(1, Math.min(100, parseInt(pageSize, 10)))
+    const skip = (pageNum - 1) * limit
+
+    const where = {
+      siteId,
+      ...(q ? {
+        OR: [
+          { path: { contains: q, mode: 'insensitive' as const } },
+          { title: { contains: q, mode: 'insensitive' as const } },
+        ]
+      } : {})
+    }
+
+    const [total, pages] = await Promise.all([
+      fastify.prisma.pageView.count({ where }),
+      fastify.prisma.pageView.findMany({
+        where,
+        orderBy: { [sortBy]: sortOrder },
+        skip,
+        take: limit,
+        select: {
+          path: true,
+          title: true,
+          count: true,
+        },
+      })
+    ])
+
+    return { 
+      pages,
+      pagination: {
+        total,
+        page: pageNum,
+        pageSize: limit,
+        totalPages: Math.ceil(total / limit)
+      }
+    }
   })
 }
 

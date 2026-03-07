@@ -89,18 +89,7 @@ const sites: FastifyPluginAsync = async (fastify, _opts): Promise<void> => {
         },
       })
 
-      // 生成加密安全的随机令牌
-      const token = crypto.randomBytes(32).toString('hex')
-      await fastify.prisma.siteToken.create({
-        data: {
-          siteId: site.id,
-          token,
-          name: 'default',
-          description: null,
-        },
-      })
-
-      return { site, token }
+      return { site }
     } catch (error: unknown) {
       if (error && typeof error === 'object' && 'code' in error && error.code === 'P2002') {
         return reply.code(409).send({ error: '该域名已存在' })

@@ -31,18 +31,53 @@ export interface PageStats {
 }
 
 /**
+ * 路径归一化
+ * 去除末尾斜杠，确保 /foo/ 和 /foo 视为同一个路径
+ */
+function normalizePath(path: string): string {
+  if (path.length > 1 && path.endsWith('/')) {
+    return path.slice(0, -1);
+  }
+  return path;
+}
+
+export interface TrackOptions {
+  /** 页面标题（可选，默认使用 document.title） */
+  title?: string;
+  /** 自定义上报地址 */
+  apiUrl?: string;
+}
+
+/**
  * 上报页面访问（仅发送，不关心返回值）
  *
  * 后端要求：
  * - Header: X-Site-Token: <token>
- * - Body: { path: string }
+ * - Body: { path: string, title?: string }
  *
  * @param token - 网站令牌
  * @param path - 页面路径
- * @param apiUrl - 可选，自定义上报地址
+ * @param options - 可选配置（标题、自定义 API 地址）
+ *
+ * @example
+ * // 基础用法
+ * track('token', '/home')
+ *
+ * // 指定页面标题
+ * track('token', '/home', { title: '首页' })
+ *
+ * // 指定自定义 API 地址
+ * track('token', '/home', { apiUrl: 'https://custom.api.com/track' })
+ *
+ * // 同时指定标题和自定义地址
+ * track('token', '/home', { title: '首页', apiUrl: 'https://custom.api.com/track' })
  */
-export function track(token: string, path: string, apiUrl?: string): void {
-  const url = apiUrl || DEFAULT_TRACK_API_URL;
+export function track(token: string, path: string, options?: TrackOptions): void {
+  const url = options?.apiUrl ?? DEFAULT_TRACK_API_URL;
+  const pageTitle = options?.title ?? (typeof document !== 'undefined' ? document.title : undefined);
+
+  // 自动处理路径，对用户更友好
+  const safePath = normalizePath(path);
 
   // 注意：sendBeacon 不支持自定义 headers，所以只能用 fetch
   if (typeof fetch !== 'undefined') {
@@ -52,7 +87,7 @@ export function track(token: string, path: string, apiUrl?: string): void {
         'Content-Type': 'application/json',
         'X-Site-Token': token,
       },
-      body: JSON.stringify({ path }),
+      body: JSON.stringify({ path: safePath, title: pageTitle }),
       keepalive: true,
     }).catch(() => {
       // 忽略网络错误，由调用方决定是否需要额外上报

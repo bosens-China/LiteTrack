@@ -33,7 +33,7 @@ pnpm dev
 创建 `.env` 文件：
 
 ```env
-VITE_API_BASE_URL=http://localhost:3000/litetrack/v1
+PUBLIC_API_BASE_URL=http://localhost:3000/litetrack/v1
 ```
 
 ## 项目结构
@@ -80,14 +80,14 @@ pnpm lint
 
 ## 页面路由
 
-| 路由 | 页面 | 说明 |
-|------|------|------|
-| `/login` | 登录页 | GitHub OAuth 登录 |
-| `/auth/callback` | 登录回调 | 处理 GitHub 回调 |
-| `/` | 仪表盘 | 网站统计概览 |
-| `/sites` | 网站列表 | 管理所有网站 |
-| `/sites/new` | 创建网站 | 添加新网站 |
-| `/sites/:id` | 网站详情 | 查看统计、管理令牌 |
+| 路由             | 页面     | 说明               |
+| ---------------- | -------- | ------------------ |
+| `/login`         | 登录页   | GitHub OAuth 登录  |
+| `/auth/callback` | 登录回调 | 处理 GitHub 回调   |
+| `/`              | 仪表盘   | 网站统计概览       |
+| `/sites`         | 网站列表 | 管理所有网站       |
+| `/sites/new`     | 创建网站 | 添加新网站         |
+| `/sites/:id`     | 网站详情 | 查看统计、管理令牌 |
 
 ## 与后端对接
 

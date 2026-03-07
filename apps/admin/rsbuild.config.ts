@@ -15,6 +15,12 @@ export default defineConfig({
   },
   server: {
     port: 5173,
+    // proxy: {
+    //   '/litetrack': {
+    //     target: 'http://localhost:3000',
+    //     changeOrigin: true,
+    //   },
+    // },
   },
   html: {
     template: './index.html',

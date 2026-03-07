@@ -2,3 +2,6 @@ dist/
 
 # Profile
 .rspack-profile-*/
+
+# Environment variables
+.env

@@ -37,12 +37,36 @@ describe('track', () => {
 
   it('should use custom apiUrl when provided', () => {
     const customUrl = 'https://custom.api.com/track';
-    track('test-token', '/about', customUrl);
+    track('test-token', '/about', { apiUrl: customUrl });
 
     expect(mockFetch).toHaveBeenCalledWith(
       customUrl,
       expect.objectContaining({
         method: 'POST',
+      }),
+    );
+  });
+
+  it('should use custom title when provided', () => {
+    track('test-token', '/home', { title: '首页' });
+
+    expect(mockFetch).toHaveBeenCalledWith(
+      expect.any(String),
+      expect.objectContaining({
+        body: JSON.stringify({ path: '/home', title: '首页' }),
+      }),
+    );
+  });
+
+  it('should use both custom title and apiUrl when provided', () => {
+    const customUrl = 'https://custom.api.com/track';
+    track('test-token', '/about', { title: '关于页面', apiUrl: customUrl });
+
+    expect(mockFetch).toHaveBeenCalledWith(
+      customUrl,
+      expect.objectContaining({
+        method: 'POST',
+        body: JSON.stringify({ path: '/about', title: '关于页面' }),
       }),
     );
   });
