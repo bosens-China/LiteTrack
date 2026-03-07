@@ -72,3 +72,39 @@ export function getTrend(siteId: number, days?: number): Promise<{ dailyViews: D
 export function getSitePages(siteId: number, query?: PagesQuery): Promise<PagesResponse> {
   return request.get(`/stats/${siteId}/pages`, { params: query }) as Promise<PagesResponse>
 }
+
+// 访问日志相关类型
+export interface AccessLog {
+  id: number
+  path: string
+  title: string | null
+  ip: string | null
+  userAgent: string | null
+  referer: string | null
+  createdAt: string
+}
+
+export interface AccessLogsResponse {
+  logs: AccessLog[]
+  pagination: {
+    total: number
+    page: number
+    pageSize: number
+    totalPages: number
+  }
+}
+
+export interface LogsQuery {
+  page?: number
+  pageSize?: number
+  path?: string
+  startDate?: string
+  endDate?: string
+}
+
+/**
+ * 获取访问日志（分页）
+ */
+export function getAccessLogs(siteId: number, query?: LogsQuery): Promise<AccessLogsResponse> {
+  return request.get(`/stats/${siteId}/logs`, { params: query }) as Promise<AccessLogsResponse>
+}

@@ -12,9 +12,9 @@
         <n-skeleton height="100px" />
       </div>
       <n-skeleton height="320px" class="full-width" />
-      <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 full-width">
-        <n-skeleton height="250px" />
-        <n-skeleton height="250px" />
+      <div class="content-row bottom-row">
+        <n-skeleton height="300px" class="logs-section" />
+        <n-skeleton height="300px" class="tokens-section" />
       </div>
     </div>
 
@@ -40,14 +40,17 @@
         <TrendChart :site-id="siteId" class="trend-section" />
         <PopularPages :site-id="siteId" class="pages-section" />
       </div>
-      
-      <!-- 令牌列表 -->
-      <TokenList 
-        :tokens="site.tokens"
-        @create="showTokenModal = true"
-        @delete="deleteToken"
-        class="full-width"
-      />
+
+      <!-- 大屏布局：访问日志 + 令牌列表 并排 -->
+      <div class="content-row bottom-row">
+        <AccessLogs :site-id="siteId" class="logs-section" />
+        <TokenList 
+          :tokens="site.tokens"
+          @create="showTokenModal = true"
+          @delete="deleteToken"
+          class="tokens-section"
+        />
+      </div>
 
       <!-- 编辑弹窗 -->
       <n-modal v-model:show="showEditModal" preset="dialog" title="编辑网站">
@@ -94,6 +97,7 @@ import SiteHeader from './SiteHeader.vue'
 import StatCards from './StatCards.vue'
 import TrendChart from './TrendChart.vue'
 import PopularPages from './PopularPages.vue'
+import AccessLogs from './AccessLogs.vue'
 import TokenList from './TokenList.vue'
 import TokenModal from './TokenModal.vue'
 
@@ -251,6 +255,36 @@ watch(() => route.params.id, () => {
   }
 }
 
+/* 底部行：日志和令牌默认堆叠 */
+.bottom-row {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.logs-section,
+.tokens-section {
+  flex: 1;
+  min-width: 0;
+}
+
+/* 大屏 (>1440px): 日志和令牌并排 */
+@media (min-width: 1440px) {
+  .bottom-row {
+    flex-direction: row;
+    align-items: stretch;
+  }
+  
+  .logs-section {
+    flex: 2;
+  }
+  
+  .tokens-section {
+    flex: 1;
+    max-width: 400px;
+  }
+}
+
 /* 超大屏 (>1920px): 更宽松的间距 */
 @media (min-width: 1920px) {
   .site-detail-grid {
@@ -263,6 +297,10 @@ watch(() => route.params.id, () => {
   
   .pages-section {
     max-width: 480px;
+  }
+  
+  .tokens-section {
+    max-width: 450px;
   }
 }
 </style>

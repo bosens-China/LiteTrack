@@ -191,6 +191,92 @@ const stats: FastifyPluginAsync = async (fastify, _opts): Promise<void> => {
       }
     }
   })
+
+  // 访问日志查询
+  interface LogsQuery {
+    page?: string
+    pageSize?: string
+    path?: string
+    startDate?: string
+    endDate?: string
+  }
+
+  fastify.get('/:siteId/logs', { onRequest: [fastify.authenticate] }, async (request, reply) => {
+    const { userId } = request.user as UserPayload
+    const siteId = parseInt((request.params as SiteParams).siteId, 10)
+    const { 
+      page = '1', 
+      pageSize = '20',
+      path,
+      startDate,
+      endDate
+    } = request.query as LogsQuery
+
+    const site = await fastify.prisma.site.findFirst({
+      where: { id: siteId, userId },
+    })
+
+    if (!site) {
+      return reply.code(404).send({ error: '网站不存在' })
+    }
+
+    const pageNum = Math.max(1, parseInt(page, 10))
+    const limit = Math.max(1, Math.min(100, parseInt(pageSize, 10)))
+    const skip = (pageNum - 1) * limit
+
+    // 构建查询条件
+    const where: {
+      siteId: number
+      path?: { contains: string; mode: 'insensitive' }
+      createdAt?: { gte?: Date; lte?: Date }
+    } = { siteId }
+
+    if (path) {
+      where.path = { contains: path, mode: 'insensitive' }
+    }
+
+    if (startDate || endDate) {
+      where.createdAt = {}
+      if (startDate) {
+        where.createdAt.gte = new Date(startDate)
+      }
+      if (endDate) {
+        // 结束日期设为当天最后一毫秒
+        const end = new Date(endDate)
+        end.setHours(23, 59, 59, 999)
+        where.createdAt.lte = end
+      }
+    }
+
+    const [total, logs] = await Promise.all([
+      fastify.prisma.accessLog.count({ where }),
+      fastify.prisma.accessLog.findMany({
+        where,
+        orderBy: { createdAt: 'desc' },
+        skip,
+        take: limit,
+        select: {
+          id: true,
+          path: true,
+          title: true,
+          ip: true,
+          userAgent: true,
+          referer: true,
+          createdAt: true,
+        },
+      })
+    ])
+
+    return { 
+      logs,
+      pagination: {
+        total,
+        page: pageNum,
+        pageSize: limit,
+        totalPages: Math.ceil(total / limit)
+      }
+    }
+  })
 }
 
 export default stats

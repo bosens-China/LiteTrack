@@ -32,10 +32,11 @@ model Site {
   createdAt   DateTime @default(now()) @map("created_at")
   updatedAt   DateTime @updatedAt @map("updated_at")
 
-  user   User         @relation(fields: [userId], references: [id], onDelete: Cascade)
-  tokens SiteToken[]
-  views  PageView[]
-  daily  DailyView[]
+  user        User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tokens      SiteToken[]
+  views       PageView[]
+  daily       DailyView[]
+  accessLogs  AccessLog[]
 
   @@unique([userId, domain])
   @@map("sites")
@@ -81,4 +82,24 @@ model DailyView {
 
   @@unique([siteId, date])
   @@map("daily_views")
+}
+
+// 访问日志 - 记录每次访问的详细信息
+model AccessLog {
+  id        Int      @id @default(autoincrement())
+  siteId    Int      @map("site_id")
+  path      String   // 访问路径
+  title     String?  // 页面标题
+  ip        String?  // 访问者 IP
+  userAgent String?  @map("user_agent") // 用户代理
+  referer   String?  // 来源页面
+  country   String?  // 国家（通过 IP 解析）
+  city      String?  // 城市
+  createdAt DateTime @default(now()) @map("created_at")
+
+  site Site @relation(fields: [siteId], references: [id], onDelete: Cascade)
+
+  @@index([siteId, createdAt])
+  @@index([siteId, path])
+  @@map("access_logs")
 }

@@ -1,7 +1,7 @@
 <template>
   <n-card title="访问令牌">
     <template #header-extra>
-      <n-button size="small" @click="$emit('create')">
+      <n-button @click="$emit('create')">
         <template #icon>
           <Icon icon="mdi:plus" />
         </template>
@@ -15,13 +15,17 @@
         <n-thing>
           <template #header>
             {{ token.name }}
-            <n-tag v-if="token.isActive" size="small" type="success">有效</n-tag>
+            <n-tag v-if="token.isActive" size="small" type="success"
+              >有效</n-tag
+            >
             <n-tag v-else size="small" type="error">已禁用</n-tag>
           </template>
           <template #description>
             <div class="space-y-1">
               <p>创建于 {{ formatDateTime(token.createdAt) }}</p>
-              <p v-if="token.description" class="text-gray-500">{{ token.description }}</p>
+              <p v-if="token.description" class="text-gray-500">
+                {{ token.description }}
+              </p>
             </div>
           </template>
           <template #header-extra>
@@ -39,19 +43,28 @@
 </template>
 
 <script setup lang="ts">
-import { NCard, NButton, NList, NListItem, NThing, NTag, NPopconfirm, NEmpty } from 'naive-ui'
-import { Icon } from '@iconify/vue'
-import type { SiteToken } from '@/api/sites'
-import { formatDateTime } from '@/utils'
+import {
+  NCard,
+  NButton,
+  NList,
+  NListItem,
+  NThing,
+  NTag,
+  NPopconfirm,
+  NEmpty,
+} from 'naive-ui';
+import { Icon } from '@iconify/vue';
+import type { SiteToken } from '@/api/sites';
+import { formatDateTime } from '@/utils';
 
 interface Props {
-  tokens: SiteToken[]
+  tokens: SiteToken[];
 }
 
-defineProps<Props>()
+defineProps<Props>();
 
 defineEmits<{
-  create: []
-  delete: [tokenId: number]
-}>()
+  create: [];
+  delete: [tokenId: number];
+}>();
 </script>

@@ -120,6 +120,23 @@ const track: FastifyPluginAsync = async (fastify, _opts): Promise<void> => {
       },
     })
 
+    // 记录访问日志（异步，不阻塞响应）
+    const userAgent = request.headers['user-agent']
+    const referer = request.headers['referer']
+    
+    void fastify.prisma.accessLog.create({
+      data: {
+        siteId,
+        path,
+        title: title || null,
+        ip,
+        userAgent: userAgent || null,
+        referer: referer || null,
+      }
+    }).catch(() => {
+      // 忽略日志记录错误，不影响主流程
+    })
+
     return { success: true }
   })
 
