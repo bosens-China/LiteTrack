@@ -5,6 +5,10 @@ import {
 import { globalIgnores } from 'eslint/config';
 import pluginVue from 'eslint-plugin-vue';
 import globals from 'globals';
+import { dirname } from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+const tsconfigRootDir = dirname(fileURLToPath(import.meta.url));
 
 // To allow more languages other than `ts` in `.vue` files, uncomment the following lines:
 // import { configureVueProject } from '@vue/eslint-config-typescript'
@@ -17,7 +21,14 @@ export default defineConfigWithVueTs(
     files: ['**/*.{ts,mts,tsx,vue}'],
   },
   globalIgnores(['**/dist/**', '**/dist-ssr/**', '**/coverage/**']),
-  { languageOptions: { globals: globals.browser } },
+  {
+    languageOptions: {
+      globals: globals.browser,
+      parserOptions: {
+        tsconfigRootDir,
+      },
+    },
+  },
   pluginVue.configs['flat/essential'],
   vueTsConfigs.recommended,
   {
