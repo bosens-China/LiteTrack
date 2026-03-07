@@ -31,19 +31,27 @@
       <!-- 顶部栏 -->
       <n-layout-header bordered class="h-16 px-4 flex items-center justify-between">
         <h2 class="text-lg font-medium">{{ pageTitle }}</h2>
-        
-        <n-dropdown :options="userOptions" @select="handleUserAction">
-          <div class="flex items-center gap-2 cursor-pointer hover:bg-gray-100 px-3 py-2 rounded">
-            <n-avatar
-              round
-              size="small"
-              :src="authStore.avatar || undefined"
-              :fallback-src="`https://ui-avatars.com/api/?name=${authStore.username}&background=random`"
-            />
-            <span v-if="authStore.username">{{ authStore.username }}</span>
-            <Icon icon="mdi:chevron-down" />
-          </div>
-        </n-dropdown>
+        <div class="flex items-center gap-2">
+          <n-button quaternary @click="openSdkDistPage">
+            <template #icon>
+              <Icon icon="mdi:download-box" />
+            </template>
+            获取 SDK
+          </n-button>
+
+          <n-dropdown :options="userOptions" @select="handleUserAction">
+            <div class="flex items-center gap-2 cursor-pointer hover:bg-gray-100 px-3 py-2 rounded">
+              <n-avatar
+                round
+                size="small"
+                :src="authStore.avatar || undefined"
+                :fallback-src="`https://ui-avatars.com/api/?name=${authStore.username}&background=random`"
+              />
+              <span v-if="authStore.username">{{ authStore.username }}</span>
+              <Icon icon="mdi:chevron-down" />
+            </div>
+          </n-dropdown>
+        </div>
       </n-layout-header>
       
       <!-- 内容 -->
@@ -64,6 +72,7 @@ import {
   NLayoutContent,
   NMenu,
   NAvatar,
+  NButton,
   NDropdown,
   type MenuOption,
 } from 'naive-ui'
@@ -75,6 +84,7 @@ const router = useRouter()
 const authStore = useAuthStore()
 
 const collapsed = ref(false)
+const SDK_DIST_URL = 'https://github.com/bosens-China/LiteTrack/tree/master/apps/sdk/dist'
 
 // 菜单配置
 const menuOptions: MenuOption[] = [
@@ -124,5 +134,9 @@ function handleUserAction(key: string) {
     authStore.logout()
     router.push('/login')
   }
+}
+
+function openSdkDistPage() {
+  window.open(SDK_DIST_URL, '_blank', 'noopener,noreferrer')
 }
 </script>
