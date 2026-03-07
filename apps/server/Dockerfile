@@ -18,12 +18,16 @@ RUN cd /prod/server && pnpm exec prisma generate
 
 FROM node:22-alpine AS runner
 
-WORKDIR /app/apps/server
+WORKDIR /app
 
 ENV NODE_ENV=production
 
 # 复制最小化生产部署产物（含 prod 依赖）
 COPY --from=build /prod/server ./
+# deploy 会按发布文件清单拷贝，dist 可能被忽略，这里显式补齐编译产物
+COPY --from=build /app/apps/server/dist ./apps/server/dist
+
+WORKDIR /app/apps/server
 
 EXPOSE 3000
 
