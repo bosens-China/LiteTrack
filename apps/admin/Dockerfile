@@ -4,9 +4,9 @@ WORKDIR /app
 
 RUN corepack enable
 
-# 拷贝整个 monorepo
+# 仅拷贝 admin 子项目，避免无关目录改动触发重建
 COPY pnpm-lock.yaml pnpm-workspace.yaml package.json ./
-COPY apps ./apps
+COPY apps/admin ./apps/admin
 
 # 安装前端依赖并构建
 RUN pnpm install --filter admin... --frozen-lockfile

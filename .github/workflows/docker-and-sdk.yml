@@ -18,6 +18,21 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Detect changed paths
+        id: changes
+        uses: dorny/paths-filter@v3
+        with:
+          filters: |
+            server:
+              - 'apps/server/**'
+            admin:
+              - 'apps/admin/**'
+            shared:
+              - 'pnpm-lock.yaml'
+              - 'pnpm-workspace.yaml'
+              - 'package.json'
+              - '.github/workflows/docker-and-sdk.yml'
+
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
@@ -28,24 +43,34 @@ jobs:
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
       - name: Build and push server image
+        if: steps.changes.outputs.server == 'true' || steps.changes.outputs.shared == 'true'
         uses: docker/build-push-action@v6
         with:
           context: .
           file: ./apps/server/Dockerfile
           push: true
+          cache-from: type=gha,scope=litetrack-server
+          cache-to: type=gha,mode=max,scope=litetrack-server
           tags: |
             boses/litetrack-server:latest
             boses/litetrack-server:${{ github.sha }}
 
       - name: Build and push admin image
+        if: steps.changes.outputs.admin == 'true' || steps.changes.outputs.shared == 'true'
         uses: docker/build-push-action@v6
         with:
           context: .
           file: ./apps/admin/Dockerfile
           push: true
+          cache-from: type=gha,scope=litetrack-admin
+          cache-to: type=gha,mode=max,scope=litetrack-admin
           tags: |
             boses/litetrack-admin:latest
             boses/litetrack-admin:${{ github.sha }}
+
+      - name: Skip Docker build when no relevant changes
+        if: steps.changes.outputs.server != 'true' && steps.changes.outputs.admin != 'true' && steps.changes.outputs.shared != 'true'
+        run: echo "No changes for server/admin/shared, skip building Docker images."
 
   sdk:
     name: Build SDK and push dist
