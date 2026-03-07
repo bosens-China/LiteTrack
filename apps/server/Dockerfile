@@ -26,10 +26,13 @@ ENV NODE_ENV=production
 COPY --from=build /prod/server ./
 # deploy 会按发布文件清单拷贝，dist 可能被忽略，这里显式补齐编译产物
 COPY --from=build /app/apps/server/dist ./apps/server/dist
+# 显式复制 prisma 目录，确保 schema.prisma 存在，用于执行数据库迁移
+COPY --from=build /app/apps/server/prisma ./apps/server/prisma
 
 WORKDIR /app/apps/server
 
 EXPOSE 3000
 
-CMD ["node", "dist/app.js"]
+# 启动前自动同步数据库结构（注意：生产环境建议使用 prisma migrate deploy，但需先提交 migration 文件）
+CMD ["sh", "-c", "npx prisma db push && node dist/app.js"]
 

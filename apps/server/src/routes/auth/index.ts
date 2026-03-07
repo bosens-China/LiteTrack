@@ -46,6 +46,7 @@ const auth: FastifyPluginAsync = async (fastify, _opts): Promise<void> => {
           client_id: config.GITHUB_CLIENT_ID,
           client_secret: config.GITHUB_CLIENT_SECRET,
           code,
+          redirect_uri: config.GITHUB_CALLBACK_URL,
         },
         {
           headers: { Accept: 'application/json' },
