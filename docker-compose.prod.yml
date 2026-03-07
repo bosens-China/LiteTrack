@@ -25,10 +25,10 @@ services:
 
   server:
     image: boses/litetrack-server:latest
-    # 如需本地构建镜像，可以取消下方 build，并在 CI 中推送到 Docker Hub
+    # 如需本地构建镜像，可以取消下方 build，并在本地构建：
     # build:
-    #   context: ./apps/server
-    #   dockerfile: Dockerfile
+    #   context: .
+    #   dockerfile: ./apps/server/Dockerfile
     depends_on:
       - postgres
       - redis
@@ -57,8 +57,8 @@ services:
     image: boses/litetrack-admin:latest
     # 也可以本地 build：
     # build:
-    #   context: ./apps/admin
-    #   dockerfile: Dockerfile
+    #   context: .
+    #   dockerfile: ./apps/admin/Dockerfile
     depends_on:
       - server
     environment:

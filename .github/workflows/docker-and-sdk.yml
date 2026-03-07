@@ -30,7 +30,8 @@ jobs:
       - name: Build and push server image
         uses: docker/build-push-action@v6
         with:
-          context: ./apps/server
+          context: .
+          file: ./apps/server/Dockerfile
           push: true
           tags: |
             boses/litetrack-server:latest
@@ -39,7 +40,8 @@ jobs:
       - name: Build and push admin image
         uses: docker/build-push-action@v6
         with:
-          context: ./apps/admin
+          context: .
+          file: ./apps/admin/Dockerfile
           push: true
           tags: |
             boses/litetrack-admin:latest

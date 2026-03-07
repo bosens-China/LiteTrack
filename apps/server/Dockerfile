@@ -1,33 +1,22 @@
-FROM node:22-alpine AS build
+FROM node:22-alpine
 
 WORKDIR /app
 
-ENV NODE_ENV=development
+# 使用 pnpm（与项目一致）
+RUN corepack enable
 
-COPY package*.json ./
-RUN npm install
+# 拷贝整个 monorepo（便于使用 pnpm workspace）
+COPY pnpm-lock.yaml pnpm-workspace.yaml package.json ./
+COPY apps ./apps
 
-COPY . .
-
-# 构建 TypeScript 到 dist
-RUN npm run build:ts
-
-
-FROM node:22-alpine AS runner
-
-WORKDIR /app
+# 安装后端所需依赖并构建
+RUN pnpm install --filter server... --prod --frozen-lockfile
+RUN pnpm --filter server build:ts
 
 ENV NODE_ENV=production
 
-# 仅安装生产依赖（包含 @prisma/client）
-COPY package*.json ./
-RUN npm install --omit=dev
+WORKDIR /app/apps/server
 
-# 复制构建产物和必要文件
-COPY --from=build /app/dist ./dist
-COPY prisma ./prisma
-
-# 暴露应用端口（默认为 3000，可通过环境变量覆盖）
 EXPOSE 3000
 
 CMD ["node", "dist/app.js"]
