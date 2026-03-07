@@ -40,7 +40,7 @@ const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/litetrack/v1'
 function handleLogin() {
   loading.value = true
   // 跳转到 GitHub OAuth 授权页面
-  const url = new URL(`${API_BASE_URL}/auth/github`)
-  window.location.href = url.toString()
+  const loginUrl = `${API_BASE_URL.replace(/\/$/, '')}/auth/github`
+  window.location.href = loginUrl
 }
 </script>
