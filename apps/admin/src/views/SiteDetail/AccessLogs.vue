@@ -2,6 +2,14 @@
   <n-card title="访问日志">
     <!-- 筛选栏 -->
     <div class="mb-4 flex flex-wrap items-center gap-2">
+      <n-select
+        v-model:value="timeRange"
+        :options="timeRangeOptions"
+        placeholder="选择时间范围"
+        style="width: 140px"
+        @update:value="handleTimeRangeChange"
+      />
+
       <n-input
         v-model:value="filters.path"
         placeholder="搜索路径"
@@ -49,7 +57,9 @@ import {
   NButton,
   NDataTable,
   NDatePicker,
+  NSelect,
   useMessage,
+  type SelectOption,
 } from 'naive-ui';
 import { Icon } from '@iconify/vue';
 import { useRequest } from 'vue-request';
@@ -63,7 +73,19 @@ const props = defineProps<{
 
 const message = useMessage();
 
+// 时间范围选项
+type TimeRangeValue = '1' | '3' | '7' | '30' | 'all';
+
+const timeRangeOptions: SelectOption[] = [
+  { label: '今天', value: '1' },
+  { label: '最近3天', value: '3' },
+  { label: '最近7天', value: '7' },
+  { label: '最近30天', value: '30' },
+  { label: '全部', value: 'all' },
+];
+
 // 筛选条件
+const timeRange = ref<TimeRangeValue>('1'); // 默认今天
 const filters = ref({
   path: '',
   startDate: '',
@@ -96,12 +118,16 @@ const columns: DataTableColumns<AccessLog> = [
     key: 'path',
     ellipsis: { tooltip: true },
     render(row) {
-      return row.title
-        ? h('div', [
-            h('div', { class: 'font-medium' }, row.title),
-            h('div', { class: 'text-gray-500 text-xs' }, row.path),
-          ])
-        : row.path;
+      // 优先显示 title，没有 title 则显示 path
+      const displayText = row.title || row.path;
+      // 如果有 title 且有 path 且不同，则同时显示 path
+      if (row.title && row.path && row.title !== row.path) {
+        return h('div', [
+          h('div', { class: 'font-medium' }, displayText),
+          h('div', { class: 'text-gray-500 text-xs' }, row.path),
+        ]);
+      }
+      return displayText;
     },
   },
   {
@@ -159,6 +185,40 @@ function parseUserAgent(ua: string | null): string {
   return `${browser} / ${os}`;
 }
 
+// 根据时间范围计算日期
+function getDateRangeByDays(days: number): { startDate: string; endDate: string } {
+  const end = new Date();
+  const start = new Date();
+  start.setDate(start.getDate() - days + 1); // 包含今天，所以减 days-1
+
+  return {
+    startDate: start.toISOString().split('T')[0],
+    endDate: end.toISOString().split('T')[0],
+  };
+}
+
+// 应用时间范围筛选
+function applyTimeRange(range: TimeRangeValue) {
+  if (range === 'all') {
+    filters.value.startDate = '';
+    filters.value.endDate = '';
+  } else {
+    const days = parseInt(range, 10);
+    const { startDate, endDate } = getDateRangeByDays(days);
+    filters.value.startDate = startDate;
+    filters.value.endDate = endDate;
+  }
+}
+
+// 时间范围变化
+function handleTimeRangeChange(value: TimeRangeValue) {
+  timeRange.value = value;
+  applyTimeRange(value);
+  // 清空日期选择器，避免混淆
+  dateRange.value = null;
+  handleSearch();
+}
+
 // 使用 vue-request 管理请求
 const { run: fetchLogs, loading } = useRequest(
   async () => {
@@ -192,6 +252,7 @@ function handleSearch() {
 
 // 重置
 function handleReset() {
+  timeRange.value = '1'; // 重置为默认今天
   filters.value = {
     path: '',
     startDate: '',
@@ -199,10 +260,12 @@ function handleReset() {
   };
   dateRange.value = null;
   pagination.value.page = 1;
+  // 应用默认时间范围后查询
+  applyTimeRange('1');
   fetchLogs();
 }
 
-// 日期变化
+// 日期变化 - 仅用于手动选择自定义日期
 function handleDateChange(value: [number, number] | null) {
   if (value) {
     filters.value.startDate = new Date(value[0]).toISOString().split('T')[0];

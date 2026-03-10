@@ -15,7 +15,12 @@
               <span class="text-lg font-bold text-gray-400 w-8">{{ index + 1 }}</span>
             </template>
             <template #header>
-              <div class="truncate max-w-md" :title="page.path">{{ page.path }}</div>
+              <n-tooltip placement="top" trigger="hover">
+                <template #trigger>
+                  <span class="cursor-help">{{ page.title || page.path }}</span>
+                </template>
+                <span>{{ page.path }}</span>
+              </n-tooltip>
             </template>
             <template #header-extra>
               <n-tag type="success">{{ page.count }} 次访问</n-tag>
@@ -55,8 +60,8 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, watch } from 'vue'
-import { NCard, NEmpty, NList, NListItem, NThing, NTag, NButton, NModal, NDataTable, NInput, NScrollbar, useMessage } from 'naive-ui'
+import { ref, reactive, watch, h } from 'vue'
+import { NCard, NEmpty, NList, NListItem, NThing, NTag, NButton, NModal, NDataTable, NInput, NScrollbar, NTooltip, useMessage } from 'naive-ui'
 import { Icon } from '@iconify/vue'
 import { getSitePages, getPopularPages } from '@/api/stats'
 import type { PageView } from '@/api/stats'
@@ -108,14 +113,17 @@ const columns: DataTableColumns<PageView> = [
   },
   {
     title: '页面',
-    key: 'path',
+    key: 'title',
     render: (row) => {
-      // 简单组合 title 和 path
-      return row.title 
-        ? `${row.title} (${row.path})` 
-        : row.path
+      // 优先显示 title，没有则显示 path
+      const displayText = row.title || row.path
+      // 使用 tooltip 显示路径
+      return h(NTooltip, { placement: 'top', trigger: 'hover' }, {
+        trigger: () => h('span', { class: 'cursor-help' }, displayText),
+        default: () => h('span', row.path)
+      })
     },
-    ellipsis: { tooltip: true }
+    ellipsis: { tooltip: false } // 禁用默认的 ellipsis tooltip，我们使用自定义的
   },
   {
     title: '访问量',
