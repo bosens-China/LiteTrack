@@ -4,12 +4,17 @@ WORKDIR /app
 
 RUN corepack enable
 
-# 仅拷贝 admin 子项目，避免无关目录改动触发重建
+# 先拷贝工作区配置文件
 COPY pnpm-lock.yaml pnpm-workspace.yaml package.json ./
-COPY apps/admin ./apps/admin
 
-# 安装前端依赖并构建
+# 仅拷贝 package.json 先安装依赖（提升缓存复用率）
+COPY apps/admin/package.json ./apps/admin/
+
+# 安装前端依赖（缓存层）
 RUN pnpm install --filter admin... --frozen-lockfile
+
+# 再拷贝源码
+COPY apps/admin ./apps/admin
 RUN pnpm --filter admin build
 
 
