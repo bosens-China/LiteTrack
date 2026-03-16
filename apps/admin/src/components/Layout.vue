@@ -1,180 +1,75 @@
 <template>
-  <n-layout has-sider position="absolute">
+  <n-layout has-sider position="absolute" class="bg-[var(--bg-primary)]">
     <!-- 侧边栏 -->
     <n-layout-sider
-      bordered
       collapse-mode="width"
-      :collapsed-width="64"
-      :width="240"
+      :collapsed-width="72"
+      :width="260"
       :collapsed="collapsed"
       show-trigger
+      class="sidebar"
       @collapse="collapsed = true"
       @expand="collapsed = false"
     >
       <div class="sidebar-header">
         <template v-if="!collapsed">
           <div class="logo-full">
-            <svg
-              class="logo-icon"
-              xmlns="http://www.w3.org/2000/svg"
-              width="28"
-              height="28"
-              viewBox="0 0 128 128"
-            >
-              <defs>
-                <linearGradient
-                  id="sidebarBg"
-                  x1="0%"
-                  y1="0%"
-                  x2="0%"
-                  y2="100%"
-                >
-                  <stop
-                    offset="0%"
-                    style="stop-color: #667eea; stop-opacity: 1"
-                  />
-                  <stop
-                    offset="100%"
-                    style="stop-color: #764ba2; stop-opacity: 1"
-                  />
-                </linearGradient>
-              </defs>
-              <rect
-                x="0"
-                y="0"
-                width="128"
-                height="128"
-                rx="24"
-                fill="url(#sidebarBg)"
-              />
-              <rect
-                x="28"
-                y="60"
-                width="20"
-                height="40"
-                rx="4"
-                fill="rgba(255,255,255,0.9)"
-              />
-              <rect
-                x="54"
-                y="40"
-                width="20"
-                height="60"
-                rx="4"
-                fill="rgba(255,255,255,0.7)"
-              />
-              <rect
-                x="80"
-                y="25"
-                width="20"
-                height="75"
-                rx="4"
-                fill="rgba(255,255,255,0.5)"
-              />
-            </svg>
-            <span class="logo-text">LiteTrack</span>
+            <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 via-violet-500 to-purple-600 flex items-center justify-center shadow-lg shadow-blue-500/25">
+              <Icon icon="mdi:chart-bar" class="text-xl text-white" />
+            </div>
+            <span class="logo-text gradient-text">LiteTrack</span>
           </div>
         </template>
         <template v-else>
-          <svg
-            class="logo-collapsed"
-            xmlns="http://www.w3.org/2000/svg"
-            width="32"
-            height="32"
-            viewBox="0 0 128 128"
-          >
-            <defs>
-              <linearGradient
-                id="sidebarBgCollapsed"
-                x1="0%"
-                y1="0%"
-                x2="0%"
-                y2="100%"
-              >
-                <stop
-                  offset="0%"
-                  style="stop-color: #667eea; stop-opacity: 1"
-                />
-                <stop
-                  offset="100%"
-                  style="stop-color: #764ba2; stop-opacity: 1"
-                />
-              </linearGradient>
-            </defs>
-            <rect
-              x="0"
-              y="0"
-              width="128"
-              height="128"
-              rx="24"
-              fill="url(#sidebarBgCollapsed)"
-            />
-            <rect
-              x="28"
-              y="60"
-              width="20"
-              height="40"
-              rx="4"
-              fill="rgba(255,255,255,0.9)"
-            />
-            <rect
-              x="54"
-              y="40"
-              width="20"
-              height="60"
-              rx="4"
-              fill="rgba(255,255,255,0.7)"
-            />
-            <rect
-              x="80"
-              y="25"
-              width="20"
-              height="75"
-              rx="4"
-              fill="rgba(255,255,255,0.5)"
-            />
-          </svg>
+          <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 via-violet-500 to-purple-600 flex items-center justify-center shadow-lg shadow-blue-500/25">
+            <Icon icon="mdi:chart-bar" class="text-xl text-white" />
+          </div>
         </template>
       </div>
 
       <n-menu
         :collapsed="collapsed"
-        :collapsed-width="64"
+        :collapsed-width="72"
         :collapsed-icon-size="22"
         :options="menuOptions"
         :value="activeKey"
+        class="sidebar-menu"
         @update:value="handleMenuSelect"
       />
     </n-layout-sider>
 
     <!-- 主内容区 -->
-    <n-layout>
+    <n-layout class="bg-transparent">
       <!-- 顶部栏 -->
       <n-layout-header
-        bordered
-        class="h-16 px-4 flex items-center justify-between absolute top-0 left-0 right-0 z-50 bg-white"
+        class="header"
       >
-        <h2 class="text-lg font-medium">{{ pageTitle }}</h2>
-        <div class="flex items-center gap-2">
-          <n-button quaternary @click="openSdkDistPage">
-            <template #icon>
-              <Icon icon="mdi:download-box" />
-            </template>
+        <div class="flex items-center gap-3">
+          <div class="w-8 h-8 rounded-lg bg-slate-800 flex items-center justify-center">
+            <Icon icon="mdi:page-layout-header" class="text-slate-400" />
+          </div>
+          <h2 class="text-lg font-semibold text-white">{{ pageTitle }}</h2>
+        </div>
+        
+        <div class="flex items-center gap-3">
+          <button 
+            class="btn-glass flex items-center gap-2 px-3 py-2 rounded-lg text-sm"
+            @click="openSdkDistPage"
+          >
+            <Icon icon="mdi:download-box" />
             获取 SDK
-          </n-button>
+          </button>
 
           <n-dropdown :options="userOptions" @select="handleUserAction">
-            <div
-              class="flex items-center gap-2 cursor-pointer hover:bg-gray-100 px-3 py-2 rounded"
-            >
+            <div class="flex items-center gap-2 cursor-pointer hover:bg-slate-800/50 px-3 py-2 rounded-lg transition-colors">
               <n-avatar
                 round
                 size="small"
                 :src="authStore.avatar || undefined"
-                :fallback-src="`https://ui-avatars.com/api/?name=${authStore.username}&background=random`"
+                :fallback-src="`https://ui-avatars.com/api/?name=${authStore.username}&background=3B82F6&color=fff`"
               />
-              <span v-if="authStore.username">{{ authStore.username }}</span>
-              <Icon icon="mdi:chevron-down" />
+              <span v-if="authStore.username" class="text-slate-200 text-sm">{{ authStore.username }}</span>
+              <Icon icon="mdi:chevron-down" class="text-slate-400" />
             </div>
           </n-dropdown>
         </div>
@@ -182,7 +77,7 @@
 
       <!-- 内容 -->
       <n-layout-content
-        class="p-6 absolute top-16 bottom-0 left-0 right-0"
+        class="content"
         :native-scrollbar="false"
       >
         <router-view />
@@ -201,7 +96,6 @@ import {
   NLayoutContent,
   NMenu,
   NAvatar,
-  NButton,
   NDropdown,
   type MenuOption,
 } from 'naive-ui';
@@ -221,12 +115,12 @@ const menuOptions: MenuOption[] = [
   {
     label: '仪表盘',
     key: 'Dashboard',
-    icon: () => h(Icon, { icon: 'mdi:view-dashboard' }),
+    icon: () => h(Icon, { icon: 'mdi:view-dashboard', class: 'text-lg' }),
   },
   {
     label: '网站管理',
     key: 'Sites',
-    icon: () => h(Icon, { icon: 'mdi:web' }),
+    icon: () => h(Icon, { icon: 'mdi:web', class: 'text-lg' }),
   },
 ];
 
@@ -271,34 +165,89 @@ function openSdkDistPage() {
 </script>
 
 <style scoped>
+.sidebar {
+  background: var(--bg-secondary) !important;
+  border-right: 1px solid var(--border-glass);
+}
+
 .sidebar-header {
-  height: 64px;
+  height: 72px;
   display: flex;
   align-items: center;
   justify-content: center;
-  background: #fff;
-  border-bottom: 1px solid #f0f0f0;
+  background: transparent;
+  border-bottom: 1px solid var(--border-glass);
 }
 
 .logo-full {
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 0 16px;
-}
-
-.logo-icon {
-  flex-shrink: 0;
+  padding: 0 20px;
 }
 
 .logo-text {
-  font-size: 18px;
+  font-size: 20px;
   font-weight: 700;
-  color: #1f2937;
-  letter-spacing: 0.5px;
+  letter-spacing: -0.5px;
 }
 
-.logo-collapsed {
-  flex-shrink: 0;
+.header {
+  height: 72px;
+  padding: 0 24px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: var(--bg-glass);
+  backdrop-filter: blur(20px);
+  border-bottom: 1px solid var(--border-glass);
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 50;
+}
+
+.content {
+  padding: 24px;
+  position: absolute;
+  top: 72px;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: var(--bg-primary);
+}
+
+/* 菜单样式覆盖 */
+:deep(.sidebar-menu) {
+  --n-item-height: 48px;
+  padding: 12px;
+}
+
+:deep(.sidebar-menu .n-menu-item) {
+  margin-bottom: 4px;
+}
+
+:deep(.sidebar-menu .n-menu-item-content) {
+  border-radius: 10px;
+  color: var(--text-secondary) !important;
+}
+
+:deep(.sidebar-menu .n-menu-item-content:hover) {
+  background: rgba(255, 255, 255, 0.05) !important;
+  color: var(--text-primary) !important;
+}
+
+:deep(.sidebar-menu .n-menu-item-content--selected) {
+  background: rgba(59, 130, 246, 0.15) !important;
+  color: var(--accent-blue) !important;
+}
+
+:deep(.sidebar-menu .n-menu-item-content--selected::before) {
+  display: none;
+}
+
+:deep(.sidebar-menu .n-menu-item-content__icon) {
+  color: inherit !important;
 }
 </style>

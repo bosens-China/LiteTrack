@@ -1,20 +1,34 @@
 <template>
-  <div>
+  <div class="min-h-full">
     <!-- 加载骨架屏 -->
     <div v-if="loading" class="site-detail-grid">
       <div class="full-width">
-        <n-skeleton text style="width: 30%; height: 32px" />
-        <n-skeleton text style="width: 50%" />
+        <div class="glass-card p-6">
+          <n-skeleton text style="width: 30%; height: 32px" />
+          <n-skeleton text style="width: 50%; margin-top: 12px" />
+        </div>
       </div>
-      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 full-width">
-        <n-skeleton height="100px" />
-        <n-skeleton height="100px" />
-        <n-skeleton height="100px" />
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5 full-width">
+        <div class="glass-card p-5">
+          <n-skeleton height="80px" />
+        </div>
+        <div class="glass-card p-5">
+          <n-skeleton height="80px" />
+        </div>
+        <div class="glass-card p-5">
+          <n-skeleton height="80px" />
+        </div>
       </div>
-      <n-skeleton height="320px" class="full-width" />
+      <div class="glass-card p-5 full-width" style="height: 400px">
+        <n-skeleton height="100%" />
+      </div>
       <div class="content-row bottom-row">
-        <n-skeleton height="300px" class="logs-section" />
-        <n-skeleton height="300px" class="tokens-section" />
+        <div class="glass-card p-5 logs-section" style="height: 400px">
+          <n-skeleton height="100%" />
+        </div>
+        <div class="glass-card p-5 tokens-section" style="height: 400px">
+          <n-skeleton height="100%" />
+        </div>
       </div>
     </div>
 
@@ -35,13 +49,13 @@
         class="full-width"
       />
       
-      <!-- 大屏布局：趋势图 + 热门页面 并排 -->
+      <!-- 趋势图 + 热门页面 -->
       <div class="content-row">
         <TrendChart :site-id="siteId" class="trend-section" />
         <PopularPages :site-id="siteId" class="pages-section" />
       </div>
 
-      <!-- 大屏布局：访问日志 + 令牌列表 并排 -->
+      <!-- 访问日志 + 令牌列表 -->
       <div class="content-row bottom-row">
         <AccessLogs :site-id="siteId" class="logs-section" />
         <TokenList 
@@ -53,18 +67,45 @@
       </div>
 
       <!-- 编辑弹窗 -->
-      <n-modal v-model:show="showEditModal" preset="dialog" title="编辑网站">
-        <n-form :model="editForm" label-placement="left" label-width="80">
-          <n-form-item label="名称（可选）">
-            <n-input v-model:value="editForm.title" />
-          </n-form-item>
-          <n-form-item label="描述（可选）">
-            <n-input v-model:value="editForm.description" type="textarea" :rows="3" />
-          </n-form-item>
-        </n-form>
+      <n-modal 
+        v-model:show="showEditModal" 
+        preset="dialog" 
+        title="编辑网站信息"
+        class="edit-modal"
+      >
+        <div class="space-y-4">
+          <div>
+            <label class="block text-sm font-medium text-slate-300 mb-2">网站名称</label>
+            <n-input 
+              v-model:value="editForm.title" 
+              placeholder="输入网站名称（可选）"
+              size="large"
+            />
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-slate-300 mb-2">描述</label>
+            <n-input 
+              v-model:value="editForm.description" 
+              type="textarea" 
+              :rows="3"
+              placeholder="输入网站描述（可选）"
+            />
+          </div>
+        </div>
         <template #action>
-          <n-button @click="showEditModal = false">取消</n-button>
-          <n-button type="primary" :loading="updating" @click="handleUpdate">保存</n-button>
+          <div class="flex justify-end gap-3">
+            <button class="btn-glass px-4 py-2 rounded-lg" @click="showEditModal = false">
+              取消
+            </button>
+            <button 
+              class="btn-primary px-4 py-2 rounded-lg flex items-center gap-2"
+              :disabled="updating"
+              @click="handleUpdate"
+            >
+              <Icon v-if="updating" icon="mdi:loading" class="animate-spin" />
+              <span>保存</span>
+            </button>
+          </div>
         </template>
       </n-modal>
 
@@ -78,14 +119,27 @@
       />
     </div>
 
-    <n-empty v-else description="网站不存在或已被删除" />
+    <!-- 空状态 -->
+    <div v-else class="flex items-center justify-center min-h-[60vh]">
+      <n-empty description="网站不存在或已被删除">
+        <template #icon>
+          <Icon icon="mdi:web-off" class="text-6xl text-slate-600" />
+        </template>
+        <template #extra>
+          <button class="btn-primary mt-4 px-6 py-2 rounded-lg" @click="$router.push('/sites')">
+            返回网站列表
+          </button>
+        </template>
+      </n-empty>
+    </div>
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, computed, onMounted, watch } from 'vue'
-import { useRoute } from 'vue-router'
-import { NModal, NForm, NFormItem, NInput, NButton, NEmpty, NSkeleton, useMessage } from 'naive-ui'
+import { useRoute, useRouter } from 'vue-router'
+import { NModal, NInput, NEmpty, NSkeleton, useMessage } from 'naive-ui'
+import { Icon } from '@iconify/vue'
 import { useSitesStore } from '@/stores/sites'
 import { getSite } from '@/api/sites'
 import { getSiteStats } from '@/api/stats'
@@ -102,7 +156,11 @@ import TokenList from './TokenList.vue'
 import TokenModal from './TokenModal.vue'
 
 const route = useRoute()
+const router = useRouter()
 const sitesStore = useSitesStore()
+
+// router 用于空状态返回按钮
+void router
 const message = useMessage()
 
 const siteId = computed(() => parseInt(route.params.id as string, 10))
@@ -113,7 +171,7 @@ const stats = ref<SiteStats | null>(null)
 const loading = ref(false)
 const statsLoading = ref(false)
 
-// 动态标题 - 使用 MaybeRefOrGetter 支持
+// 动态标题
 useDocumentTitle(() => site.value?.title || '网站详情')
 
 const todayViews = computed(() => {
@@ -214,7 +272,7 @@ watch(() => route.params.id, () => {
 .site-detail-grid {
   display: flex;
   flex-direction: column;
-  gap: 1rem;
+  gap: 1.25rem;
 }
 
 .full-width {
@@ -225,7 +283,7 @@ watch(() => route.params.id, () => {
 .content-row {
   display: flex;
   flex-direction: column;
-  gap: 1rem;
+  gap: 1.25rem;
 }
 
 .trend-section,
@@ -237,7 +295,7 @@ watch(() => route.params.id, () => {
 /* 大屏 (>1440px): 趋势图和热门页面并排 */
 @media (min-width: 1440px) {
   .site-detail-grid {
-    gap: 1.25rem;
+    gap: 1.5rem;
   }
   
   .content-row {
@@ -259,7 +317,7 @@ watch(() => route.params.id, () => {
 .bottom-row {
   display: flex;
   flex-direction: column;
-  gap: 1rem;
+  gap: 1.25rem;
 }
 
 .logs-section,
@@ -288,11 +346,11 @@ watch(() => route.params.id, () => {
 /* 超大屏 (>1920px): 更宽松的间距 */
 @media (min-width: 1920px) {
   .site-detail-grid {
-    gap: 1.5rem;
+    gap: 1.75rem;
   }
   
   .content-row {
-    gap: 1.5rem;
+    gap: 1.75rem;
   }
   
   .pages-section {
@@ -302,5 +360,15 @@ watch(() => route.params.id, () => {
   .tokens-section {
     max-width: 450px;
   }
+}
+
+/* 编辑弹窗样式 */
+:deep(.edit-modal) {
+  --n-color: var(--bg-secondary) !important;
+}
+
+:deep(.edit-modal .n-dialog__title) {
+  color: var(--text-primary) !important;
+  font-weight: 600;
 }
 </style>

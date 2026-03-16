@@ -1,26 +1,36 @@
 <template>
-  <div class="space-y-4">
-    <!-- 操作栏 -->
-    <div class="flex justify-between items-center">
-      <h2 class="text-xl font-bold">网站列表</h2>
-      <n-button type="primary" @click="showCreateModal = true">
-        <template #icon>
-          <Icon icon="mdi:plus" />
-        </template>
+  <div class="space-y-5">
+    <!-- 标题栏 -->
+    <div class="flex items-center justify-between">
+      <div class="flex items-center gap-3">
+        <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-violet-600 flex items-center justify-center shadow-lg shadow-blue-500/25">
+          <Icon icon="mdi:web" class="text-xl text-white" />
+        </div>
+        <div>
+          <h2 class="text-xl font-bold text-white">网站管理</h2>
+          <p class="text-sm text-slate-400">管理您的所有追踪网站</p>
+        </div>
+      </div>
+      <button 
+        class="btn-primary px-4 py-2 rounded-lg font-medium flex items-center gap-2"
+        @click="showCreateModal = true"
+      >
+        <Icon icon="mdi:plus" />
         创建网站
-      </n-button>
+      </button>
     </div>
 
     <!-- 网站表格 -->
-    <n-card>
+    <div class="glass-card p-1 overflow-hidden">
       <n-data-table
         :columns="columns"
         :data="sitesStore.sites"
         :loading="sitesStore.loading"
         :pagination="pagination"
         :row-key="(row: Site) => row.id"
+        class="sites-table"
       />
-    </n-card>
+    </div>
 
     <!-- 创建网站弹窗 -->
     <CreateSiteModal v-model:show="showCreateModal" @success="handleCreateSuccess" />
@@ -32,8 +42,6 @@ import { h, onMounted, ref } from 'vue';
 import { useRouter } from 'vue-router';
 import type { DataTableColumns } from 'naive-ui';
 import {
-  NButton,
-  NCard,
   NDataTable,
   NPopconfirm,
   NSpace,
@@ -56,63 +64,85 @@ const pagination = {
   pageSize: 10,
 };
 
+// 格式化日期
+function formatDate(date: string | Date): string {
+  return new Date(date).toLocaleDateString('zh-CN', {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+  })
+}
+
 // 表格列定义
 const columns: DataTableColumns<Site> = [
   {
-    title: '网站名称',
+    title: '网站',
     key: 'title',
     render(row) {
-      return h('div', [
-        h('div', { class: 'font-medium' }, row.title || row.domain),
-        row.title
-          ? h('div', { class: 'text-gray-500 text-sm' }, row.domain)
-          : null,
+      return h('div', { class: 'flex items-center gap-3' }, [
+        h('div', { 
+          class: 'w-9 h-9 rounded-lg bg-gradient-to-br from-blue-500/20 to-violet-500/20 flex items-center justify-center shrink-0' 
+        }, [
+          h(Icon, { icon: 'mdi:web', class: 'text-lg text-blue-400' })
+        ]),
+        h('div', [
+          h('div', { class: 'font-medium text-slate-200' }, row.title || row.domain),
+          row.title
+            ? h('div', { class: 'text-slate-500 text-xs' }, row.domain)
+            : null,
+        ]),
       ]);
     },
   },
   {
     title: '描述',
     key: 'description',
+    ellipsis: { tooltip: true },
     render(row) {
-      return row.description || '-';
+      return row.description 
+        ? h('span', { class: 'text-slate-400 text-sm' }, row.description)
+        : h('span', { class: 'text-slate-600 text-sm italic' }, '暂无描述');
     },
   },
   {
     title: '令牌数',
     key: 'tokens',
     width: 100,
+    align: 'center',
     render(row) {
-      return row._count?.tokens || 0;
+      return h('span', { 
+        class: 'px-2 py-0.5 rounded-md bg-emerald-500/10 text-emerald-400 text-xs font-medium border border-emerald-500/20' 
+      }, row._count?.tokens || 0);
     },
   },
   {
     title: '创建时间',
     key: 'createdAt',
-    width: 180,
+    width: 140,
     render(row) {
-      return new Date(row.createdAt).toLocaleString('zh-CN');
+      return h('span', { class: 'text-slate-400 text-sm font-mono' }, formatDate(row.createdAt));
     },
   },
   {
     title: '操作',
     key: 'actions',
-    width: 300,
+    width: 220,
     render(row) {
       return h(
         NSpace,
-        {},
+        { size: 'small' },
         {
           default: () => [
             h(
-              NButton,
+              'button',
               {
-                size: 'small',
+                class: 'flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-blue-500/10 text-blue-400 hover:bg-blue-500/20 transition-colors text-sm font-medium',
                 onClick: () => router.push(`/sites/${row.id}`),
               },
-              {
-                default: () => '查看统计',
-                icon: () => h(Icon, { icon: 'mdi:chart-line' }),
-              },
+              [
+                h(Icon, { icon: 'mdi:chart-line', class: 'text-sm' }),
+                '查看统计',
+              ],
             ),
 
             h(
@@ -123,19 +153,17 @@ const columns: DataTableColumns<Site> = [
               {
                 trigger: () =>
                   h(
-                    NButton,
+                    'button',
                     {
-                      size: 'small',
-                      type: 'error',
-                      secondary: true,
+                      class: 'flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-rose-500/10 text-rose-400 hover:bg-rose-500/20 transition-colors text-sm font-medium',
                     },
-                    {
-                      default: () => '删除',
-                      icon: () => h(Icon, { icon: 'mdi:delete' }),
-                    },
+                    [
+                      h(Icon, { icon: 'mdi:delete', class: 'text-sm' }),
+                      '删除',
+                    ],
                   ),
                 default: () =>
-                  `确定要删除网站 "${row.title || row.domain}" 吗？此操作不可恢复。`,
+                  h('span', { class: 'text-sm' }, `确定要删除网站 "${row.title || row.domain}" 吗？此操作不可恢复。`),
               },
             ),
           ],
@@ -158,9 +186,7 @@ async function handleDelete(site: Site) {
 
 // 创建成功处理
 function handleCreateSuccess(siteId: number) {
-  // 刷新列表
   void sitesStore.fetchSites();
-  // 跳转到新创建的网站详情
   router.push(`/sites/${siteId}`);
 }
 
@@ -168,3 +194,14 @@ onMounted(() => {
   sitesStore.fetchSites();
 });
 </script>
+
+<style scoped>
+:deep(.sites-table .n-data-table-td) {
+  padding: 12px 16px !important;
+}
+
+:deep(.sites-table .n-data-table-th) {
+  padding: 12px 16px !important;
+  font-weight: 600;
+}
+</style>

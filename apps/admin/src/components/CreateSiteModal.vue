@@ -1,40 +1,47 @@
 <template>
+  <!-- 创建网站弹窗 -->
   <n-modal
     v-model:show="visible"
     preset="card"
     title="创建新网站"
+    class="create-modal"
     style="width: 600px; max-width: 90vw"
     :bordered="false"
     segmented
   >
-    <n-form
-      ref="formRef"
-      :model="formData"
-      :rules="rules"
-      label-placement="left"
-      label-width="100"
-      require-mark-placement="right-hanging"
-    >
-      <n-form-item label="网站名称" path="title">
+    <div class="space-y-4">
+      <div>
+        <label class="block text-sm font-medium text-slate-300 mb-2">
+          网站名称
+        </label>
         <n-input
           v-model:value="formData.title"
           placeholder="输入网站名称（可选）"
           maxlength="255"
           show-count
           clearable
+          size="large"
         />
-      </n-form-item>
+      </div>
 
-      <n-form-item label="域名" path="domain">
+      <div>
+        <label class="block text-sm font-medium text-slate-300 mb-2">
+          域名 <span class="text-rose-400">*</span>
+        </label>
         <n-input
           v-model:value="formData.domain"
           placeholder="example.com"
           maxlength="255"
           clearable
+          size="large"
         />
-      </n-form-item>
+        <p class="text-xs text-slate-500 mt-1">输入网站域名，不需要包含 http:// 或 https://</p>
+      </div>
 
-      <n-form-item label="描述" path="description">
+      <div>
+        <label class="block text-sm font-medium text-slate-300 mb-2">
+          描述
+        </label>
         <n-input
           v-model:value="formData.description"
           type="textarea"
@@ -43,15 +50,22 @@
           show-count
           :rows="3"
         />
-      </n-form-item>
-    </n-form>
+      </div>
+    </div>
 
     <template #footer>
       <div class="flex justify-end gap-3">
-        <n-button @click="close">取消</n-button>
-        <n-button type="primary" :loading="submitting" @click="handleSubmit">
-          创建
-        </n-button>
+        <button class="btn-glass px-4 py-2 rounded-lg" @click="close">
+          取消
+        </button>
+        <button 
+          class="btn-primary px-4 py-2 rounded-lg flex items-center gap-2"
+          :disabled="submitting || !formData.domain.trim()"
+          @click="handleSubmit"
+        >
+          <Icon v-if="submitting" icon="mdi:loading" class="animate-spin" />
+          <span>创建</span>
+        </button>
       </div>
     </template>
   </n-modal>
@@ -61,15 +75,46 @@
     v-model:show="showTokenModal"
     preset="dialog"
     title="网站创建成功"
-    positive-text="复制并关闭"
+    class="token-modal"
     :closable="false"
-    @positive-click="copyAndClose"
   >
     <div class="space-y-4">
-      <p>请妥善保存以下访问令牌，它只会显示一次：</p>
-      <n-input :value="createdToken" type="textarea" readonly :rows="3" />
-      <p class="text-sm text-gray-500">将此令牌配置到 SDK 后即可开始统计访问数据。</p>
+      <div class="flex items-center gap-2 p-3 rounded-lg bg-emerald-500/10 border border-emerald-500/20">
+        <Icon icon="mdi:check-circle" class="text-emerald-400 text-xl" />
+        <p class="text-emerald-400 font-medium">网站创建成功！</p>
+      </div>
+      
+      <p class="text-sm text-slate-400">请立即保存以下访问令牌，它只会显示一次：</p>
+      
+      <div class="relative">
+        <n-input 
+          :value="createdToken" 
+          type="textarea" 
+          readonly 
+          :rows="3"
+          class="font-mono text-sm"
+        />
+        <button 
+          class="absolute top-2 right-2 p-1.5 rounded-lg bg-slate-700/50 hover:bg-slate-600 text-slate-400 hover:text-white transition-colors"
+          title="复制"
+          @click="copyToken"
+        >
+          <Icon icon="mdi:content-copy" />
+        </button>
+      </div>
+      
+      <p class="text-sm text-slate-500">将此令牌配置到 SDK 后即可开始统计访问数据。</p>
     </div>
+
+    <template #action>
+      <button 
+        class="btn-primary w-full py-2.5 rounded-lg font-medium flex items-center justify-center gap-2"
+        @click="copyAndClose"
+      >
+        <Icon icon="mdi:content-copy" />
+        复制并关闭
+      </button>
+    </template>
   </n-modal>
 </template>
 
@@ -77,14 +122,10 @@
 import { ref, watch, computed } from 'vue'
 import {
   NModal,
-  NForm,
-  NFormItem,
   NInput,
-  NButton,
   useMessage,
-  type FormInst,
-  type FormRules,
 } from 'naive-ui'
+import { Icon } from '@iconify/vue'
 import { useSitesStore } from '@/stores/sites'
 
 const props = defineProps<{
@@ -99,7 +140,6 @@ const emit = defineEmits<{
 const sitesStore = useSitesStore()
 const message = useMessage()
 
-const formRef = ref<FormInst | null>(null)
 const submitting = ref(false)
 const showTokenModal = ref(false)
 const createdToken = ref('')
@@ -116,22 +156,12 @@ const formData = ref({
   description: '',
 })
 
-const rules: FormRules = {
-  domain: [
-    { required: true, message: '请输入域名', trigger: 'blur' },
-    { min: 1, max: 255, message: '长度在 1-255 个字符', trigger: 'blur' },
-  ],
-  title: [{ max: 255, message: '长度不能超过 255 个字符', trigger: 'blur' }],
-  description: [{ max: 1000, message: '长度不能超过 1000 个字符', trigger: 'blur' }],
-}
-
 function resetForm() {
   formData.value = {
     title: '',
     domain: '',
     description: '',
   }
-  formRef.value?.restoreValidation()
 }
 
 function close() {
@@ -140,13 +170,13 @@ function close() {
 }
 
 async function handleSubmit() {
-  await formRef.value?.validate()
+  if (!formData.value.domain.trim()) return
 
   submitting.value = true
   try {
     const result = await sitesStore.addSite({
       title: formData.value.title || undefined,
-      domain: formData.value.domain,
+      domain: formData.value.domain.trim(),
       description: formData.value.description || undefined,
     })
 
@@ -154,7 +184,6 @@ async function handleSubmit() {
     createdSiteId.value = result.site.id
     showTokenModal.value = true
     
-    // 关闭创建弹窗
     visible.value = false
     resetForm()
   } catch (error) {
@@ -165,11 +194,19 @@ async function handleSubmit() {
   }
 }
 
+async function copyToken() {
+  try {
+    await navigator.clipboard.writeText(createdToken.value)
+    message.success('已复制到剪贴板')
+  } catch {
+    message.error('复制失败')
+  }
+}
+
 function copyAndClose() {
   void navigator.clipboard.writeText(createdToken.value)
   message.success('已复制到剪贴板')
   
-  // 通知父组件创建成功
   if (createdSiteId.value !== null) {
     emit('success', createdSiteId.value)
   }
@@ -179,10 +216,29 @@ function copyAndClose() {
   createdSiteId.value = null
 }
 
-// 监听 show 变化，打开时重置表单
 watch(() => props.show, (newVal) => {
   if (newVal) {
     resetForm()
   }
 })
 </script>
+
+<style scoped>
+:deep(.create-modal) {
+  --n-color: var(--bg-secondary) !important;
+}
+
+:deep(.create-modal .n-card-header__main) {
+  color: var(--text-primary) !important;
+  font-weight: 600;
+}
+
+:deep(.token-modal) {
+  --n-color: var(--bg-secondary) !important;
+}
+
+:deep(.token-modal .n-dialog__title) {
+  color: var(--text-primary) !important;
+  font-weight: 600;
+}
+</style>

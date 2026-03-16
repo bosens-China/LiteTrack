@@ -1,26 +1,42 @@
 <template>
-  <n-card title="访问趋势">
-    <template #header-extra>
-      <n-radio-group v-model:value="timeRange" size="small">
-        <n-radio-button value="7">最近7天</n-radio-button>
-        <n-radio-button value="30">最近30天</n-radio-button>
-        <n-radio-button value="90">最近3个月</n-radio-button>
-        <n-radio-button value="365">最近一年</n-radio-button>
+  <div class="glass-card p-5 h-full flex flex-col">
+    <!-- 自定义头部 -->
+    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-5">
+      <div class="flex items-center gap-3">
+        <div class="w-8 h-8 rounded-lg bg-blue-500/20 flex items-center justify-center">
+          <Icon icon="mdi:chart-areaspline" class="text-lg text-blue-400" />
+        </div>
+        <div>
+          <h3 class="text-lg font-semibold text-white">访问趋势</h3>
+          <p class="text-xs text-slate-400">网站访问量变化趋势</p>
+        </div>
+      </div>
+      
+      <n-radio-group v-model:value="timeRange" size="small" class="shrink-0">
+        <n-radio-button value="7">7天</n-radio-button>
+        <n-radio-button value="30">30天</n-radio-button>
+        <n-radio-button value="90">3个月</n-radio-button>
+        <n-radio-button value="365">1年</n-radio-button>
       </n-radio-group>
-    </template>
-    <v-chart
-      :option="chartOption"
-      :loading="loading"
-      :loading-options="loadingOptions"
-      :autoresize="true"
-      style="height: 360px; width: 100%;"
-    />
-  </n-card>
+    </div>
+
+    <!-- 图表容器 -->
+    <div class="flex-1 min-h-[320px] relative">
+      <v-chart
+        :option="chartOption"
+        :loading="loading"
+        :loading-options="loadingOptions"
+        :autoresize="true"
+        class="w-full h-full"
+      />
+    </div>
+  </div>
 </template>
 
 <script setup lang="ts">
 import { ref, watch, onMounted, computed } from 'vue';
-import { NCard, NRadioGroup, NRadioButton } from 'naive-ui';
+import { NRadioGroup, NRadioButton } from 'naive-ui';
+import { Icon } from '@iconify/vue';
 import { useRequest } from 'vue-request';
 import { useMessage } from 'naive-ui';
 import { use } from 'echarts/core';
@@ -60,29 +76,27 @@ const chartData = ref<DailyView[]>([]);
 // 存储周元数据供 tooltip 使用
 const weeklyMeta = ref<Map<string, { start: string; end: string }>>(new Map());
 
-// 图表配置
+// 深色主题图表配置
 const chartOption = computed<EChartsOption>(() => {
   const isSevenDays = timeRange.value === '7';
   
   return {
-    animation: false,
+    animation: true,
+    animationDuration: 800,
+    animationEasing: 'cubicOut',
+    
+    // 深色主题 tooltip
     tooltip: {
       trigger: 'axis',
-      axisPointer: {
-        type: 'line',
-        lineStyle: {
-          color: '#3b82f6',
-          width: 1,
-          type: 'solid'
-        }
-      },
-      backgroundColor: '#ffffff',
-      borderColor: '#e5e7eb',
+      backgroundColor: 'rgba(15, 23, 42, 0.95)',
+      borderColor: 'rgba(59, 130, 246, 0.3)',
       borderWidth: 1,
+      padding: [12, 16],
       textStyle: {
-        color: '#374151'
+        color: '#F1F5F9',
+        fontSize: 13,
       },
-      extraCssText: 'box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);',
+      extraCssText: 'backdrop-filter: blur(10px); border-radius: 8px; box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.5);',
       formatter: (params) => {
         if (!Array.isArray(params) || params.length === 0) return '';
         const param = params[0];
@@ -93,27 +107,48 @@ const chartOption = computed<EChartsOption>(() => {
         if (timeRange.value === '90') {
           const range = weeklyMeta.value.get(label);
           if (range) {
-            return `${label} (${range.start}~${range.end})\n访问量: ${count} 次`;
+            return `<div style="font-weight: 600; margin-bottom: 4px;">${label}</div>
+                    <div style="color: #94A3B8; font-size: 12px; margin-bottom: 8px;">${range.start} ~ ${range.end}</div>
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                      <span style="display: inline-block; width: 8px; height: 8px; background: #3B82F6; border-radius: 50%;"></span>
+                      <span style="color: #60A5FA; font-weight: 500;">${count}</span>
+                      <span style="color: #64748B;">次访问</span>
+                    </div>`;
           }
         }
 
-        return `${label}\n访问量: ${count} 次`;
+        return `<div style="font-weight: 600; margin-bottom: 4px;">${label}</div>
+                <div style="display: flex; align-items: center; gap: 8px;">
+                  <span style="display: inline-block; width: 8px; height: 8px; background: #3B82F6; border-radius: 50%;"></span>
+                  <span style="color: #60A5FA; font-weight: 500;">${count}</span>
+                  <span style="color: #64748B;">次访问</span>
+                </div>`;
+      },
+      axisPointer: {
+        type: 'line',
+        lineStyle: {
+          color: 'rgba(59, 130, 246, 0.5)',
+          width: 1,
+          type: 'dashed'
+        }
       },
     },
+    
+    // X轴配置
     xAxis: {
       type: 'category',
       data: xAxisData.value,
       boundaryGap: false,
       axisLine: {
         show: true,
-        onZero: false,
         lineStyle: {
-          color: '#e5e7eb'
+          color: 'rgba(148, 163, 184, 0.2)'
         }
       },
       axisLabel: {
-        color: '#6b7280',
-        fontSize: 12
+        color: '#94A3B8',
+        fontSize: 11,
+        margin: 12
       },
       axisTick: {
         show: false
@@ -122,28 +157,35 @@ const chartOption = computed<EChartsOption>(() => {
         show: false
       }
     },
+    
+    // Y轴配置
     yAxis: { 
       type: 'value', 
       minInterval: 1,
-      name: '单位/次',
+      name: '访问量',
       nameTextStyle: {
-        color: '#9ca3af',
-        padding: [0, 0, 0, -20]
+        color: '#64748B',
+        padding: [0, 0, 0, -10],
+        fontSize: 11
       },
       axisLine: {
-        show: true,
-        lineStyle: {
-          color: '#e5e7eb'
-        }
+        show: false
       },
       axisLabel: {
-        color: '#6b7280',
-        fontSize: 12
+        color: '#64748B',
+        fontSize: 11,
+        fontFamily: 'JetBrains Mono'
       },
       splitLine: {
-        show: false
+        show: true,
+        lineStyle: {
+          color: 'rgba(148, 163, 184, 0.1)',
+          type: 'dashed'
+        }
       }
     },
+    
+    // 数据缩放
     dataZoom: isSevenDays ? [] : [
       {
         type: 'inside',
@@ -154,10 +196,25 @@ const chartOption = computed<EChartsOption>(() => {
         type: 'slider',
         start: 0,
         end: 100,
-        height: 10,
-        bottom: 5,
+        height: 16,
+        bottom: 0,
+        borderColor: 'transparent',
+        backgroundColor: 'rgba(148, 163, 184, 0.1)',
+        fillerColor: 'rgba(59, 130, 246, 0.2)',
+        handleStyle: {
+          color: '#3B82F6',
+          shadowBlur: 3,
+          shadowColor: 'rgba(0, 0, 0, 0.6)',
+          shadowOffsetX: 2,
+          shadowOffsetY: 2
+        },
+        textStyle: {
+          color: '#64748B'
+        }
       },
     ],
+    
+    // 数据系列
     series: [
       {
         name: '访问量',
@@ -167,8 +224,17 @@ const chartOption = computed<EChartsOption>(() => {
         showSymbol: false,
         symbolSize: 8,
         emphasis: {
-          focus: 'series'
+          focus: 'series',
+          showSymbol: true,
+          itemStyle: {
+            color: '#60A5FA',
+            borderColor: '#fff',
+            borderWidth: 2,
+            shadowColor: 'rgba(59, 130, 246, 0.5)',
+            shadowBlur: 10
+          }
         },
+        // 霓虹渐变面积
         areaStyle: {
           color: {
             type: 'linear',
@@ -177,23 +243,45 @@ const chartOption = computed<EChartsOption>(() => {
             x2: 0,
             y2: 1,
             colorStops: [
-              { offset: 0, color: 'rgba(59, 130, 246, 0.3)' },
-              { offset: 1, color: 'rgba(59, 130, 246, 0.05)' },
+              { offset: 0, color: 'rgba(59, 130, 246, 0.4)' },
+              { offset: 0.5, color: 'rgba(59, 130, 246, 0.15)' },
+              { offset: 1, color: 'rgba(59, 130, 246, 0)' },
             ],
           },
         },
-        lineStyle: { color: '#3b82f6', width: 2 },
-        itemStyle: { color: '#3b82f6' },
+        // 发光线条
+        lineStyle: { 
+          color: {
+            type: 'linear',
+            x: 0,
+            y: 0,
+            x2: 1,
+            y2: 0,
+            colorStops: [
+              { offset: 0, color: '#60A5FA' },
+              { offset: 0.5, color: '#3B82F6' },
+              { offset: 1, color: '#8B5CF6' },
+            ]
+          }, 
+          width: 3,
+          shadowColor: 'rgba(59, 130, 246, 0.5)',
+          shadowBlur: 10
+        },
+        itemStyle: { 
+          color: '#3B82F6',
+          borderColor: '#fff',
+          borderWidth: 2
+        },
       },
     ],
+    
+    // 网格配置
     grid: {
-      left: '3%',
-      right: '4%',
-      bottom: isSevenDays ? '3%' : '10%',
-      top: '10%',
+      left: '2%',
+      right: '3%',
+      bottom: isSevenDays ? '2%' : '12%',
+      top: '12%',
       containLabel: true,
-      show: false,
-      borderWidth: 0,
     },
   };
 });
@@ -201,9 +289,10 @@ const chartOption = computed<EChartsOption>(() => {
 // 加载配置
 const loadingOptions = {
   text: '加载中...',
-  color: '#3b82f6',
-  textColor: '#3b82f6',
-  maskColor: 'rgba(255, 255, 255, 0.6)',
+  color: '#3B82F6',
+  textColor: '#94A3B8',
+  maskColor: 'rgba(15, 23, 42, 0.8)',
+  zlevel: 0
 };
 
 // X轴数据

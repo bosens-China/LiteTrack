@@ -1,12 +1,24 @@
 <template>
-  <n-card title="访问日志">
+  <div class="glass-card p-5 h-full flex flex-col">
+    <!-- 自定义头部 -->
+    <div class="flex items-center gap-3 mb-4">
+      <div class="w-8 h-8 rounded-lg bg-emerald-500/20 flex items-center justify-center">
+        <Icon icon="mdi:clipboard-list" class="text-lg text-emerald-400" />
+      </div>
+      <div>
+        <h3 class="text-lg font-semibold text-white">访问日志</h3>
+        <p class="text-xs text-slate-400">详细的访问记录</p>
+      </div>
+    </div>
+
     <!-- 筛选栏 -->
-    <div class="mb-4 flex flex-wrap items-center gap-2">
+    <div class="mb-4 flex flex-wrap items-center gap-3">
       <n-select
         v-model:value="timeRange"
         :options="timeRangeOptions"
-        placeholder="选择时间范围"
-        style="width: 140px"
+        placeholder="时间范围"
+        size="small"
+        style="width: 120px"
         @update:value="handleTimeRangeChange"
       />
 
@@ -14,11 +26,12 @@
         v-model:value="filters.path"
         placeholder="搜索路径"
         clearable
+        size="small"
         style="width: 160px"
         @keyup.enter="handleSearch"
       >
         <template #prefix>
-          <Icon icon="mdi:magnify" />
+          <Icon icon="mdi:magnify" class="text-slate-400 text-sm" />
         </template>
       </n-input>
 
@@ -26,36 +39,52 @@
         v-model:value="dateRange"
         type="daterange"
         clearable
-        style="width: 220px"
-        placeholder="选择日期范围"
+        size="small"
+        style="width: 200px"
+        placeholder="日期范围"
         @update:value="handleDateChange"
       />
 
-      <n-button type="primary" @click="handleSearch"> 查询 </n-button>
-      <n-button @click="handleReset"> 重置 </n-button>
+      <div class="flex items-center gap-2 ml-auto">
+        <button 
+          class="btn-primary px-3 py-1.5 rounded-lg text-xs font-medium flex items-center gap-1.5"
+          @click="handleSearch"
+        >
+          <Icon icon="mdi:magnify" />
+          查询
+        </button>
+        <button 
+          class="btn-glass px-3 py-1.5 rounded-lg text-xs font-medium flex items-center gap-1.5"
+          @click="handleReset"
+        >
+          <Icon icon="mdi:refresh" />
+          重置
+        </button>
+      </div>
     </div>
 
     <!-- 数据表格 -->
-    <n-data-table
-      :columns="columns"
-      :data="logs"
-      :loading="loading"
-      :pagination="pagination"
-      :row-key="(row) => row.id"
-      remote
-      @update:page="handlePageChange"
-      @update:page-size="handlePageSizeChange"
-    />
-  </n-card>
+    <div class="flex-1 overflow-hidden">
+      <n-data-table
+        :columns="columns"
+        :data="logs"
+        :loading="loading"
+        :pagination="pagination"
+        :row-key="(row: AccessLog) => row.id"
+        remote
+        size="small"
+        class="h-full"
+        @update:page="handlePageChange"
+        @update:page-size="handlePageSizeChange"
+      />
+    </div>
+  </div>
 </template>
 
 <script setup lang="ts">
 import { h, ref, watch } from 'vue';
 import {
-  NCard,
   NInput,
-  NButton,
-  NDataTable,
   NDatePicker,
   NSelect,
   useMessage,
@@ -78,14 +107,14 @@ type TimeRangeValue = '1' | '3' | '7' | '30' | 'all';
 
 const timeRangeOptions: SelectOption[] = [
   { label: '今天', value: '1' },
-  { label: '最近3天', value: '3' },
-  { label: '最近7天', value: '7' },
-  { label: '最近30天', value: '30' },
+  { label: '3天', value: '3' },
+  { label: '7天', value: '7' },
+  { label: '30天', value: '30' },
   { label: '全部', value: 'all' },
 ];
 
 // 筛选条件
-const timeRange = ref<TimeRangeValue>('1'); // 默认今天
+const timeRange = ref<TimeRangeValue>('1');
 const filters = ref({
   path: '',
   startDate: '',
@@ -108,9 +137,13 @@ const columns: DataTableColumns<AccessLog> = [
   {
     title: '时间',
     key: 'createdAt',
-    width: 180,
+    width: 160,
     render(row) {
-      return new Date(row.createdAt).toLocaleString('zh-CN');
+      const date = new Date(row.createdAt)
+      return h('div', { class: 'font-mono text-xs' }, [
+        h('div', { class: 'text-slate-300' }, date.toLocaleDateString('zh-CN')),
+        h('div', { class: 'text-slate-500' }, date.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit', second: '2-digit' }))
+      ])
     },
   },
   {
@@ -118,58 +151,60 @@ const columns: DataTableColumns<AccessLog> = [
     key: 'path',
     ellipsis: { tooltip: true },
     render(row) {
-      // 优先显示 title，没有 title 则显示 path
       const displayText = row.title || row.path;
-      // 如果有 title 且有 path 且不同，则同时显示 path
       if (row.title && row.path && row.title !== row.path) {
         return h('div', [
-          h('div', { class: 'font-medium' }, displayText),
-          h('div', { class: 'text-gray-500 text-xs' }, row.path),
+          h('div', { class: 'text-slate-200 text-sm font-medium' }, displayText),
+          h('div', { class: 'text-slate-500 text-xs' }, row.path),
         ]);
       }
-      return displayText;
+      return h('span', { class: 'text-slate-200 text-sm' }, displayText);
     },
   },
   {
     title: 'IP',
     key: 'ip',
-    width: 140,
+    width: 120,
     render(row) {
-      return row.ip || '-';
+      return h('span', { class: 'font-mono text-xs text-slate-400' }, row.ip || '-');
     },
   },
   {
     title: '来源',
     key: 'referer',
+    width: 140,
     ellipsis: { tooltip: true },
     render(row) {
-      if (!row.referer) return '-';
+      if (!row.referer) return h('span', { class: 'text-slate-500' }, '-');
       try {
         const url = new URL(row.referer);
-        return url.hostname;
+        return h('span', { class: 'text-xs text-blue-400' }, url.hostname);
       } catch {
-        return row.referer;
+        return h('span', { class: 'text-xs text-slate-400 truncate' }, row.referer);
       }
     },
   },
   {
     title: '设备',
     key: 'userAgent',
-    width: 200,
-    ellipsis: { tooltip: true },
+    width: 160,
     render(row) {
-      return parseUserAgent(row.userAgent);
+      const { browser, os } = parseUserAgent(row.userAgent);
+      return h('div', { class: 'flex items-center gap-2' }, [
+        h('span', { class: 'text-xs text-slate-300' }, browser),
+        h('span', { class: 'text-slate-600' }, '/'),
+        h('span', { class: 'text-xs text-slate-500' }, os)
+      ]);
     },
   },
 ];
 
 // 解析 User-Agent
-function parseUserAgent(ua: string | null): string {
-  if (!ua) return '-';
+function parseUserAgent(ua: string | null): { browser: string; os: string } {
+  if (!ua) return { browser: '-', os: '-' };
 
-  // 简单解析，显示浏览器和系统
-  let browser = '未知浏览器';
-  let os = '未知系统';
+  let browser = '未知';
+  let os = '未知';
 
   if (ua.includes('Chrome')) browser = 'Chrome';
   else if (ua.includes('Firefox')) browser = 'Firefox';
@@ -182,14 +217,14 @@ function parseUserAgent(ua: string | null): string {
   else if (ua.includes('Android')) os = 'Android';
   else if (ua.includes('iPhone') || ua.includes('iPad')) os = 'iOS';
 
-  return `${browser} / ${os}`;
+  return { browser, os };
 }
 
 // 根据时间范围计算日期
 function getDateRangeByDays(days: number): { startDate: string; endDate: string } {
   const end = new Date();
   const start = new Date();
-  start.setDate(start.getDate() - days + 1); // 包含今天，所以减 days-1
+  start.setDate(start.getDate() - days + 1);
 
   return {
     startDate: start.toISOString().split('T')[0],
@@ -214,7 +249,6 @@ function applyTimeRange(range: TimeRangeValue) {
 function handleTimeRangeChange(value: TimeRangeValue) {
   timeRange.value = value;
   applyTimeRange(value);
-  // 清空日期选择器，避免混淆
   dateRange.value = null;
   handleSearch();
 }
@@ -239,7 +273,7 @@ const { run: fetchLogs, loading } = useRequest(
         error instanceof Error ? error.message : '加载访问日志失败',
       );
     },
-  },
+  }
 );
 
 const logs = ref<AccessLog[]>([]);
@@ -252,7 +286,7 @@ function handleSearch() {
 
 // 重置
 function handleReset() {
-  timeRange.value = '1'; // 重置为默认今天
+  timeRange.value = '1';
   filters.value = {
     path: '',
     startDate: '',
@@ -260,12 +294,11 @@ function handleReset() {
   };
   dateRange.value = null;
   pagination.value.page = 1;
-  // 应用默认时间范围后查询
   applyTimeRange('1');
   fetchLogs();
 }
 
-// 日期变化 - 仅用于手动选择自定义日期
+// 日期变化
 function handleDateChange(value: [number, number] | null) {
   if (value) {
     filters.value.startDate = new Date(value[0]).toISOString().split('T')[0];
