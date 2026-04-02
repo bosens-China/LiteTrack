@@ -39,8 +39,8 @@
       </div>
     </n-layout-sider>
 
-    <n-layout class="main-layout">
-      <n-layout-header class="header">
+    <n-layout class="main-layout" :style="mainLayoutOffsetStyle">
+      <n-layout-header bordered class="header">
         <div class="header-main">
           <div class="header-title-group">
             <div class="header-badge">
@@ -105,6 +105,13 @@ const router = useRouter()
 const authStore = useAuthStore()
 
 const collapsed = ref(false)
+
+/** 侧栏 fixed 后主区域左侧留白，与 sider 宽度一致 */
+const mainLayoutOffsetStyle = computed(() => ({
+  marginLeft: collapsed.value ? '72px' : '252px',
+  transition: 'margin-left 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+  minWidth: 0,
+}))
 const SDK_DIST_URL =
   'https://github.com/bosens-China/LiteTrack/tree/master/apps/sdk/dist'
 
@@ -163,14 +170,33 @@ function openSdkDistPage() {
 
 <style scoped>
 .admin-shell {
+  position: relative;
   min-height: 100vh;
 }
 
 .main-layout {
   min-width: 0;
+  height: 100vh;
+  max-height: 100vh;
+  overflow: hidden;
+}
+
+/* 顶栏 + 可滚动内容区：由 scroll-container 承担纵向 flex */
+.main-layout :deep(.n-layout-scroll-container) {
+  display: flex !important;
+  flex-direction: column;
+  height: 100% !important;
+  min-height: 0 !important;
+  overflow: hidden !important;
 }
 
 .sidebar {
+  position: fixed !important;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  height: 100vh;
+  z-index: 100;
   border-right: 1px solid var(--border-soft);
 }
 
@@ -226,11 +252,11 @@ function openSdkDistPage() {
 }
 
 .header {
+  flex-shrink: 0;
   height: 76px;
   padding: 0 24px;
-  position: sticky;
-  top: 0;
-  z-index: 10;
+  z-index: 20;
+  background: var(--bg-secondary);
 }
 
 .header-main {
@@ -315,6 +341,9 @@ function openSdkDistPage() {
 }
 
 .content {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
   padding: 24px;
   background: transparent;
 }

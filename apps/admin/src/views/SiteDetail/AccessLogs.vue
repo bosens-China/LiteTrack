@@ -61,17 +61,17 @@
       </div>
     </div>
 
-    <!-- 数据表格 -->
-    <div class="flex-1 overflow-hidden">
+    <div class="flex-1 overflow-hidden flex flex-col">
       <n-data-table
         :columns="columns"
         :data="logs"
         :loading="loading"
         :pagination="pagination"
         :row-key="(row: AccessLog) => row.id"
+        :max-height="400"
         remote
         size="small"
-        class="h-full"
+        class="h-full min-h-0"
         @update:page="handlePageChange"
         @update:page-size="handlePageSizeChange"
       />

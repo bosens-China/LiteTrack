@@ -367,12 +367,15 @@ textarea:focus-visible,
   --n-border: 1px solid #fda4af !important;
 }
 
-.n-radio-group .n-radio-button {
+/* Radio 按钮组：须使用 Naive 的 --n-button-* 变量，否则选中态文字色不会生效 */
+.n-radio-group.n-radio-group--button-group {
   --n-button-color: #ffffff !important;
   --n-button-color-active: var(--accent-blue) !important;
-  --n-button-border: 1px solid var(--border-default) !important;
-  --n-text-color: var(--text-secondary) !important;
-  --n-text-color-active: #ffffff !important;
+  --n-button-border-color: var(--border-default) !important;
+  --n-button-border-color-active: var(--accent-blue) !important;
+  --n-button-text-color: var(--text-secondary) !important;
+  --n-button-text-color-hover: var(--text-primary) !important;
+  --n-button-text-color-active: #ffffff !important;
 }
 
 .n-empty {

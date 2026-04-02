@@ -1,7 +1,15 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
-import type { Site, SiteDetail, CreateSiteData, UpdateSiteData } from '@/api/sites'
-import { getSites, createSite, updateSite, deleteSite, createToken, deleteToken } from '@/api/sites'
+import type { Site, SiteDetail, CreateSiteData, UpdateSiteData, UpdateTokenData } from '@/api/sites'
+import {
+  getSites,
+  createSite,
+  updateSite,
+  deleteSite,
+  createToken,
+  updateToken,
+  deleteToken,
+} from '@/api/sites'
 
 export const useSitesStore = defineStore('sites', () => {
   // State
@@ -85,6 +93,20 @@ export const useSitesStore = defineStore('sites', () => {
   }
 
   /**
+   * 更新令牌元信息
+   */
+  async function editToken(siteId: number, tokenId: number, data: UpdateTokenData) {
+    const { token } = await updateToken(siteId, tokenId, data)
+    if (currentSite.value?.id === siteId) {
+      const idx = currentSite.value.tokens.findIndex((t) => t.id === tokenId)
+      if (idx !== -1) {
+        currentSite.value.tokens[idx] = { ...currentSite.value.tokens[idx], ...token }
+      }
+    }
+    return token
+  }
+
+  /**
    * 删除令牌
    */
   async function removeToken(siteId: number, tokenId: number) {
@@ -104,6 +126,7 @@ export const useSitesStore = defineStore('sites', () => {
     removeSite,
     setCurrentSite,
     addToken,
+    editToken,
     removeToken,
   }
 })

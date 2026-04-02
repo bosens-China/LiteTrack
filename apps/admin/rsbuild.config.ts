@@ -14,13 +14,14 @@ export default defineConfig({
     },
   },
   server: {
-    port: 5173,
-    // proxy: {
-    //   '/litetrack': {
-    //     target: 'http://localhost:3000',
-    //     changeOrigin: true,
-    //   },
-    // },
+    // port: 8080,
+    // 开发时 Login 等使用相对路径 /litetrack/v1，需转发到 Fastify，否则会 404
+    proxy: {
+      '/litetrack': {
+        target: 'http://localhost:3000',
+        changeOrigin: true,
+      },
+    },
   },
   html: {
     template: './index.html',

@@ -205,7 +205,7 @@
     </template>
 
     <!-- 创建网站弹窗 -->
-    <CreateSiteModal v-model:show="showCreateModal" @success="handleCreateSuccess" />
+    <CreateSiteModal v-model:show="showCreateModal" />
   </div>
 </template>
 
@@ -283,12 +283,6 @@ async function fetchAllStats() {
       }
     })
   )
-}
-
-async function handleCreateSuccess(siteId: number) {
-  await sitesStore.fetchSites()
-  await fetchAllStats()
-  await router.push(`/sites/${siteId}`)
 }
 
 async function init() {

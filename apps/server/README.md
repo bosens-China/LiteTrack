@@ -13,6 +13,7 @@ docker-compose up -d
 ```
 
 这会启动：
+
 - PostgreSQL（端口 25432）
 - Redis（端口 26379）
 
@@ -34,7 +35,7 @@ JWT_SECRET="your-super-secret-jwt-key-change-this-in-production"
 GITHUB_CLIENT_ID="your-github-client-id"
 GITHUB_CLIENT_SECRET="your-github-client-secret"
 # 回调 URL 必须与 GitHub 设置完全一致
-GITHUB_CALLBACK_URL="http://localhost:5173/auth/callback"
+GITHUB_CALLBACK_URL="http://localhost:8080/auth/callback"
 ```
 
 ### 3. 初始化数据库
@@ -61,38 +62,38 @@ pnpm dev
 
 ### 认证相关
 
-| 方法 | 路由 | 说明 |
-|------|------|------|
-| GET | `/auth/github` | GitHub OAuth 登录入口 |
-| GET | `/auth/github/callback` | GitHub OAuth 回调 |
-| GET | `/auth/me` | 获取当前用户（需要 JWT） |
+| 方法 | 路由                    | 说明                     |
+| ---- | ----------------------- | ------------------------ |
+| GET  | `/auth/github`          | GitHub OAuth 登录入口    |
+| GET  | `/auth/github/callback` | GitHub OAuth 回调        |
+| GET  | `/auth/me`              | 获取当前用户（需要 JWT） |
 
 ### 网站管理（需要 JWT）
 
-| 方法 | 路由 | 说明 |
-|------|------|------|
-| GET | `/sites` | 获取用户的所有网站 |
-| POST | `/sites` | 创建新网站 |
-| GET | `/sites/:id` | 获取网站详情（包含令牌） |
-| PATCH | `/sites/:id` | 更新网站信息 |
-| DELETE | `/sites/:id` | 删除网站 |
-| POST | `/sites/:id/tokens` | 创建新访问令牌 |
-| DELETE | `/sites/:siteId/tokens/:tokenId` | 撤销令牌 |
+| 方法   | 路由                             | 说明                     |
+| ------ | -------------------------------- | ------------------------ |
+| GET    | `/sites`                         | 获取用户的所有网站       |
+| POST   | `/sites`                         | 创建新网站               |
+| GET    | `/sites/:id`                     | 获取网站详情（包含令牌） |
+| PATCH  | `/sites/:id`                     | 更新网站信息             |
+| DELETE | `/sites/:id`                     | 删除网站                 |
+| POST   | `/sites/:id/tokens`              | 创建新访问令牌           |
+| DELETE | `/sites/:siteId/tokens/:tokenId` | 撤销令牌                 |
 
 ### 统计数据（需要 JWT）
 
-| 方法 | 路由 | 说明 |
-|------|------|------|
-| GET | `/stats/:siteId` | 获取综合统计 |
-| GET | `/stats/:siteId/popular` | 前 10 热门页面 |
-| GET | `/stats/:siteId/trend` | 访问趋势（默认 30 天） |
+| 方法 | 路由                     | 说明                   |
+| ---- | ------------------------ | ---------------------- |
+| GET  | `/stats/:siteId`         | 获取综合统计           |
+| GET  | `/stats/:siteId/popular` | 前 10 热门页面         |
+| GET  | `/stats/:siteId/trend`   | 访问趋势（默认 30 天） |
 
 ### 数据上报（需要 Site Token）
 
-| 方法 | 路由 | 说明 |
-|------|------|------|
-| POST | `/track` | 上报页面访问 |
-| GET | `/track/verify` | 验证令牌有效性 |
+| 方法 | 路由            | 说明           |
+| ---- | --------------- | -------------- |
+| POST | `/track`        | 上报页面访问   |
+| GET  | `/track/verify` | 验证令牌有效性 |
 
 **Track 请求示例：**
 
@@ -108,8 +109,8 @@ curl -X POST http://localhost:3000/litetrack/v1/track \
 1. 访问 https://github.com/settings/applications/new
 2. 填写应用信息：
    - **Application name**: LiteTrack（本地开发）
-   - **Homepage URL**: http://localhost:5173
-   - **Authorization callback URL**: http://localhost:5173/auth/callback
+   - **Homepage URL**: http://localhost:8000
+   - **Authorization callback URL**: http://localhost:8000/auth/callback
 3. 创建后复制 Client ID 和 Client Secret
 4. 填入 `apps/server/.env`
 

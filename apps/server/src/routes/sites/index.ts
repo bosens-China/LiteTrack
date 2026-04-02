@@ -34,6 +34,20 @@ const createTokenSchema = z.object({
   description: z.string().trim().max(1000).optional(),
 })
 
+/** 字段均可省略：全空表示不修改（幂等，直接保存也成功） */
+const updateTokenSchema = z.object({
+  name: z.string().trim().min(1).max(255).optional(),
+  description: z.string().trim().max(1000).optional(),
+})
+
+const tokenMetaSelect = {
+  id: true,
+  name: true,
+  description: true,
+  isActive: true,
+  createdAt: true,
+} as const
+
 /**
  * 网站管理路由
  * 
@@ -79,17 +93,31 @@ const sites: FastifyPluginAsync = async (fastify, _opts): Promise<void> => {
 
     const { domain, title, description } = parsed.data
 
+    const rawToken = crypto.randomBytes(32).toString('hex')
+
     try {
-      const site = await fastify.prisma.site.create({
-        data: {
-          userId,
-          domain,
-          title: title ?? '',
-          description: description || null,
-        },
+      const { site } = await fastify.prisma.$transaction(async (tx) => {
+        const createdSite = await tx.site.create({
+          data: {
+            userId,
+            domain,
+            title: title ?? '',
+            description: description || null,
+          },
+        })
+
+        await tx.siteToken.create({
+          data: {
+            siteId: createdSite.id,
+            token: rawToken,
+            name: '默认令牌',
+          },
+        })
+
+        return { site: createdSite }
       })
 
-      return { site }
+      return { site, token: rawToken }
     } catch (error: unknown) {
       if (error && typeof error === 'object' && 'code' in error && error.code === 'P2002') {
         return reply.code(409).send({ error: '该域名已存在' })
@@ -225,6 +253,64 @@ const sites: FastifyPluginAsync = async (fastify, _opts): Promise<void> => {
     })
 
     return { token: created }
+  })
+
+  /**
+   * PATCH /:siteId/tokens/:tokenId
+   * 更新访问令牌名称或描述（不修改 secret）
+   */
+  fastify.patch('/:siteId/tokens/:tokenId', { onRequest: [fastify.authenticate] }, async (request, reply) => {
+    const { userId } = request.user as UserPayload
+    const siteId = parseInt((request.params as TokenParams).siteId)
+    const tokenId = parseInt((request.params as TokenParams).tokenId)
+
+    const parsed = updateTokenSchema.safeParse(request.body ?? {})
+    if (!parsed.success) {
+      return reply.code(400).send({ error: parsed.error.format() })
+    }
+
+    const site = await fastify.prisma.site.findFirst({
+      where: { id: siteId, userId },
+    })
+
+    if (!site) {
+      return reply.code(404).send({ error: '网站不存在' })
+    }
+
+    const existing = await fastify.prisma.siteToken.findFirst({
+      where: { id: tokenId, siteId },
+      select: tokenMetaSelect,
+    })
+
+    if (!existing) {
+      return reply.code(404).send({ error: '令牌不存在' })
+    }
+
+    const data: { name?: string; description?: string | null } = {}
+    if (parsed.data.name !== undefined) {
+      data.name = parsed.data.name
+    }
+    if (parsed.data.description !== undefined) {
+      data.description = parsed.data.description === '' ? null : parsed.data.description
+    }
+
+    // 无任何字段或内容与现有一致：不写库，避免 Prisma「data 不能为空」并保证未改也能 200
+    const unchanged =
+      Object.keys(data).length === 0 ||
+      (data.name === undefined || data.name === existing.name) &&
+        (data.description === undefined || data.description === existing.description)
+
+    if (unchanged) {
+      return { token: existing }
+    }
+
+    const updated = await fastify.prisma.siteToken.update({
+      where: { id: tokenId, siteId },
+      data,
+      select: tokenMetaSelect,
+    })
+
+    return { token: updated }
   })
 
   /**

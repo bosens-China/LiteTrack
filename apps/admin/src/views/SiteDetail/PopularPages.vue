@@ -45,9 +45,12 @@
                 <template #trigger>
                   <div class="min-w-0">
                     <p class="text-sm text-[var(--text-primary)] font-medium truncate">
-                      {{ page.title || page.path }}
+                      {{ primaryPageLabel(page) }}
                     </p>
-                    <p v-if="page.title" class="text-xs text-[var(--text-secondary)] truncate">
+                    <p
+                      v-if="showPagePathSubline(page)"
+                      class="text-xs text-[var(--text-secondary)] truncate font-mono"
+                    >
                       {{ page.path }}
                     </p>
                   </div>
@@ -167,7 +170,7 @@ const columns: DataTableColumns<PageView> = [
     title: '页面',
     key: 'title',
     render: (row) => {
-      const displayText = row.title || row.path
+      const displayText = primaryPageLabel(row)
       return h(NTooltip, { placement: 'top', trigger: 'hover' }, {
         trigger: () => h('span', { class: 'text-[var(--text-primary)] font-medium cursor-help' }, displayText),
         default: () => h('span', { class: 'text-xs' }, row.path)
@@ -193,6 +196,18 @@ const columns: DataTableColumns<PageView> = [
 // 格式化数字
 function formatNumber(num: number): string {
   return num.toLocaleString('zh-CN')
+}
+
+/** 有有效标题用标题，否则用路径 */
+function primaryPageLabel(row: PageView): string {
+  const t = row.title?.trim()
+  return t ? t : row.path
+}
+
+/** 仅当标题存在且与路径不同时，副行展示路径 */
+function showPagePathSubline(row: PageView): boolean {
+  const t = row.title?.trim()
+  return Boolean(t && t !== row.path)
 }
 
 // 加载顶部热门页面

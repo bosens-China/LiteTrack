@@ -28,7 +28,7 @@
     </div>
 
     <!-- 创建网站弹窗 -->
-    <CreateSiteModal v-model:show="showCreateModal" @success="handleCreateSuccess" />
+    <CreateSiteModal v-model:show="showCreateModal" />
   </div>
 </template>
 
@@ -175,12 +175,6 @@ async function handleDelete(site: Site) {
     const errorMessage = error instanceof Error ? error.message : '删除失败';
     message.error(errorMessage);
   }
-}
-
-// 创建成功处理
-function handleCreateSuccess(siteId: number) {
-  void sitesStore.fetchSites();
-  router.push(`/sites/${siteId}`);
 }
 
 onMounted(() => {

@@ -1,18 +1,22 @@
 <template>
   <div class="glass-card p-5 h-full flex flex-col">
-    <div class="flex items-center justify-between mb-4">
-      <div class="flex items-center gap-3">
-        <div class="w-8 h-8 rounded-lg bg-amber-100 text-amber-700 flex items-center justify-center">
+    <div class="flex items-start justify-between gap-3 mb-4">
+      <div class="flex items-center gap-3 min-w-0 flex-1">
+        <div class="w-8 h-8 rounded-lg bg-amber-100 text-amber-700 flex items-center justify-center shrink-0">
           <Icon icon="mdi:key" class="text-lg" />
         </div>
-        <div>
+        <div class="min-w-0">
           <h3 class="panel-title">访问令牌</h3>
           <p class="panel-subtitle">只展示令牌元信息，明文仅在创建时显示一次。</p>
         </div>
       </div>
-      <button class="btn-primary px-3 py-1.5 rounded-lg text-xs" @click="$emit('create')">
-        <Icon icon="mdi:plus" />
-        创建
+      <button
+        type="button"
+        class="btn-primary shrink-0 inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm whitespace-nowrap"
+        @click="$emit('create')"
+      >
+        <Icon icon="mdi:plus" class="text-lg shrink-0" />
+        <span>创建</span>
       </button>
     </div>
 
@@ -61,17 +65,28 @@
                 </p>
               </div>
 
-              <n-popconfirm @positive-click="$emit('delete', token.id)">
-                <template #trigger>
-                  <button 
-                    class="opacity-0 group-hover:opacity-100 p-1.5 rounded-lg text-slate-400 hover:text-rose-700 hover:bg-rose-50 transition-all"
-                    title="删除"
-                  >
-                    <Icon icon="mdi:delete-outline" class="text-lg" />
-                  </button>
-                </template>
-                <span class="text-sm">确定删除此令牌？此操作不可撤销。</span>
-              </n-popconfirm>
+              <div class="flex items-center gap-0.5 shrink-0">
+                <button
+                  type="button"
+                  class="opacity-0 group-hover:opacity-100 p-1.5 rounded-lg text-slate-400 hover:text-blue-700 hover:bg-blue-50 transition-all"
+                  title="编辑"
+                  @click="$emit('edit', token)"
+                >
+                  <Icon icon="mdi:pencil-outline" class="text-lg" />
+                </button>
+                <n-popconfirm @positive-click="$emit('delete', token.id)">
+                  <template #trigger>
+                    <button
+                      type="button"
+                      class="opacity-0 group-hover:opacity-100 p-1.5 rounded-lg text-slate-400 hover:text-rose-700 hover:bg-rose-50 transition-all"
+                      title="删除"
+                    >
+                      <Icon icon="mdi:delete-outline" class="text-lg" />
+                    </button>
+                  </template>
+                  <span class="text-sm">确定删除此令牌？此操作不可撤销。</span>
+                </n-popconfirm>
+              </div>
             </div>
           </div>
         </div>
@@ -101,6 +116,7 @@ defineProps<Props>();
 defineEmits<{
   create: [];
   delete: [tokenId: number];
+  edit: [token: SiteToken];
 }>();
 
 function formatDateTime(date: string | Date): string {

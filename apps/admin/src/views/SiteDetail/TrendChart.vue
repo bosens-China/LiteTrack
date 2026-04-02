@@ -1,5 +1,5 @@
 <template>
-  <div class="glass-card p-5 h-full flex flex-col">
+  <div class="glass-card p-5 flex flex-col min-h-[400px]">
     <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-5">
       <div class="flex items-center gap-3">
         <div class="w-8 h-8 rounded-lg bg-blue-100 text-blue-700 flex items-center justify-center">
@@ -19,13 +19,14 @@
       </n-radio-group>
     </div>
 
-    <div class="flex-1 min-h-[320px] relative">
+    <!-- 固定高度，避免父级 flex 链无高度导致 ECharts 画布为 0 -->
+    <div class="relative w-full h-[340px] shrink-0">
       <v-chart
         :option="chartOption"
         :loading="loading"
         :loading-options="loadingOptions"
         :autoresize="true"
-        class="w-full h-full"
+        class="absolute inset-0 w-full h-full min-h-[280px]"
       />
     </div>
   </div>

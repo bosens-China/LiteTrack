@@ -76,7 +76,7 @@
     preset="dialog"
     title="网站创建成功"
     class="token-modal"
-    :closable="false"
+    :closable="true"
   >
     <div class="space-y-4">
       <div class="flex items-center gap-2 p-3 rounded-lg bg-emerald-50 border border-emerald-200">
@@ -86,15 +86,13 @@
       
       <p class="text-sm text-[var(--text-secondary)]">请立即保存以下访问令牌，它只会显示一次：</p>
       
-      <div class="relative">
-        <n-input 
-          :value="createdToken" 
-          type="textarea" 
-          readonly 
-          :rows="3"
-          class="font-mono text-sm"
-        />
-        <button 
+      <div class="relative rounded-xl border border-[var(--border-soft)] bg-[var(--bg-tertiary)] p-3 pr-12">
+        <pre
+          class="m-0 max-h-40 overflow-auto whitespace-pre-wrap break-all font-mono text-sm text-[var(--text-primary)] select-all"
+          tabindex="0"
+        >{{ createdToken }}</pre>
+        <button
+          type="button"
           class="absolute top-2 right-2 p-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-500 hover:text-slate-700 transition-colors"
           title="复制"
           @click="copyToken"
@@ -103,7 +101,7 @@
         </button>
       </div>
       
-      <p class="text-sm text-[var(--text-muted)]">复制成功后会直接进入新建站点详情页。</p>
+      <p class="text-sm text-[var(--text-muted)]">关闭弹窗后可在「网站管理」中查看该站点；需要统计详情时再进入站点页。</p>
     </div>
 
     <template #action>
@@ -135,7 +133,6 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   'update:show': [value: boolean]
-  'success': [siteId: number]
 }>()
 
 const sitesStore = useSitesStore()
@@ -152,7 +149,6 @@ const { copy } = useClipboard({
 const submitting = ref(false)
 const showTokenModal = ref(false)
 const createdToken = ref('')
-const createdSiteId = ref<number | null>(null)
 
 const visible = computed({
   get: () => props.show,
@@ -190,7 +186,6 @@ async function handleSubmit() {
     })
 
     createdToken.value = result.token
-    createdSiteId.value = result.site.id
     showTokenModal.value = true
     
     visible.value = false
@@ -212,15 +207,14 @@ async function copyAndClose() {
   if (!copied) {
     return
   }
-
-  if (createdSiteId.value !== null) {
-    emit('success', createdSiteId.value)
-  }
-  
   showTokenModal.value = false
-  createdToken.value = ''
-  createdSiteId.value = null
 }
+
+watch(showTokenModal, (open) => {
+  if (!open) {
+    createdToken.value = ''
+  }
+})
 
 watch(() => props.show, (newVal) => {
   if (newVal) {

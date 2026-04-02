@@ -26,7 +26,7 @@ cp .env.example .env
 pnpm dev
 ```
 
-服务将在 http://localhost:5173 启动
+服务将在 http://localhost:8080 启动
 
 ## 环境变量
 
@@ -93,4 +93,4 @@ pnpm lint
 
 确保后端服务已启动：http://localhost:3000
 
-GitHub OAuth 回调地址设置为：`http://localhost:5173/auth/callback`
+GitHub OAuth 回调地址设置为：`http://localhost:8000/auth/callback`（须与 `apps/server` 的 `GITHUB_CALLBACK_URL`、GitHub OAuth App 配置一致）

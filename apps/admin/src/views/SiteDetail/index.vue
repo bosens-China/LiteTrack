@@ -57,6 +57,7 @@
           :tokens="site.tokens"
           @create="showTokenModal = true"
           @delete="deleteToken"
+          @edit="openEditTokenModal"
           class="tokens-section"
         />
       </div>
@@ -111,6 +112,52 @@
         @create="handleCreateToken"
         @close="resetTokenModal"
       />
+
+      <n-modal
+        v-model:show="showEditTokenModal"
+        preset="dialog"
+        title="编辑访问令牌"
+        class="edit-modal"
+      >
+        <div class="space-y-4">
+          <div>
+            <label class="block text-sm font-medium text-[var(--text-primary)] mb-2">名称</label>
+            <n-input
+              v-model:value="editTokenForm.name"
+              placeholder="令牌名称"
+              maxlength="255"
+              show-count
+              size="large"
+            />
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-[var(--text-primary)] mb-2">描述</label>
+            <n-input
+              v-model:value="editTokenForm.description"
+              type="textarea"
+              :rows="3"
+              placeholder="可选，用于备注用途"
+              maxlength="1000"
+              show-count
+            />
+          </div>
+        </div>
+        <template #action>
+          <div class="flex justify-end gap-3">
+            <button class="btn-glass px-4 py-2 rounded-lg" @click="showEditTokenModal = false">
+              取消
+            </button>
+            <button
+              class="btn-primary px-4 py-2 rounded-lg flex items-center gap-2"
+              :disabled="updatingToken || !editTokenForm.name.trim()"
+              @click="handleUpdateToken"
+            >
+              <Icon v-if="updatingToken" icon="mdi:loading" class="animate-spin" />
+              <span>保存</span>
+            </button>
+          </div>
+        </template>
+      </n-modal>
     </div>
 
     <div v-else class="flex items-center justify-center min-h-[60vh]">
@@ -139,6 +186,7 @@ import { getSiteStats } from '@/api/stats'
 import { useDocumentTitle } from '@/composables'
 import { getTodayString } from '@/utils'
 import type { SiteStats } from '@/api/stats'
+import type { SiteToken } from '@/api/sites'
 
 // 子组件导入
 import SiteHeader from './SiteHeader.vue'
@@ -180,6 +228,10 @@ const editForm = ref({ title: '', description: '' })
 const showTokenModal = ref(false)
 const createdToken = ref('')
 const creatingToken = ref(false)
+const showEditTokenModal = ref(false)
+const updatingToken = ref(false)
+const editingTokenId = ref<number | null>(null)
+const editTokenForm = ref({ name: '', description: '' })
 let fetchSequence = 0
 
 function openEditModal() {
@@ -270,6 +322,39 @@ async function deleteToken(tokenId: number) {
   }
 }
 
+function openEditTokenModal(token: SiteToken) {
+  editingTokenId.value = token.id
+  editTokenForm.value = {
+    name: token.name,
+    description: token.description ?? '',
+  }
+  showEditTokenModal.value = true
+}
+
+async function handleUpdateToken() {
+  if (editingTokenId.value === null) return
+  const name = editTokenForm.value.name.trim()
+  if (!name) {
+    message.warning('请填写令牌名称')
+    return
+  }
+  updatingToken.value = true
+  try {
+    await sitesStore.editToken(siteId.value, editingTokenId.value, {
+      name,
+      description: editTokenForm.value.description.trim(),
+    })
+    message.success('已更新')
+    showEditTokenModal.value = false
+    editingTokenId.value = null
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : '更新失败'
+    message.error(errorMessage)
+  } finally {
+    updatingToken.value = false
+  }
+}
+
 function resetTokenModal() {
   showTokenModal.value = false
   createdToken.value = ''
@@ -350,13 +435,15 @@ watch(() => route.params.id, () => {
     align-items: stretch;
   }
   
+  /* 与上方「访问趋势 : 热门页面」列宽比例一致（1.5 : 1） */
   .logs-section {
-    flex: 2;
+    flex: 1.5;
+    min-width: 0;
   }
-  
+
   .tokens-section {
     flex: 1;
-    max-width: 400px;
+    max-width: 420px;
   }
 }
 
@@ -375,7 +462,7 @@ watch(() => route.params.id, () => {
   }
   
   .tokens-section {
-    max-width: 450px;
+    max-width: 480px;
   }
 }
 

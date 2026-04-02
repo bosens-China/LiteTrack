@@ -40,6 +40,11 @@ export interface UpdateSiteData {
   description?: string
 }
 
+export interface UpdateTokenData {
+  name?: string
+  description?: string
+}
+
 export function getSites(): Promise<{ sites: Site[] }> {
   return request.get('/sites') as Promise<{ sites: Site[] }>
 }
@@ -65,6 +70,16 @@ export function createToken(
   data: { name: string; description?: string }
 ): Promise<{ token: SiteToken }> {
   return request.post(`/sites/${siteId}/tokens`, data) as Promise<{ token: SiteToken }>
+}
+
+export function updateToken(
+  siteId: number,
+  tokenId: number,
+  data: UpdateTokenData
+): Promise<{ token: Omit<SiteToken, 'token'> }> {
+  return request.patch(`/sites/${siteId}/tokens/${tokenId}`, data) as Promise<{
+    token: Omit<SiteToken, 'token'>
+  }>
 }
 
 export function deleteToken(siteId: number, tokenId: number): Promise<{ success: boolean }> {
