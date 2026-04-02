@@ -91,7 +91,12 @@ router.beforeEach(async (to) => {
   }
 
   // 未登录，跳转登录页
-  return '/login'
+  return {
+    path: '/login',
+    query: {
+      redirect: to.fullPath,
+    },
+  }
 })
 
 export default router

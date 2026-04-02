@@ -1,6 +1,5 @@
 <template>
-  <div class="min-h-full">
-    <!-- 加载骨架屏 -->
+  <div class="min-h-full page-shell">
     <div v-if="loading" class="site-detail-grid">
       <div class="full-width">
         <div class="glass-card p-6">
@@ -34,14 +33,12 @@
 
     <!-- 正常内容 -->
     <div v-else-if="site" class="site-detail-grid">
-      <!-- 头部信息 -->
       <SiteHeader 
         :site="site" 
         @edit="openEditModal"
         class="full-width"
       />
       
-      <!-- 统计卡片 -->
       <StatCards 
         :stats="stats" 
         :today-views="todayViews"
@@ -49,13 +46,11 @@
         class="full-width"
       />
       
-      <!-- 趋势图 + 热门页面 -->
       <div class="content-row">
         <TrendChart :site-id="siteId" class="trend-section" />
         <PopularPages :site-id="siteId" class="pages-section" />
       </div>
 
-      <!-- 访问日志 + 令牌列表 -->
       <div class="content-row bottom-row">
         <AccessLogs :site-id="siteId" class="logs-section" />
         <TokenList 
@@ -66,7 +61,6 @@
         />
       </div>
 
-      <!-- 编辑弹窗 -->
       <n-modal 
         v-model:show="showEditModal" 
         preset="dialog" 
@@ -75,7 +69,7 @@
       >
         <div class="space-y-4">
           <div>
-            <label class="block text-sm font-medium text-slate-300 mb-2">网站名称</label>
+            <label class="block text-sm font-medium text-[var(--text-primary)] mb-2">网站名称</label>
             <n-input 
               v-model:value="editForm.title" 
               placeholder="输入网站名称（可选）"
@@ -83,7 +77,7 @@
             />
           </div>
           <div>
-            <label class="block text-sm font-medium text-slate-300 mb-2">描述</label>
+            <label class="block text-sm font-medium text-[var(--text-primary)] mb-2">描述</label>
             <n-input 
               v-model:value="editForm.description" 
               type="textarea" 
@@ -112,21 +106,20 @@
       <!-- 创建令牌弹窗 -->
       <TokenModal
         v-model:show="showTokenModal"
-        :site-id="siteId"
         :created-token="createdToken"
+        :creating="creatingToken"
         @create="handleCreateToken"
         @close="resetTokenModal"
       />
     </div>
 
-    <!-- 空状态 -->
     <div v-else class="flex items-center justify-center min-h-[60vh]">
       <n-empty description="网站不存在或已被删除">
         <template #icon>
-          <Icon icon="mdi:web-off" class="text-6xl text-slate-600" />
+          <Icon icon="mdi:web-off" class="text-6xl text-slate-400" />
         </template>
         <template #extra>
-          <button class="btn-primary mt-4 px-6 py-2 rounded-lg" @click="$router.push('/sites')">
+          <button class="btn-primary mt-4 px-6 py-2 rounded-lg" @click="router.push('/sites')">
             返回网站列表
           </button>
         </template>
@@ -144,6 +137,7 @@ import { useSitesStore } from '@/stores/sites'
 import { getSite } from '@/api/sites'
 import { getSiteStats } from '@/api/stats'
 import { useDocumentTitle } from '@/composables'
+import { getTodayString } from '@/utils'
 import type { SiteStats } from '@/api/stats'
 
 // 子组件导入
@@ -158,9 +152,6 @@ import TokenModal from './TokenModal.vue'
 const route = useRoute()
 const router = useRouter()
 const sitesStore = useSitesStore()
-
-// router 用于空状态返回按钮
-void router
 const message = useMessage()
 
 const siteId = computed(() => parseInt(route.params.id as string, 10))
@@ -175,7 +166,7 @@ const statsLoading = ref(false)
 useDocumentTitle(() => site.value?.title || '网站详情')
 
 const todayViews = computed(() => {
-  const today = new Date().toLocaleDateString('sv-SE')
+  const today = getTodayString()
   const todayData = stats.value?.dailyViews.find(d => d.date === today)
   return todayData?.count || 0
 })
@@ -188,6 +179,8 @@ const editForm = ref({ title: '', description: '' })
 // 令牌弹窗状态
 const showTokenModal = ref(false)
 const createdToken = ref('')
+const creatingToken = ref(false)
+let fetchSequence = 0
 
 function openEditModal() {
   if (!site.value) return
@@ -197,20 +190,40 @@ function openEditModal() {
 }
 
 async function fetchData() {
+  const sequence = ++fetchSequence
   loading.value = true
   statsLoading.value = true
+
+  if (!Number.isFinite(siteId.value)) {
+    sitesStore.setCurrentSite(null)
+    stats.value = null
+    loading.value = false
+    statsLoading.value = false
+    return
+  }
   
   try {
     const [{ site: siteData }, statsData] = await Promise.all([
       getSite(siteId.value),
       getSiteStats(siteId.value)
     ])
+    if (sequence !== fetchSequence) {
+      return
+    }
     sitesStore.setCurrentSite(siteData)
     stats.value = statsData
   } catch (error) {
+    if (sequence !== fetchSequence) {
+      return
+    }
+    sitesStore.setCurrentSite(null)
+    stats.value = null
     const errorMessage = error instanceof Error ? error.message : '获取数据失败'
     message.error(errorMessage)
   } finally {
+    if (sequence !== fetchSequence) {
+      return
+    }
     loading.value = false
     statsLoading.value = false
   }
@@ -234,6 +247,7 @@ async function handleUpdate() {
 }
 
 async function handleCreateToken(data: { name: string; description?: string }) {
+  creatingToken.value = true
   try {
     const token = await sitesStore.addToken(siteId.value, data)
     createdToken.value = token.token || ''
@@ -241,6 +255,8 @@ async function handleCreateToken(data: { name: string; description?: string }) {
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : '创建失败'
     message.error(errorMessage)
+  } finally {
+    creatingToken.value = false
   }
 }
 
@@ -257,6 +273,7 @@ async function deleteToken(tokenId: number) {
 function resetTokenModal() {
   showTokenModal.value = false
   createdToken.value = ''
+  creatingToken.value = false
 }
 
 onMounted(() => {
@@ -362,7 +379,6 @@ watch(() => route.params.id, () => {
   }
 }
 
-/* 编辑弹窗样式 */
 :deep(.edit-modal) {
   --n-color: var(--bg-secondary) !important;
 }

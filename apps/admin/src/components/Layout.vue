@@ -1,10 +1,9 @@
 <template>
-  <n-layout has-sider position="absolute" class="bg-[var(--bg-primary)]">
-    <!-- 侧边栏 -->
+  <n-layout has-sider class="admin-shell">
     <n-layout-sider
       collapse-mode="width"
       :collapsed-width="72"
-      :width="260"
+      :width="252"
       :collapsed="collapsed"
       show-trigger
       class="sidebar"
@@ -12,74 +11,73 @@
       @expand="collapsed = false"
     >
       <div class="sidebar-header">
-        <template v-if="!collapsed">
-          <div class="logo-full">
-            <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 via-violet-500 to-purple-600 flex items-center justify-center shadow-lg shadow-blue-500/25">
-              <Icon icon="mdi:chart-bar" class="text-xl text-white" />
-            </div>
-            <span class="logo-text gradient-text">LiteTrack</span>
+        <div v-if="!collapsed" class="logo-full">
+          <div class="logo-mark">
+            <Icon icon="mdi:chart-box-outline" class="text-xl" />
           </div>
-        </template>
-        <template v-else>
-          <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 via-violet-500 to-purple-600 flex items-center justify-center shadow-lg shadow-blue-500/25">
-            <Icon icon="mdi:chart-bar" class="text-xl text-white" />
+          <div class="min-w-0">
+            <div class="logo-text">LiteTrack</div>
+            <div class="logo-subtitle">Admin Console</div>
           </div>
-        </template>
+        </div>
+        <div v-else class="logo-mark">
+          <Icon icon="mdi:chart-box-outline" class="text-xl" />
+        </div>
       </div>
 
-      <n-menu
-        :collapsed="collapsed"
-        :collapsed-width="72"
-        :collapsed-icon-size="22"
-        :options="menuOptions"
-        :value="activeKey"
-        class="sidebar-menu"
-        @update:value="handleMenuSelect"
-      />
+      <div class="sidebar-section">
+        <div v-if="!collapsed" class="sidebar-caption">导航</div>
+        <n-menu
+          :collapsed="collapsed"
+          :collapsed-width="72"
+          :collapsed-icon-size="20"
+          :options="menuOptions"
+          :value="activeKey"
+          class="sidebar-menu"
+          @update:value="handleMenuSelect"
+        />
+      </div>
     </n-layout-sider>
 
-    <!-- 主内容区 -->
-    <n-layout class="bg-transparent">
-      <!-- 顶部栏 -->
-      <n-layout-header
-        class="header"
-      >
-        <div class="flex items-center gap-3">
-          <div class="w-8 h-8 rounded-lg bg-slate-800 flex items-center justify-center">
-            <Icon icon="mdi:page-layout-header" class="text-slate-400" />
-          </div>
-          <h2 class="text-lg font-semibold text-white">{{ pageTitle }}</h2>
-        </div>
-        
-        <div class="flex items-center gap-3">
-          <button 
-            class="btn-glass flex items-center gap-2 px-3 py-2 rounded-lg text-sm"
-            @click="openSdkDistPage"
-          >
-            <Icon icon="mdi:download-box" />
-            获取 SDK
-          </button>
-
-          <n-dropdown :options="userOptions" @select="handleUserAction">
-            <div class="flex items-center gap-2 cursor-pointer hover:bg-slate-800/50 px-3 py-2 rounded-lg transition-colors">
-              <n-avatar
-                round
-                size="small"
-                :src="authStore.avatar || undefined"
-                :fallback-src="`https://ui-avatars.com/api/?name=${authStore.username}&background=3B82F6&color=fff`"
-              />
-              <span v-if="authStore.username" class="text-slate-200 text-sm">{{ authStore.username }}</span>
-              <Icon icon="mdi:chevron-down" class="text-slate-400" />
+    <n-layout class="main-layout">
+      <n-layout-header class="header">
+        <div class="header-main">
+          <div class="header-title-group">
+            <div class="header-badge">
+              <Icon icon="mdi:view-dashboard-outline" />
             </div>
-          </n-dropdown>
+            <div>
+              <h2 class="header-title">{{ pageTitle }}</h2>
+              <p class="header-subtitle">LiteTrack 访问统计后台</p>
+            </div>
+          </div>
+
+          <div class="header-actions">
+            <button class="btn-glass text-sm" @click="openSdkDistPage">
+              <Icon icon="mdi:download-outline" />
+              SDK 目录
+            </button>
+
+            <n-dropdown :options="userOptions" @select="handleUserAction">
+              <div class="user-trigger">
+                <n-avatar
+                  round
+                  size="small"
+                  :src="authStore.avatar || undefined"
+                  :fallback-src="`https://ui-avatars.com/api/?name=${authStore.username}&background=2563EB&color=fff`"
+                />
+                <div v-if="authStore.username" class="user-info">
+                  <span class="user-name">{{ authStore.username }}</span>
+                  <span class="user-role">管理员</span>
+                </div>
+                <Icon icon="mdi:chevron-down" class="user-chevron" />
+              </div>
+            </n-dropdown>
+          </div>
         </div>
       </n-layout-header>
 
-      <!-- 内容 -->
-      <n-layout-content
-        class="content"
-        :native-scrollbar="false"
-      >
+      <n-layout-content class="content" :native-scrollbar="false">
         <router-view />
       </n-layout-content>
     </n-layout>
@@ -87,8 +85,8 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, h } from 'vue';
-import { useRoute, useRouter } from 'vue-router';
+import { computed, h, ref } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import {
   NLayout,
   NLayoutSider,
@@ -98,19 +96,18 @@ import {
   NAvatar,
   NDropdown,
   type MenuOption,
-} from 'naive-ui';
-import { Icon } from '@iconify/vue';
-import { useAuthStore } from '@/stores/auth';
+} from 'naive-ui'
+import { Icon } from '@iconify/vue'
+import { useAuthStore } from '@/stores/auth'
 
-const route = useRoute();
-const router = useRouter();
-const authStore = useAuthStore();
+const route = useRoute()
+const router = useRouter()
+const authStore = useAuthStore()
 
-const collapsed = ref(false);
+const collapsed = ref(false)
 const SDK_DIST_URL =
-  'https://github.com/bosens-China/LiteTrack/tree/master/apps/sdk/dist';
+  'https://github.com/bosens-China/LiteTrack/tree/master/apps/sdk/dist'
 
-// 菜单配置
 const menuOptions: MenuOption[] = [
   {
     label: '仪表盘',
@@ -122,106 +119,208 @@ const menuOptions: MenuOption[] = [
     key: 'Sites',
     icon: () => h(Icon, { icon: 'mdi:web', class: 'text-lg' }),
   },
-];
+]
 
-// 当前激活的菜单
-const activeKey = computed(() => route.name as string);
+const activeKey = computed(() => {
+  if (route.name === 'SiteDetail') {
+    return 'Sites'
+  }
+  return route.name as string
+})
 
-// 页面标题
 const pageTitle = computed(() => {
   const titles: Record<string, string> = {
     Dashboard: '仪表盘',
     Sites: '网站管理',
     SiteDetail: '网站详情',
-  };
-  return titles[route.name as string] || 'LiteTrack';
-});
+  }
+  return titles[route.name as string] || 'LiteTrack'
+})
 
-// 用户下拉选项
 const userOptions = [
   {
     label: '退出登录',
     key: 'logout',
     icon: () => h(Icon, { icon: 'mdi:logout' }),
   },
-];
+]
 
-// 菜单选择
 function handleMenuSelect(key: string) {
-  router.push({ name: key });
+  void router.push({ name: key })
 }
 
-// 用户操作
 function handleUserAction(key: string) {
   if (key === 'logout') {
-    authStore.logout();
-    router.push('/login');
+    authStore.logout()
+    void router.push('/login')
   }
 }
 
 function openSdkDistPage() {
-  window.open(SDK_DIST_URL, '_blank', 'noopener,noreferrer');
+  window.open(SDK_DIST_URL, '_blank', 'noopener,noreferrer')
 }
 </script>
 
 <style scoped>
+.admin-shell {
+  min-height: 100vh;
+}
+
+.main-layout {
+  min-width: 0;
+}
+
 .sidebar {
-  background: var(--bg-secondary) !important;
-  border-right: 1px solid var(--border-glass);
+  border-right: 1px solid var(--border-soft);
 }
 
 .sidebar-header {
-  height: 72px;
+  height: 76px;
   display: flex;
   align-items: center;
   justify-content: center;
-  background: transparent;
-  border-bottom: 1px solid var(--border-glass);
+  border-bottom: 1px solid var(--border-soft);
 }
 
 .logo-full {
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 0 20px;
+  padding: 0 18px;
+}
+
+.logo-mark {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 42px;
+  height: 42px;
+  border-radius: 14px;
+  background: linear-gradient(135deg, #2563eb, #1d4ed8);
+  color: var(--text-inverse);
+  box-shadow: 0 10px 18px rgba(37, 99, 235, 0.2);
 }
 
 .logo-text {
-  font-size: 20px;
+  font-size: 18px;
   font-weight: 700;
-  letter-spacing: -0.5px;
+  color: var(--text-primary);
+}
+
+.logo-subtitle {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.sidebar-section {
+  padding: 16px 12px;
+}
+
+.sidebar-caption {
+  padding: 0 8px 10px;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  color: var(--text-muted);
+  text-transform: uppercase;
 }
 
 .header {
-  height: 72px;
+  height: 76px;
   padding: 0 24px;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+.header-main {
+  height: 100%;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  background: var(--bg-glass);
-  backdrop-filter: blur(20px);
-  border-bottom: 1px solid var(--border-glass);
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  z-index: 50;
+  gap: 16px;
+}
+
+.header-title-group {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  min-width: 0;
+}
+
+.header-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 14px;
+  background: var(--bg-brand-soft);
+  color: var(--accent-blue);
+}
+
+.header-title {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.header-subtitle {
+  margin: 2px 0 0;
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.user-trigger {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  border-radius: 12px;
+  border: 1px solid var(--border-soft);
+  background: #ffffff;
+  transition: background-color 0.2s ease;
+}
+
+.user-trigger:hover {
+  background: var(--bg-tertiary);
+}
+
+.user-info {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.user-name {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.user-role {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.user-chevron {
+  color: var(--text-muted);
 }
 
 .content {
   padding: 24px;
-  position: absolute;
-  top: 72px;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  background: var(--bg-primary);
+  background: transparent;
 }
 
-/* 菜单样式覆盖 */
 :deep(.sidebar-menu) {
-  --n-item-height: 48px;
-  padding: 12px;
+  --n-item-height: 46px;
 }
 
 :deep(.sidebar-menu .n-menu-item) {
@@ -229,17 +328,15 @@ function openSdkDistPage() {
 }
 
 :deep(.sidebar-menu .n-menu-item-content) {
-  border-radius: 10px;
-  color: var(--text-secondary) !important;
+  border-radius: 12px;
 }
 
 :deep(.sidebar-menu .n-menu-item-content:hover) {
-  background: rgba(255, 255, 255, 0.05) !important;
-  color: var(--text-primary) !important;
+  background: #eef4ff !important;
 }
 
 :deep(.sidebar-menu .n-menu-item-content--selected) {
-  background: rgba(59, 130, 246, 0.15) !important;
+  background: #eaf2ff !important;
   color: var(--accent-blue) !important;
 }
 
@@ -249,5 +346,20 @@ function openSdkDistPage() {
 
 :deep(.sidebar-menu .n-menu-item-content__icon) {
   color: inherit !important;
+}
+
+@media (max-width: 768px) {
+  .header {
+    padding: 0 16px;
+  }
+
+  .content {
+    padding: 16px;
+  }
+
+  .user-info,
+  .header-subtitle {
+    display: none;
+  }
 }
 </style>

@@ -7,3 +7,4 @@ onlyBuiltDependencies:
   - core-js
   - esbuild
   - prisma
+  - vue-demi

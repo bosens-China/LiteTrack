@@ -10,6 +10,13 @@ export function getTodayString(): string {
 }
 
 /**
+ * 将日期格式化为本地 YYYY-MM-DD，避免 UTC 时区偏移
+ */
+export function formatLocalDate(value: number | Date): string {
+  return new Date(value).toLocaleDateString('sv-SE')
+}
+
+/**
  * 格式化日期时间
  */
 export function formatDateTime(date: string | Date): string {

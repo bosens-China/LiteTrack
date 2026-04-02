@@ -8,7 +8,7 @@
   >
     <div v-if="!createdToken" class="space-y-4">
       <div>
-        <label class="block text-sm font-medium text-slate-300 mb-2">
+        <label class="block text-sm font-medium text-[var(--text-primary)] mb-2">
           令牌名称 <span class="text-rose-400">*</span>
         </label>
         <n-input 
@@ -16,11 +16,11 @@
           placeholder="例如：生产环境"
           size="large"
         />
-        <p class="text-xs text-slate-500 mt-1">用于标识此令牌的用途</p>
+        <p class="text-xs text-[var(--text-muted)] mt-1">用于标识此令牌的用途</p>
       </div>
       
       <div>
-        <label class="block text-sm font-medium text-slate-300 mb-2">描述（可选）</label>
+        <label class="block text-sm font-medium text-[var(--text-primary)] mb-2">描述（可选）</label>
         <n-input 
           v-model:value="formData.description" 
           type="textarea" 
@@ -31,9 +31,9 @@
     </div>
     
     <div v-else class="space-y-4">
-      <div class="flex items-center gap-2 p-3 rounded-lg bg-amber-500/10 border border-amber-500/20">
-        <Icon icon="mdi:alert-circle" class="text-amber-400 text-lg" />
-        <p class="text-sm text-amber-400">请立即保存此令牌，它只会显示一次！</p>
+      <div class="flex items-center gap-2 p-3 rounded-lg bg-amber-50 border border-amber-200">
+        <Icon icon="mdi:alert-circle" class="text-amber-600 text-lg" />
+        <p class="text-sm text-amber-700">请立即保存此令牌，它只会显示一次。</p>
       </div>
       
       <div class="relative">
@@ -45,7 +45,7 @@
           class="font-mono text-sm"
         />
         <button 
-          class="absolute top-2 right-2 p-1.5 rounded-lg bg-slate-700/50 hover:bg-slate-600 text-slate-400 hover:text-white transition-colors"
+          class="absolute top-2 right-2 p-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-500 hover:text-slate-700 transition-colors"
           title="复制"
           @click="copyToken"
         >
@@ -71,10 +71,10 @@
           </button>
           <button 
             class="btn-primary px-4 py-2 rounded-lg flex items-center gap-2"
-            :disabled="loading || !formData.name.trim()"
+            :disabled="creating || !formData.name.trim()"
             @click="handleCreate"
           >
-            <Icon v-if="loading" icon="mdi:loading" class="animate-spin" />
+            <Icon v-if="creating" icon="mdi:loading" class="animate-spin" />
             <span>创建</span>
           </button>
         </div>
@@ -84,18 +84,19 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { 
   NModal, 
   NInput,
   useMessage,
 } from 'naive-ui'
 import { Icon } from '@iconify/vue'
+import { useClipboard } from '@/composables'
 
 interface Props {
   show: boolean
-  siteId: number
   createdToken: string
+  creating: boolean
 }
 
 const props = defineProps<Props>()
@@ -107,38 +108,37 @@ const emit = defineEmits<{
 }>()
 
 const message = useMessage()
+const { copy } = useClipboard({
+  onSuccess: () => {
+    message.success('已复制到剪贴板')
+  },
+  onError: () => {
+    message.error('复制失败')
+  },
+})
 
 const showModal = computed({
   get: () => props.show,
   set: (value) => emit('update:show', value)
 })
 
-const loading = ref(false)
 const formData = ref({
   name: '',
   description: '',
 })
 
-async function handleCreate() {
+function handleCreate() {
   if (!formData.value.name.trim()) return
-  
-  loading.value = true
+
   const data = {
     name: formData.value.name.trim(),
     description: formData.value.description || undefined,
   }
-  
   emit('create', data)
-  loading.value = false
 }
 
 async function copyToken() {
-  try {
-    await navigator.clipboard.writeText(props.createdToken)
-    message.success('已复制到剪贴板')
-  } catch {
-    message.error('复制失败')
-  }
+  await copy(props.createdToken)
 }
 
 function handleClose() {
@@ -146,6 +146,16 @@ function handleClose() {
   formData.value.name = ''
   formData.value.description = ''
 }
+
+watch(
+  () => props.show,
+  (visible) => {
+    if (!visible && !props.createdToken) {
+      formData.value.name = ''
+      formData.value.description = ''
+    }
+  }
+)
 </script>
 
 <style scoped>

@@ -1,15 +1,8 @@
 <template>
   <div class="not-found-container">
-    <!-- 背景装饰 -->
-    <div class="absolute top-0 left-0 w-full h-full overflow-hidden pointer-events-none">
-      <div class="absolute -top-1/4 -left-1/4 w-1/2 h-1/2 bg-blue-500/10 rounded-full blur-[120px]" />
-      <div class="absolute -bottom-1/4 -right-1/4 w-1/2 h-1/2 bg-violet-500/10 rounded-full blur-[120px]" />
-    </div>
-
     <div class="not-found-content">
-      <!-- Logo -->
       <div class="logo-icon">
-        <div class="w-20 h-20 rounded-2xl bg-gradient-to-br from-blue-500 via-violet-500 to-purple-600 flex items-center justify-center shadow-lg shadow-blue-500/25">
+        <div class="logo-mark">
           <Icon icon="mdi:chart-bar" class="text-4xl text-white" />
         </div>
       </div>
@@ -42,21 +35,16 @@ const router = useRouter()
   display: flex;
   align-items: center;
   justify-content: center;
-  background: var(--bg-primary);
   padding: 20px;
-  position: relative;
 }
 
 .not-found-content {
   text-align: center;
-  background: var(--bg-glass);
-  backdrop-filter: blur(20px);
-  border: 1px solid var(--border-glass);
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-soft);
   padding: 60px 80px;
   border-radius: 24px;
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
-  position: relative;
-  z-index: 10;
+  box-shadow: var(--shadow-card-hover);
 }
 
 .logo-icon {
@@ -65,10 +53,21 @@ const router = useRouter()
   justify-content: center;
 }
 
+.logo-mark {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 80px;
+  height: 80px;
+  border-radius: 24px;
+  background: linear-gradient(135deg, #2563eb, #1d4ed8);
+  box-shadow: 0 12px 24px rgba(37, 99, 235, 0.18);
+}
+
 .title {
   font-size: 120px;
   font-weight: 800;
-  background: linear-gradient(135deg, #60A5FA 0%, #A78BFA 100%);
+  background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;

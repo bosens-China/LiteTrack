@@ -11,7 +11,7 @@
   >
     <div class="space-y-4">
       <div>
-        <label class="block text-sm font-medium text-slate-300 mb-2">
+        <label class="block text-sm font-medium text-[var(--text-primary)] mb-2">
           网站名称
         </label>
         <n-input
@@ -25,7 +25,7 @@
       </div>
 
       <div>
-        <label class="block text-sm font-medium text-slate-300 mb-2">
+        <label class="block text-sm font-medium text-[var(--text-primary)] mb-2">
           域名 <span class="text-rose-400">*</span>
         </label>
         <n-input
@@ -35,11 +35,11 @@
           clearable
           size="large"
         />
-        <p class="text-xs text-slate-500 mt-1">输入网站域名，不需要包含 http:// 或 https://</p>
+        <p class="text-xs text-[var(--text-muted)] mt-1">输入网站域名，不需要包含 http:// 或 https://</p>
       </div>
 
       <div>
-        <label class="block text-sm font-medium text-slate-300 mb-2">
+        <label class="block text-sm font-medium text-[var(--text-primary)] mb-2">
           描述
         </label>
         <n-input
@@ -79,12 +79,12 @@
     :closable="false"
   >
     <div class="space-y-4">
-      <div class="flex items-center gap-2 p-3 rounded-lg bg-emerald-500/10 border border-emerald-500/20">
-        <Icon icon="mdi:check-circle" class="text-emerald-400 text-xl" />
-        <p class="text-emerald-400 font-medium">网站创建成功！</p>
+      <div class="flex items-center gap-2 p-3 rounded-lg bg-emerald-50 border border-emerald-200">
+        <Icon icon="mdi:check-circle" class="text-emerald-600 text-xl" />
+        <p class="text-emerald-700 font-medium">网站创建成功</p>
       </div>
       
-      <p class="text-sm text-slate-400">请立即保存以下访问令牌，它只会显示一次：</p>
+      <p class="text-sm text-[var(--text-secondary)]">请立即保存以下访问令牌，它只会显示一次：</p>
       
       <div class="relative">
         <n-input 
@@ -95,7 +95,7 @@
           class="font-mono text-sm"
         />
         <button 
-          class="absolute top-2 right-2 p-1.5 rounded-lg bg-slate-700/50 hover:bg-slate-600 text-slate-400 hover:text-white transition-colors"
+          class="absolute top-2 right-2 p-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-500 hover:text-slate-700 transition-colors"
           title="复制"
           @click="copyToken"
         >
@@ -103,7 +103,7 @@
         </button>
       </div>
       
-      <p class="text-sm text-slate-500">将此令牌配置到 SDK 后即可开始统计访问数据。</p>
+      <p class="text-sm text-[var(--text-muted)]">复制成功后会直接进入新建站点详情页。</p>
     </div>
 
     <template #action>
@@ -127,6 +127,7 @@ import {
 } from 'naive-ui'
 import { Icon } from '@iconify/vue'
 import { useSitesStore } from '@/stores/sites'
+import { useClipboard } from '@/composables'
 
 const props = defineProps<{
   show: boolean
@@ -139,6 +140,14 @@ const emit = defineEmits<{
 
 const sitesStore = useSitesStore()
 const message = useMessage()
+const { copy } = useClipboard({
+  onSuccess: () => {
+    message.success('已复制到剪贴板')
+  },
+  onError: () => {
+    message.error('复制失败')
+  },
+})
 
 const submitting = ref(false)
 const showTokenModal = ref(false)
@@ -195,18 +204,15 @@ async function handleSubmit() {
 }
 
 async function copyToken() {
-  try {
-    await navigator.clipboard.writeText(createdToken.value)
-    message.success('已复制到剪贴板')
-  } catch {
-    message.error('复制失败')
-  }
+  await copy(createdToken.value)
 }
 
-function copyAndClose() {
-  void navigator.clipboard.writeText(createdToken.value)
-  message.success('已复制到剪贴板')
-  
+async function copyAndClose() {
+  const copied = await copy(createdToken.value)
+  if (!copied) {
+    return
+  }
+
   if (createdSiteId.value !== null) {
     emit('success', createdSiteId.value)
   }

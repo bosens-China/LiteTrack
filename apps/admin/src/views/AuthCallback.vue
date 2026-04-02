@@ -1,24 +1,14 @@
 <template>
-  <div class="min-h-screen flex items-center justify-center bg-[var(--bg-primary)] relative overflow-hidden">
-    <!-- 背景装饰 -->
-    <div class="absolute top-0 left-0 w-full h-full overflow-hidden pointer-events-none">
-      <div class="absolute -top-1/4 -left-1/4 w-1/2 h-1/2 bg-blue-500/10 rounded-full blur-[120px]" />
-      <div class="absolute -bottom-1/4 -right-1/4 w-1/2 h-1/2 bg-violet-500/10 rounded-full blur-[120px]" />
-    </div>
-
-    <div class="glass-card p-10 text-center relative z-10">
-      <div class="relative">
-        <!-- 旋转光环 -->
-        <div class="absolute inset-0 flex items-center justify-center">
-          <div class="w-16 h-16 rounded-full border-2 border-blue-500/20 border-t-blue-500 animate-spin" />
-        </div>
-        <!-- 中心图标 -->
-        <div class="w-16 h-16 flex items-center justify-center">
-          <Icon icon="mdi:github" class="text-3xl text-slate-400" />
+  <div class="callback-page">
+    <div class="callback-panel glass-card">
+      <div class="callback-spinner">
+        <div class="callback-spinner__ring" />
+        <div class="callback-spinner__icon">
+          <Icon icon="mdi:github" class="text-3xl" />
         </div>
       </div>
-      <p class="mt-6 text-slate-300 font-medium">正在登录...</p>
-      <p class="mt-2 text-sm text-slate-500">请稍候，正在验证您的身份</p>
+      <p class="callback-title">正在登录...</p>
+      <p class="callback-text">请稍候，系统正在校验 GitHub 授权信息。</p>
     </div>
   </div>
 </template>
@@ -31,6 +21,7 @@ import { Icon } from '@iconify/vue'
 import { useAuthStore } from '@/stores/auth'
 import { loginWithGithub } from '@/api/auth'
 
+const REDIRECT_STORAGE_KEY = 'litetrack:post-login-redirect'
 const route = useRoute()
 const router = useRouter()
 const authStore = useAuthStore()
@@ -50,11 +41,71 @@ onMounted(async () => {
     authStore.setToken(token)
     authStore.setUser(user)
     message.success('登录成功')
-    router.push('/')
+    const redirect = localStorage.getItem(REDIRECT_STORAGE_KEY) || '/'
+    localStorage.removeItem(REDIRECT_STORAGE_KEY)
+    await router.push(redirect)
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : '登录失败'
+    localStorage.removeItem(REDIRECT_STORAGE_KEY)
     message.error(errorMessage)
-    router.push('/login')
+    await router.push('/login')
   }
 })
 </script>
+
+<style scoped>
+.callback-page {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+}
+
+.callback-panel {
+  width: min(360px, 100%);
+  padding: 32px 28px;
+  text-align: center;
+}
+
+.callback-spinner {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 72px;
+  height: 72px;
+}
+
+.callback-spinner__ring {
+  position: absolute;
+  inset: 0;
+  border: 4px solid #dbeafe;
+  border-top-color: #2563eb;
+  border-radius: 999px;
+  animation: spin 1s linear infinite;
+}
+
+.callback-spinner__icon {
+  color: var(--accent-blue);
+}
+
+.callback-title {
+  margin: 20px 0 0;
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.callback-text {
+  margin: 8px 0 0;
+  font-size: 14px;
+  color: var(--text-secondary);
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+</style>

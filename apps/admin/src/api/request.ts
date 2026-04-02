@@ -35,7 +35,9 @@ request.interceptors.response.use(
     // 401 未授权，清除 token 并跳转登录
     if (error.response?.status === 401) {
       localStorage.removeItem('token');
-      window.location.href = '/login';
+      const redirect = `${window.location.pathname}${window.location.search}${window.location.hash}`;
+      const params = new URLSearchParams({ redirect });
+      window.location.href = `/login?${params.toString()}`;
     }
 
     return Promise.reject(new Error(message));

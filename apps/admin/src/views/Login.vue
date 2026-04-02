@@ -1,24 +1,24 @@
 <template>
-  <div class="min-h-screen flex items-center justify-center bg-[var(--bg-primary)] relative overflow-hidden">
-    <!-- 背景装饰 -->
-    <div class="absolute top-0 left-0 w-full h-full overflow-hidden pointer-events-none">
-      <div class="absolute -top-1/4 -left-1/4 w-1/2 h-1/2 bg-blue-500/10 rounded-full blur-[120px]" />
-      <div class="absolute -bottom-1/4 -right-1/4 w-1/2 h-1/2 bg-violet-500/10 rounded-full blur-[120px]" />
-    </div>
-
-    <div class="glass-card max-w-md w-full space-y-8 p-8 relative z-10">
-      <div class="text-center">
-        <!-- Logo -->
-        <div class="w-16 h-16 rounded-2xl bg-gradient-to-br from-blue-500 via-violet-500 to-purple-600 flex items-center justify-center mx-auto mb-6 shadow-lg shadow-blue-500/25">
-          <Icon icon="mdi:chart-bar" class="text-3xl text-white" />
+  <div class="login-page">
+    <div class="login-panel glass-card">
+      <div class="login-brand">
+        <div class="login-mark">
+          <Icon icon="mdi:chart-box-outline" class="text-3xl text-white" />
         </div>
-        <h1 class="text-3xl font-bold gradient-text">LiteTrack</h1>
-        <p class="mt-2 text-slate-400">网站访问统计分析平台</p>
+        <div>
+          <h1 class="login-title">LiteTrack Admin</h1>
+          <p class="login-subtitle">统一管理站点、访问趋势和访问令牌</p>
+        </div>
       </div>
 
-      <div class="mt-8">
+      <div class="login-card">
+        <div class="login-card__content">
+          <h2 class="login-card__title">使用 GitHub 登录</h2>
+          <p class="login-card__text">登录后可进入仪表盘、查看站点趋势并管理访问令牌。</p>
+        </div>
+
         <button
-          class="w-full btn-primary py-3 rounded-xl font-medium flex items-center justify-center gap-3 text-base"
+          class="w-full btn-primary py-3 rounded-xl text-base"
           :disabled="loading"
           @click="handleLogin"
         >
@@ -28,25 +28,108 @@
         </button>
       </div>
 
-      <p class="text-center text-xs text-slate-500">
-        登录即表示您同意我们的服务条款
+      <p class="login-tips">
+        登录即表示您同意使用 LiteTrack 管理后台。
       </p>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue';
-import { Icon } from '@iconify/vue';
+import { ref } from 'vue'
+import { useRoute } from 'vue-router'
+import { Icon } from '@iconify/vue'
 
-const loading = ref(false);
+const route = useRoute()
+const loading = ref(false)
 
-const API_BASE_URL = import.meta.env.PUBLIC_API_BASE_URL || '/litetrack/v1';
+const API_BASE_URL = import.meta.env.PUBLIC_API_BASE_URL || '/litetrack/v1'
+const REDIRECT_STORAGE_KEY = 'litetrack:post-login-redirect'
 
 function handleLogin() {
-  loading.value = true;
-  // 跳转到 GitHub OAuth 授权页面
-  const loginUrl = `${API_BASE_URL.replace(/\/$/, '')}/auth/github`;
-  window.location.href = loginUrl;
+  loading.value = true
+  const redirect =
+    typeof route.query.redirect === 'string' && route.query.redirect.length > 0
+      ? route.query.redirect
+      : '/'
+  localStorage.setItem(REDIRECT_STORAGE_KEY, redirect)
+  const loginUrl = `${API_BASE_URL.replace(/\/$/, '')}/auth/github`
+  window.location.href = loginUrl
 }
 </script>
+
+<style scoped>
+.login-page {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+}
+
+.login-panel {
+  width: min(520px, 100%);
+  padding: 28px;
+}
+
+.login-brand {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+.login-mark {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 64px;
+  height: 64px;
+  border-radius: 20px;
+  background: linear-gradient(135deg, #2563eb, #1d4ed8);
+  box-shadow: 0 12px 24px rgba(37, 99, 235, 0.22);
+}
+
+.login-title {
+  margin: 0;
+  font-size: 30px;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.login-subtitle {
+  margin: 6px 0 0;
+  color: var(--text-secondary);
+}
+
+.login-card {
+  border: 1px solid var(--border-soft);
+  border-radius: 16px;
+  padding: 20px;
+  background: linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
+}
+
+.login-card__content {
+  margin-bottom: 18px;
+}
+
+.login-card__title {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.login-card__text {
+  margin: 6px 0 0;
+  color: var(--text-secondary);
+  line-height: 1.6;
+}
+
+.login-tips {
+  margin: 16px 0 0;
+  text-align: center;
+  font-size: 13px;
+  color: var(--text-muted);
+}
+</style>

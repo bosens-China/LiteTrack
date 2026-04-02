@@ -1,14 +1,13 @@
 <template>
   <div class="glass-card p-5 h-full flex flex-col">
-    <!-- 自定义头部 -->
     <div class="flex items-center justify-between mb-4">
       <div class="flex items-center gap-3">
-        <div class="w-8 h-8 rounded-lg bg-violet-500/20 flex items-center justify-center">
-          <Icon icon="mdi:fire" class="text-lg text-violet-400" />
+        <div class="w-8 h-8 rounded-lg bg-indigo-100 text-indigo-700 flex items-center justify-center">
+          <Icon icon="mdi:fire" class="text-lg" />
         </div>
         <div>
-          <h3 class="text-lg font-semibold text-white">热门页面</h3>
-          <p class="text-xs text-slate-400">访问量 Top 10</p>
+          <h3 class="panel-title">热门页面</h3>
+          <p class="panel-subtitle">优先显示页面标题，其次展示路径。</p>
         </div>
       </div>
       <button 
@@ -20,83 +19,84 @@
       </button>
     </div>
     
-    <!-- 空状态 -->
     <n-empty v-if="pages.length === 0" description="暂无数据" class="flex-1 flex flex-col justify-center" />
     
-    <!-- 列表内容 -->
     <div v-else class="flex-1 overflow-hidden">
       <n-scrollbar style="max-height: 320px">
         <div class="space-y-2">
           <div
             v-for="(page, index) in pages"
             :key="page.path"
-            class="group flex items-center gap-3 p-3 rounded-xl bg-slate-800/30 hover:bg-slate-700/40 transition-all duration-200 cursor-pointer border border-transparent hover:border-slate-600/30"
+            class="group flex items-center gap-3 p-3 rounded-xl bg-slate-50 hover:bg-blue-50 transition-colors border border-slate-200 hover:border-blue-200"
           >
-            <!-- 排名 -->
             <div class="shrink-0 w-7 h-7 rounded-lg flex items-center justify-center text-sm font-bold font-mono"
               :class="[
-                index === 0 ? 'bg-amber-500/20 text-amber-400' :
-                index === 1 ? 'bg-slate-400/20 text-slate-300' :
-                index === 2 ? 'bg-orange-600/20 text-orange-400' :
-                'bg-slate-800 text-slate-500'
+                index === 0 ? 'bg-amber-100 text-amber-700' :
+                index === 1 ? 'bg-slate-200 text-slate-700' :
+                index === 2 ? 'bg-orange-100 text-orange-700' :
+                'bg-slate-100 text-slate-500'
               ]"
             >
               {{ index + 1 }}
             </div>
             
-            <!-- 页面信息 -->
             <div class="flex-1 min-w-0">
               <n-tooltip placement="top" trigger="hover">
                 <template #trigger>
-                  <p class="text-sm text-slate-200 font-medium truncate group-hover:text-white transition-colors">
-                    {{ page.title || page.path }}
-                  </p>
+                  <div class="min-w-0">
+                    <p class="text-sm text-[var(--text-primary)] font-medium truncate">
+                      {{ page.title || page.path }}
+                    </p>
+                    <p v-if="page.title" class="text-xs text-[var(--text-secondary)] truncate">
+                      {{ page.path }}
+                    </p>
+                  </div>
                 </template>
                 <span class="text-xs">{{ page.path }}</span>
               </n-tooltip>
             </div>
             
-            <!-- 访问次数 -->
             <div class="shrink-0 flex items-center gap-1.5">
-              <span class="text-xs text-slate-400">{{ formatNumber(page.count) }}</span>
-              <Icon icon="mdi:eye" class="text-xs text-slate-500" />
+              <span class="text-xs text-[var(--text-secondary)]">{{ formatNumber(page.count) }}</span>
+              <Icon icon="mdi:eye" class="text-xs text-slate-400" />
             </div>
           </div>
         </div>
       </n-scrollbar>
     </div>
 
-    <!-- 全部页面弹窗 -->
     <n-modal 
       v-model:show="showModal" 
       preset="card" 
       title="全部页面访问排行" 
-      class="w-full max-w-4xl"
+      class="w-full max-w-5xl"
       :style="{ background: 'var(--bg-secondary)' }"
     >
-      <div class="mb-4 flex justify-end">
-        <n-input
-          v-model:value="searchQuery"
-          placeholder="搜索页面路径或标题"
-          clearable
-          @input="handleSearch"
-          class="w-64"
-        >
-          <template #prefix>
-            <Icon icon="mdi:magnify" class="text-slate-400" />
-          </template>
-        </n-input>
+      <div class="modal-body">
+        <div class="mb-4 flex justify-end">
+          <n-input
+            v-model:value="searchQuery"
+            placeholder="搜索页面路径或标题"
+            clearable
+            @input="handleSearch"
+            class="w-64"
+          >
+            <template #prefix>
+              <Icon icon="mdi:magnify" class="text-slate-400" />
+            </template>
+          </n-input>
+        </div>
+        <n-data-table
+          remote
+          :columns="columns"
+          :data="allPages"
+          :loading="loading"
+          :pagination="pagination"
+          :max-height="540"
+          @update:page="handlePageChange"
+          @update:sorter="handleSorterChange"
+        />
       </div>
-      <n-data-table
-        remote
-        :columns="columns"
-        :data="allPages"
-        :loading="loading"
-        :pagination="pagination"
-        :max-height="600"
-        @update:page="handlePageChange"
-        @update:sorter="handleSorterChange"
-      />
     </n-modal>
   </div>
 </template>
@@ -155,9 +155,9 @@ const columns: DataTableColumns<PageView> = [
       const rank = (pagination.page! - 1) * (pagination.pageSize!) + index + 1
       return h('span', {
         class: `inline-flex items-center justify-center w-6 h-6 rounded text-xs font-bold font-mono ${
-          rank === 1 ? 'bg-amber-500/20 text-amber-400' :
-          rank === 2 ? 'bg-slate-400/20 text-slate-300' :
-          rank === 3 ? 'bg-orange-600/20 text-orange-400' :
+          rank === 1 ? 'bg-amber-100 text-amber-700' :
+          rank === 2 ? 'bg-slate-200 text-slate-700' :
+          rank === 3 ? 'bg-orange-100 text-orange-700' :
           'text-slate-500'
         }`
       }, rank)
@@ -169,18 +169,24 @@ const columns: DataTableColumns<PageView> = [
     render: (row) => {
       const displayText = row.title || row.path
       return h(NTooltip, { placement: 'top', trigger: 'hover' }, {
-        trigger: () => h('span', { class: 'text-slate-200 font-medium cursor-help' }, displayText),
+        trigger: () => h('span', { class: 'text-[var(--text-primary)] font-medium cursor-help' }, displayText),
         default: () => h('span', { class: 'text-xs' }, row.path)
       })
     },
     ellipsis: { tooltip: false }
   },
   {
+    title: '路径',
+    key: 'path',
+    render: (row) => h('span', { class: 'font-mono text-xs text-[var(--text-secondary)]' }, row.path),
+    ellipsis: { tooltip: true }
+  },
+  {
     title: '访问量',
     key: 'count',
     width: 150,
     sorter: true,
-    render: (row) => h('span', { class: 'font-mono text-emerald-400' }, formatNumber(row.count))
+    render: (row) => h('span', { class: 'font-mono text-emerald-700' }, formatNumber(row.count))
   }
 ]
 
@@ -253,3 +259,9 @@ watch(() => props.siteId, () => {
   fetchTopPages()
 }, { immediate: true })
 </script>
+
+<style scoped>
+.modal-body {
+  min-height: 620px;
+}
+</style>

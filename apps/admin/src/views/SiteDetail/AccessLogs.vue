@@ -1,17 +1,15 @@
 <template>
   <div class="glass-card p-5 h-full flex flex-col">
-    <!-- 自定义头部 -->
     <div class="flex items-center gap-3 mb-4">
-      <div class="w-8 h-8 rounded-lg bg-emerald-500/20 flex items-center justify-center">
-        <Icon icon="mdi:clipboard-list" class="text-lg text-emerald-400" />
+      <div class="w-8 h-8 rounded-lg bg-emerald-100 text-emerald-700 flex items-center justify-center">
+        <Icon icon="mdi:clipboard-list" class="text-lg" />
       </div>
       <div>
-        <h3 class="text-lg font-semibold text-white">访问日志</h3>
-        <p class="text-xs text-slate-400">详细的访问记录</p>
+        <h3 class="panel-title">访问日志</h3>
+        <p class="panel-subtitle">默认显示最近 7 天访问记录。</p>
       </div>
     </div>
 
-    <!-- 筛选栏 -->
     <div class="mb-4 flex flex-wrap items-center gap-3">
       <n-select
         v-model:value="timeRange"
@@ -95,6 +93,7 @@ import { useRequest } from 'vue-request';
 import { getAccessLogs } from '@/api/stats';
 import type { AccessLog } from '@/api/stats';
 import type { DataTableColumns } from 'naive-ui';
+import { formatLocalDate } from '@/utils';
 
 const props = defineProps<{
   siteId: number;
@@ -114,7 +113,7 @@ const timeRangeOptions: SelectOption[] = [
 ];
 
 // 筛选条件
-const timeRange = ref<TimeRangeValue>('1');
+const timeRange = ref<TimeRangeValue>('7');
 const filters = ref({
   path: '',
   startDate: '',
@@ -141,8 +140,8 @@ const columns: DataTableColumns<AccessLog> = [
     render(row) {
       const date = new Date(row.createdAt)
       return h('div', { class: 'font-mono text-xs' }, [
-        h('div', { class: 'text-slate-300' }, date.toLocaleDateString('zh-CN')),
-        h('div', { class: 'text-slate-500' }, date.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit', second: '2-digit' }))
+        h('div', { class: 'text-[var(--text-primary)]' }, date.toLocaleDateString('zh-CN')),
+        h('div', { class: 'text-[var(--text-muted)]' }, date.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit', second: '2-digit' }))
       ])
     },
   },
@@ -154,11 +153,11 @@ const columns: DataTableColumns<AccessLog> = [
       const displayText = row.title || row.path;
       if (row.title && row.path && row.title !== row.path) {
         return h('div', [
-          h('div', { class: 'text-slate-200 text-sm font-medium' }, displayText),
-          h('div', { class: 'text-slate-500 text-xs' }, row.path),
+          h('div', { class: 'text-[var(--text-primary)] text-sm font-medium' }, displayText),
+          h('div', { class: 'text-[var(--text-secondary)] text-xs' }, row.path),
         ]);
       }
-      return h('span', { class: 'text-slate-200 text-sm' }, displayText);
+      return h('span', { class: 'text-[var(--text-primary)] text-sm' }, displayText);
     },
   },
   {
@@ -166,7 +165,7 @@ const columns: DataTableColumns<AccessLog> = [
     key: 'ip',
     width: 120,
     render(row) {
-      return h('span', { class: 'font-mono text-xs text-slate-400' }, row.ip || '-');
+      return h('span', { class: 'font-mono text-xs text-[var(--text-secondary)]' }, row.ip || '-');
     },
   },
   {
@@ -175,12 +174,12 @@ const columns: DataTableColumns<AccessLog> = [
     width: 140,
     ellipsis: { tooltip: true },
     render(row) {
-      if (!row.referer) return h('span', { class: 'text-slate-500' }, '-');
+      if (!row.referer) return h('span', { class: 'text-[var(--text-muted)]' }, '-');
       try {
         const url = new URL(row.referer);
-        return h('span', { class: 'text-xs text-blue-400' }, url.hostname);
+        return h('span', { class: 'text-xs text-blue-700' }, url.hostname);
       } catch {
-        return h('span', { class: 'text-xs text-slate-400 truncate' }, row.referer);
+        return h('span', { class: 'text-xs text-[var(--text-secondary)] truncate' }, row.referer);
       }
     },
   },
@@ -191,9 +190,9 @@ const columns: DataTableColumns<AccessLog> = [
     render(row) {
       const { browser, os } = parseUserAgent(row.userAgent);
       return h('div', { class: 'flex items-center gap-2' }, [
-        h('span', { class: 'text-xs text-slate-300' }, browser),
-        h('span', { class: 'text-slate-600' }, '/'),
-        h('span', { class: 'text-xs text-slate-500' }, os)
+        h('span', { class: 'text-xs text-[var(--text-primary)]' }, browser),
+        h('span', { class: 'text-slate-400' }, '/'),
+        h('span', { class: 'text-xs text-[var(--text-secondary)]' }, os)
       ]);
     },
   },
@@ -206,16 +205,17 @@ function parseUserAgent(ua: string | null): { browser: string; os: string } {
   let browser = '未知';
   let os = '未知';
 
-  if (ua.includes('Chrome')) browser = 'Chrome';
+  if (ua.includes('Edg/')) browser = 'Edge';
+  else if (ua.includes('Chrome')) browser = 'Chrome';
   else if (ua.includes('Firefox')) browser = 'Firefox';
   else if (ua.includes('Safari') && !ua.includes('Chrome')) browser = 'Safari';
   else if (ua.includes('Edge')) browser = 'Edge';
 
-  if (ua.includes('Windows')) os = 'Windows';
+  if (ua.includes('iPhone') || ua.includes('iPad')) os = 'iOS';
+  else if (ua.includes('Android')) os = 'Android';
+  else if (ua.includes('Windows')) os = 'Windows';
   else if (ua.includes('Mac')) os = 'macOS';
   else if (ua.includes('Linux')) os = 'Linux';
-  else if (ua.includes('Android')) os = 'Android';
-  else if (ua.includes('iPhone') || ua.includes('iPad')) os = 'iOS';
 
   return { browser, os };
 }
@@ -227,8 +227,8 @@ function getDateRangeByDays(days: number): { startDate: string; endDate: string 
   start.setDate(start.getDate() - days + 1);
 
   return {
-    startDate: start.toISOString().split('T')[0],
-    endDate: end.toISOString().split('T')[0],
+    startDate: formatLocalDate(start),
+    endDate: formatLocalDate(end),
   };
 }
 
@@ -286,7 +286,7 @@ function handleSearch() {
 
 // 重置
 function handleReset() {
-  timeRange.value = '1';
+  timeRange.value = '7';
   filters.value = {
     path: '',
     startDate: '',
@@ -294,15 +294,15 @@ function handleReset() {
   };
   dateRange.value = null;
   pagination.value.page = 1;
-  applyTimeRange('1');
+  applyTimeRange('7');
   fetchLogs();
 }
 
-// 日期变化
 function handleDateChange(value: [number, number] | null) {
   if (value) {
-    filters.value.startDate = new Date(value[0]).toISOString().split('T')[0];
-    filters.value.endDate = new Date(value[1]).toISOString().split('T')[0];
+    timeRange.value = 'all'
+    filters.value.startDate = formatLocalDate(value[0]);
+    filters.value.endDate = formatLocalDate(value[1]);
   } else {
     filters.value.startDate = '';
     filters.value.endDate = '';

@@ -1,27 +1,22 @@
 <template>
-  <div class="space-y-5">
-    <!-- 标题栏 -->
-    <div class="flex items-center justify-between">
-      <div class="flex items-center gap-3">
-        <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-violet-600 flex items-center justify-center shadow-lg shadow-blue-500/25">
-          <Icon icon="mdi:web" class="text-xl text-white" />
+  <div class="page-shell">
+    <div class="page-header">
+      <div class="page-header__title">
+        <div class="page-header__icon">
+          <Icon icon="mdi:web" class="text-xl" />
         </div>
         <div>
-          <h2 class="text-xl font-bold text-white">网站管理</h2>
-          <p class="text-sm text-slate-400">管理您的所有追踪网站</p>
+          <h1 class="page-title">网站管理</h1>
+          <p class="page-subtitle">管理站点基础信息，并进入详情页查看统计趋势。</p>
         </div>
       </div>
-      <button 
-        class="btn-primary px-4 py-2 rounded-lg font-medium flex items-center gap-2"
-        @click="showCreateModal = true"
-      >
+      <button class="btn-primary px-4 py-2 rounded-lg" @click="showCreateModal = true">
         <Icon icon="mdi:plus" />
         创建网站
       </button>
     </div>
 
-    <!-- 网站表格 -->
-    <div class="glass-card p-1 overflow-hidden">
+    <div class="glass-card p-2 overflow-hidden">
       <n-data-table
         :columns="columns"
         :data="sitesStore.sites"
@@ -80,18 +75,16 @@ const columns: DataTableColumns<Site> = [
     key: 'title',
     render(row) {
       return h('div', { class: 'flex items-center gap-3' }, [
-        h('div', { 
-          class: 'w-9 h-9 rounded-lg bg-gradient-to-br from-blue-500/20 to-violet-500/20 flex items-center justify-center shrink-0' 
+        h('div', {
+          class: 'w-9 h-9 rounded-lg bg-blue-100 text-blue-700 flex items-center justify-center shrink-0'
         }, [
-          h(Icon, { icon: 'mdi:web', class: 'text-lg text-blue-400' })
+          h(Icon, { icon: 'mdi:web', class: 'text-lg' })
         ]),
         h('div', [
-          h('div', { class: 'font-medium text-slate-200' }, row.title || row.domain),
-          row.title
-            ? h('div', { class: 'text-slate-500 text-xs' }, row.domain)
-            : null,
+          h('div', { class: 'font-medium text-[var(--text-primary)]' }, row.title || row.domain),
+          h('div', { class: 'text-[var(--text-secondary)] text-xs' }, row.domain),
         ]),
-      ]);
+      ])
     },
   },
   {
@@ -99,9 +92,9 @@ const columns: DataTableColumns<Site> = [
     key: 'description',
     ellipsis: { tooltip: true },
     render(row) {
-      return row.description 
-        ? h('span', { class: 'text-slate-400 text-sm' }, row.description)
-        : h('span', { class: 'text-slate-600 text-sm italic' }, '暂无描述');
+      return row.description
+        ? h('span', { class: 'text-[var(--text-secondary)] text-sm' }, row.description)
+        : h('span', { class: 'text-[var(--text-muted)] text-sm italic' }, '暂无描述')
     },
   },
   {
@@ -110,9 +103,9 @@ const columns: DataTableColumns<Site> = [
     width: 100,
     align: 'center',
     render(row) {
-      return h('span', { 
-        class: 'px-2 py-0.5 rounded-md bg-emerald-500/10 text-emerald-400 text-xs font-medium border border-emerald-500/20' 
-      }, row._count?.tokens || 0);
+      return h('span', {
+        class: 'px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-700 text-xs font-medium border border-emerald-200'
+      }, row._count?.tokens || 0)
     },
   },
   {
@@ -120,7 +113,7 @@ const columns: DataTableColumns<Site> = [
     key: 'createdAt',
     width: 140,
     render(row) {
-      return h('span', { class: 'text-slate-400 text-sm font-mono' }, formatDate(row.createdAt));
+      return h('span', { class: 'text-[var(--text-secondary)] text-sm font-mono' }, formatDate(row.createdAt))
     },
   },
   {
@@ -136,7 +129,7 @@ const columns: DataTableColumns<Site> = [
             h(
               'button',
               {
-                class: 'flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-blue-500/10 text-blue-400 hover:bg-blue-500/20 transition-colors text-sm font-medium',
+                class: 'flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-blue-50 text-blue-700 hover:bg-blue-100 transition-colors text-sm font-medium',
                 onClick: () => router.push(`/sites/${row.id}`),
               },
               [
@@ -155,7 +148,7 @@ const columns: DataTableColumns<Site> = [
                   h(
                     'button',
                     {
-                      class: 'flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-rose-500/10 text-rose-400 hover:bg-rose-500/20 transition-colors text-sm font-medium',
+                      class: 'flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-rose-50 text-rose-700 hover:bg-rose-100 transition-colors text-sm font-medium',
                     },
                     [
                       h(Icon, { icon: 'mdi:delete', class: 'text-sm' }),
@@ -191,8 +184,8 @@ function handleCreateSuccess(siteId: number) {
 }
 
 onMounted(() => {
-  sitesStore.fetchSites();
-});
+  void sitesStore.fetchSites()
+})
 </script>
 
 <style scoped>

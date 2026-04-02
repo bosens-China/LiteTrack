@@ -1,14 +1,13 @@
 <template>
   <div class="glass-card p-5 h-full flex flex-col">
-    <!-- 自定义头部 -->
     <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-5">
       <div class="flex items-center gap-3">
-        <div class="w-8 h-8 rounded-lg bg-blue-500/20 flex items-center justify-center">
-          <Icon icon="mdi:chart-areaspline" class="text-lg text-blue-400" />
+        <div class="w-8 h-8 rounded-lg bg-blue-100 text-blue-700 flex items-center justify-center">
+          <Icon icon="mdi:chart-areaspline" class="text-lg" />
         </div>
         <div>
-          <h3 class="text-lg font-semibold text-white">访问趋势</h3>
-          <p class="text-xs text-slate-400">网站访问量变化趋势</p>
+          <h3 class="panel-title">访问趋势</h3>
+          <p class="panel-subtitle">默认查看最近 7 天访问量变化。</p>
         </div>
       </div>
       
@@ -20,7 +19,6 @@
       </n-radio-group>
     </div>
 
-    <!-- 图表容器 -->
     <div class="flex-1 min-h-[320px] relative">
       <v-chart
         :option="chartOption"
@@ -70,7 +68,7 @@ const props = defineProps<{
 const message = useMessage()
 
 // 时间范围状态
-const timeRange = ref('30');
+const timeRange = ref('7');
 const chartData = ref<DailyView[]>([]);
 
 // 存储周元数据供 tooltip 使用
@@ -290,8 +288,8 @@ const chartOption = computed<EChartsOption>(() => {
 const loadingOptions = {
   text: '加载中...',
   color: '#3B82F6',
-  textColor: '#94A3B8',
-  maskColor: 'rgba(15, 23, 42, 0.8)',
+  textColor: '#4F6785',
+  maskColor: 'rgba(255, 255, 255, 0.75)',
   zlevel: 0
 };
 
