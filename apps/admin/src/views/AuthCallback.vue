@@ -19,34 +19,50 @@ import { useRoute, useRouter } from 'vue-router'
 import { useMessage } from 'naive-ui'
 import { Icon } from '@iconify/vue'
 import { useAuthStore } from '@/stores/auth'
-import { loginWithGithub } from '@/api/auth'
+import {
+  loginWithGithub,
+  OAUTH_STATE_STORAGE_KEY,
+  POST_LOGIN_REDIRECT_STORAGE_KEY,
+} from '@/api/auth'
 
-const REDIRECT_STORAGE_KEY = 'litetrack:post-login-redirect'
 const route = useRoute()
 const router = useRouter()
 const authStore = useAuthStore()
 const message = useMessage()
 
 onMounted(async () => {
-  const code = route.query.code as string
+  const code = typeof route.query.code === 'string' ? route.query.code : ''
+  const returnedState = typeof route.query.state === 'string' ? route.query.state : ''
+  const storedState = sessionStorage.getItem(OAUTH_STATE_STORAGE_KEY) || ''
   
-  if (!code) {
-    message.error('登录失败：缺少授权码')
-    router.push('/login')
+  if (!code || !returnedState) {
+    message.error('登录失败：缺少授权参数')
+    sessionStorage.removeItem(OAUTH_STATE_STORAGE_KEY)
+    await router.push('/login')
+    return
+  }
+
+  if (!storedState || storedState !== returnedState) {
+    message.error('登录失败：授权状态校验失败')
+    sessionStorage.removeItem(OAUTH_STATE_STORAGE_KEY)
+    localStorage.removeItem(POST_LOGIN_REDIRECT_STORAGE_KEY)
+    await router.push('/login')
     return
   }
   
   try {
-    const { token, user } = await loginWithGithub(code)
+    const { token, user } = await loginWithGithub(code, returnedState)
     authStore.setToken(token)
     authStore.setUser(user)
     message.success('登录成功')
-    const redirect = localStorage.getItem(REDIRECT_STORAGE_KEY) || '/'
-    localStorage.removeItem(REDIRECT_STORAGE_KEY)
+    const redirect = localStorage.getItem(POST_LOGIN_REDIRECT_STORAGE_KEY) || '/'
+    sessionStorage.removeItem(OAUTH_STATE_STORAGE_KEY)
+    localStorage.removeItem(POST_LOGIN_REDIRECT_STORAGE_KEY)
     await router.push(redirect)
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : '登录失败'
-    localStorage.removeItem(REDIRECT_STORAGE_KEY)
+    sessionStorage.removeItem(OAUTH_STATE_STORAGE_KEY)
+    localStorage.removeItem(POST_LOGIN_REDIRECT_STORAGE_KEY)
     message.error(errorMessage)
     await router.push('/login')
   }

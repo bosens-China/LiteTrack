@@ -39,12 +39,15 @@
 import { ref } from 'vue'
 import { useRoute } from 'vue-router'
 import { Icon } from '@iconify/vue'
+import {
+  buildGithubLoginUrl,
+  createOAuthState,
+  OAUTH_STATE_STORAGE_KEY,
+  POST_LOGIN_REDIRECT_STORAGE_KEY,
+} from '@/api/auth'
 
 const route = useRoute()
 const loading = ref(false)
-
-const API_BASE_URL = import.meta.env.PUBLIC_API_BASE_URL || '/litetrack/v1'
-const REDIRECT_STORAGE_KEY = 'litetrack:post-login-redirect'
 
 function handleLogin() {
   loading.value = true
@@ -52,8 +55,12 @@ function handleLogin() {
     typeof route.query.redirect === 'string' && route.query.redirect.length > 0
       ? route.query.redirect
       : '/'
-  localStorage.setItem(REDIRECT_STORAGE_KEY, redirect)
-  const loginUrl = `${API_BASE_URL.replace(/\/$/, '')}/auth/github`
+  const state = createOAuthState()
+
+  localStorage.setItem(POST_LOGIN_REDIRECT_STORAGE_KEY, redirect)
+  sessionStorage.setItem(OAUTH_STATE_STORAGE_KEY, state)
+
+  const loginUrl = buildGithubLoginUrl(state)
   window.location.href = loginUrl
 }
 </script>

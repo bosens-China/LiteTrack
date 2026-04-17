@@ -21,6 +21,9 @@ export interface UserPayload {
 const jwtPlugin: FastifyPluginAsync = async (fastify: FastifyInstance) => {
   await fastify.register(fastifyJwt, {
     secret: config.JWT_SECRET,
+    sign: {
+      expiresIn: config.JWT_EXPIRES_IN,
+    },
   })
 
   // 为 fastify 实例添加 authenticate 方法装饰器

@@ -14,6 +14,7 @@ const configSchema = z.object({
   DATABASE_URL: z.string(),
   REDIS_URL: z.string().default('redis://localhost:6379'),
   JWT_SECRET: z.string(),
+  JWT_EXPIRES_IN: z.string().default('30d'),
   GITHUB_CLIENT_ID: z.string(),
   GITHUB_CLIENT_SECRET: z.string(),
   GITHUB_CALLBACK_URL: z
@@ -22,10 +23,28 @@ const configSchema = z.object({
   APP_TIMEZONE: z.string().default('Asia/Shanghai'),
   PORT: z.coerce.number().default(3000),
   HOST: z.string().default('0.0.0.0'),
+  TRUST_PROXY: z.string().default('false'),
   LOG_LEVEL: z
     .enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace', 'silent'])
     .default('info'),
 });
+
+function parseTrustProxyValue(value: string): boolean | string | number {
+  if (value === 'true') {
+    return true
+  }
+
+  if (value === 'false') {
+    return false
+  }
+
+  const numeric = Number(value)
+  if (Number.isInteger(numeric) && value.trim() !== '') {
+    return numeric
+  }
+
+  return value
+}
 
 const parsed = configSchema.safeParse(process.env);
 
@@ -34,4 +53,7 @@ if (!parsed.success) {
   process.exit(1);
 }
 
-export const config = parsed.data;
+export const config = {
+  ...parsed.data,
+  TRUST_PROXY: parseTrustProxyValue(parsed.data.TRUST_PROXY),
+};

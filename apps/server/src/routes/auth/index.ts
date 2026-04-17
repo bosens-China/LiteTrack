@@ -1,5 +1,7 @@
 import { FastifyPluginAsync } from 'fastify'
 import axios from 'axios'
+import type { ZodTypeProvider } from 'fastify-type-provider-zod'
+import { z } from 'zod'
 import { config } from '../../lib/config.js'
 import { UserPayload } from '../../plugins/jwt.js'
 
@@ -12,31 +14,52 @@ import { UserPayload } from '../../plugins/jwt.js'
  * 3. /me - 返回当前认证用户信息
  */
 const auth: FastifyPluginAsync = async (fastify, _opts): Promise<void> => {
+  const typed = fastify.withTypeProvider<ZodTypeProvider>()
+  const githubLoginQuerySchema = z.object({
+    state: z.string().trim().min(16).max(200),
+  })
+
+  const githubCallbackQuerySchema = z.object({
+    code: z.string().trim().min(1),
+    state: z.string().trim().min(16).max(200),
+  })
   
   /**
    * GET /github
    * 重定向到 GitHub OAuth 授权页面
    */
-  fastify.get('/github', async (request, reply) => {
+  typed.get(
+    '/github',
+    {
+      schema: {
+        querystring: githubLoginQuerySchema,
+      },
+    },
+    async (request, reply) => {
     const url = new URL('https://github.com/login/oauth/authorize')
     url.searchParams.set('client_id', config.GITHUB_CLIENT_ID)
     url.searchParams.set('redirect_uri', config.GITHUB_CALLBACK_URL)
     url.searchParams.set('scope', 'user:email')
+    url.searchParams.set('state', request.query.state)
     
     return reply.redirect(url.toString())
-  })
+    },
+  )
 
   /**
    * GET /github/callback
    * GitHub OAuth 回调处理
    * 交换 code 获取 access token，获取用户信息，生成 JWT
    */
-  fastify.get('/github/callback', async (request, reply) => {
-    const { code } = request.query as { code?: string }
-
-    if (!code) {
-      return reply.code(400).send({ error: '缺少授权码' })
-    }
+  typed.get(
+    '/github/callback',
+    {
+      schema: {
+        querystring: githubCallbackQuerySchema,
+      },
+    },
+    async (request, reply) => {
+    const { code } = request.query
 
     try {
       // 用 code 交换 access token
@@ -102,7 +125,8 @@ const auth: FastifyPluginAsync = async (fastify, _opts): Promise<void> => {
       fastify.log.error(error)
       return reply.code(500).send({ error: '认证失败' })
     }
-  })
+    },
+  )
 
   /**
    * GET /me

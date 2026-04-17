@@ -36,6 +36,9 @@ model Site {
   tokens      SiteToken[]
   views       PageView[]
   daily       DailyView[]
+  dailyVisitors DailyVisitor[]
+  pageDailyVisitors PageDailyVisitor[]
+  readProgress PageReadProgress[]
   accessLogs  AccessLog[]
 
   @@unique([userId, domain])
@@ -91,7 +94,12 @@ model AccessLog {
   path      String   // 访问路径
   title     String?  // 页面标题
   ip        String?  // 访问者 IP
+  visitorId String?  @map("visitor_id")
+  sessionId String?  @map("session_id")
   userAgent String?  @map("user_agent") // 用户代理
+  deviceType String? @map("device_type")
+  browser   String?
+  os        String?
   referer   String?  // 来源页面
   country   String?  // 国家（通过 IP 解析）
   city      String?  // 城市
@@ -102,4 +110,50 @@ model AccessLog {
   @@index([siteId, createdAt])
   @@index([siteId, path])
   @@map("access_logs")
+}
+
+model DailyVisitor {
+  id        Int      @id @default(autoincrement())
+  siteId    Int      @map("site_id")
+  date      String   // YYYY-MM-DD format
+  visitorId String   @map("visitor_id")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  site Site @relation(fields: [siteId], references: [id], onDelete: Cascade)
+
+  @@unique([siteId, date, visitorId])
+  @@index([siteId, date])
+  @@map("daily_visitors")
+}
+
+model PageDailyVisitor {
+  id        Int      @id @default(autoincrement())
+  siteId    Int      @map("site_id")
+  path      String
+  date      String   // YYYY-MM-DD format
+  visitorId String   @map("visitor_id")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  site Site @relation(fields: [siteId], references: [id], onDelete: Cascade)
+
+  @@unique([siteId, path, date, visitorId])
+  @@index([siteId, path, date])
+  @@map("page_daily_visitors")
+}
+
+model PageReadProgress {
+  id        Int      @id @default(autoincrement())
+  siteId    Int      @map("site_id")
+  path      String
+  date      String   // YYYY-MM-DD format
+  visitorId String   @map("visitor_id")
+  maxDepth  Int      @default(0) @map("max_depth")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  site Site @relation(fields: [siteId], references: [id], onDelete: Cascade)
+
+  @@unique([siteId, path, date, visitorId])
+  @@index([siteId, path, date])
+  @@map("page_read_progress")
 }

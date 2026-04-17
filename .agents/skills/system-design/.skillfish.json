@@ -1,0 +1,10 @@
+{
+  "version": 2,
+  "name": "system-design",
+  "owner": "pluginagentmarketplace",
+  "repo": "custom-plugin-cloudflare",
+  "path": "skills/system-design",
+  "branch": "main",
+  "sha": "0ec8bf1fdf3e8f44d307c4bfde8d1de40d21dab1",
+  "source": "manual"
+}

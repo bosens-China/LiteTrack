@@ -1,171 +1,164 @@
 # LiteTrack Server
 
-LiteTrack 统计分析后端 API 服务
+LiteTrack 统计分析后端，基于 Fastify、Prisma、PostgreSQL、Redis。
 
-## 🚀 快速开始
+## 主要职责
 
-### 1. 启动数据库服务
+- GitHub OAuth 登录与 JWT 鉴权
+- Site / Site Token 管理
+- 页面访问、UV、设备分布、阅读分析查询
+- 公开埋点上报与阅读进度上报
+- 访问日志记录与查询
 
-在项目根目录运行：
+## 快速开始
+
+### 1. 安装依赖
+
+在仓库根目录执行：
 
 ```bash
-docker-compose up -d
+pnpm install
 ```
 
-这会启动：
+### 2. 准备 PostgreSQL 与 Redis
 
-- PostgreSQL（端口 25432）
-- Redis（端口 26379）
+请自行准备可用的 PostgreSQL 和 Redis 实例，并把连接串写入 `apps/server/.env`。
 
-### 2. 配置环境变量
+### 3. 配置环境变量
 
-编辑 `apps/server/.env`：
+在 `apps/server` 目录执行：
+
+```bash
+cp .env.example .env
+```
+
+然后编辑 `apps/server/.env`：
 
 ```env
-# 数据库（默认配置）
-DATABASE_URL="postgresql://litetrack:litetrack_password@localhost:25432/litetrack"
+DATABASE_URL="postgresql://postgres:postgres@localhost:5432/litetrack"
+REDIS_URL="redis://localhost:6379"
 
-# Redis（默认配置）
-REDIS_URL="redis://localhost:26379"
-
-# JWT（生产环境请修改为随机字符串）
+# 生产环境请替换为随机强密码
 JWT_SECRET="your-super-secret-jwt-key-change-this-in-production"
 
-# GitHub OAuth（需要在 GitHub 创建 OAuth 应用）
+# 默认 JWT 有效期，管理后台当前建议 30 天
+JWT_EXPIRES_IN="30d"
+
 GITHUB_CLIENT_ID="your-github-client-id"
 GITHUB_CLIENT_SECRET="your-github-client-secret"
-# 回调 URL 必须与 GitHub 设置完全一致
 GITHUB_CALLBACK_URL="http://localhost:8080/auth/callback"
+
+APP_TIMEZONE="Asia/Shanghai"
+LOG_LEVEL="info"
 ```
 
-### 3. 初始化数据库
+### 4. 初始化数据库
 
 ```bash
-# 生成 Prisma 客户端
+cd apps/server
 pnpm db:generate
-
-# 推送 schema 到数据库
 pnpm db:push
 ```
 
-### 4. 启动开发服务器
+### 5. 启动开发服务器
 
 ```bash
+cd apps/server
 pnpm dev
 ```
 
-服务将在 http://localhost:3000 启动
+默认地址：`http://localhost:3000`
 
-## 📚 API 文档
+## API 概览
 
-所有 API 路由前缀为 `/litetrack/v1`
+所有 API 路由前缀为 `/litetrack/v1`。
 
 ### 认证相关
 
-| 方法 | 路由                    | 说明                     |
-| ---- | ----------------------- | ------------------------ |
-| GET  | `/auth/github`          | GitHub OAuth 登录入口    |
-| GET  | `/auth/github/callback` | GitHub OAuth 回调        |
-| GET  | `/auth/me`              | 获取当前用户（需要 JWT） |
+| 方法 | 路由 | 说明 |
+| ---- | ---- | ---- |
+| GET | `/auth/github?state=...` | GitHub OAuth 登录入口，要求前端传入 `state` |
+| GET | `/auth/github/callback?code=...&state=...` | GitHub OAuth 回调，交换 token 并签发 JWT |
+| GET | `/auth/me` | 获取当前用户信息 |
 
-### 网站管理（需要 JWT）
+### 网站管理
 
-| 方法   | 路由                             | 说明                     |
-| ------ | -------------------------------- | ------------------------ |
-| GET    | `/sites`                         | 获取用户的所有网站       |
-| POST   | `/sites`                         | 创建新网站               |
-| GET    | `/sites/:id`                     | 获取网站详情（包含令牌） |
-| PATCH  | `/sites/:id`                     | 更新网站信息             |
-| DELETE | `/sites/:id`                     | 删除网站                 |
-| POST   | `/sites/:id/tokens`              | 创建新访问令牌           |
-| DELETE | `/sites/:siteId/tokens/:tokenId` | 撤销令牌                 |
+| 方法 | 路由 | 说明 |
+| ---- | ---- | ---- |
+| GET | `/sites` | 获取当前用户全部站点 |
+| POST | `/sites` | 创建站点并生成默认 Site Token |
+| GET | `/sites/:id` | 获取站点详情与 Token 列表 |
+| PATCH | `/sites/:id` | 更新站点信息 |
+| DELETE | `/sites/:id` | 删除站点 |
+| POST | `/sites/:id/tokens` | 新建 Site Token |
+| PATCH | `/sites/:siteId/tokens/:tokenId` | 更新 Token |
+| DELETE | `/sites/:siteId/tokens/:tokenId` | 删除 Token |
 
-### 统计数据（需要 JWT）
+### 统计查询
 
-| 方法 | 路由                     | 说明                   |
-| ---- | ------------------------ | ---------------------- |
-| GET  | `/stats/:siteId`         | 获取综合统计           |
-| GET  | `/stats/:siteId/popular` | 前 10 热门页面         |
-| GET  | `/stats/:siteId/trend`   | 访问趋势（默认 30 天） |
+| 方法 | 路由 | 说明 |
+| ---- | ---- | ---- |
+| GET | `/stats/dashboard` | 当前用户站点聚合概览 |
+| GET | `/stats/:siteId` | 站点综合统计 |
+| GET | `/stats/:siteId/popular` | 热门页面 Top 10 |
+| GET | `/stats/:siteId/trend?days=30` | 访问趋势 |
+| GET | `/stats/:siteId/pages?page=1&pageSize=20` | 页面列表，支持搜索 / 排序 / 分页 |
+| GET | `/stats/:siteId/visitors?days=30` | UV 概览与趋势 |
+| GET | `/stats/:siteId/devices?days=30` | 设备 / 浏览器 / 操作系统分布 |
+| GET | `/stats/:siteId/reading?days=30&path=/post` | 阅读深度与完成率 |
+| GET | `/stats/:siteId/logs?page=1&pageSize=20` | 访问日志，返回设备字段 |
 
-### 数据上报（需要 Site Token）
+### 数据上报
 
-| 方法 | 路由            | 说明           |
-| ---- | --------------- | -------------- |
-| POST | `/track`        | 上报页面访问   |
-| GET  | `/track/verify` | 验证令牌有效性 |
+| 方法 | 路由 | 说明 |
+| ---- | ---- | ---- |
+| POST | `/track` | 页面访问上报 |
+| POST | `/track/read-progress` | 阅读深度上报 |
+| GET | `/track/stats` | 公开查询站点 / 页面 PV |
+| GET | `/track/verify` | 校验 Site Token |
 
-**Track 请求示例：**
+`POST /track` 与 `POST /track/read-progress` 都要求请求头携带 `X-Site-Token`。
 
-```bash
-curl -X POST http://localhost:3000/litetrack/v1/track \
-  -H "Content-Type: application/json" \
-  -H "X-Site-Token: your-site-token" \
-  -d '{"path": "/blog/hello-world"}'
-```
+## OAuth 配置说明
 
-## 🔐 GitHub OAuth 设置
+1. 在 GitHub 创建 OAuth App。
+2. `Homepage URL` 填 `http://localhost:8080`
+3. `Authorization callback URL` 填 `http://localhost:8080/auth/callback`
+4. 保持 GitHub 配置、`apps/admin` 路由、`GITHUB_CALLBACK_URL` 三者一致。
+5. 前端会生成并校验 `state`，后端要求该字段参与登录流程。
 
-1. 访问 https://github.com/settings/applications/new
-2. 填写应用信息：
-   - **Application name**: LiteTrack（本地开发）
-   - **Homepage URL**: http://localhost:8000
-   - **Authorization callback URL**: http://localhost:8000/auth/callback
-3. 创建后复制 Client ID 和 Client Secret
-4. 填入 `apps/server/.env`
+## 项目结构
 
-## 📦 数据库模型
-
-```
-User（GitHub 登录用户）
-  └── Site（网站）
-        ├── SiteToken（访问令牌）
-        ├── PageView（页面访问统计）
-        └── DailyView（每日访问统计）
-```
-
-## 🛠️ 常用命令
-
-```bash
-# 启动数据库
-docker-compose up -d
-
-# 停止数据库
-docker-compose down
-
-# 查看数据库内容
-pnpm db:studio
-
-# 重置数据库
-pnpm db:migrate reset
-
-# 编译 TypeScript
-pnpm build:ts
-
-# 代码检查
-pnpm lint
-
-# 类型检查
-pnpm check
-```
-
-## 🏗️ 项目结构
-
-```
+```text
 src/
-├── lib/           # 共享库（prisma、redis、config）
-├── plugins/       # Fastify 插件（jwt、cors）
-└── routes/        # 按功能组织的 API 路由
-    ├── auth/      # 认证路由
-    ├── sites/     # 网站管理路由
-    ├── stats/     # 统计路由
-    └── track/     # 追踪路由（公开）
+├── lib/              # 配置、访客解析等共享逻辑
+├── modules/stats/    # 统计路由按领域拆分
+├── plugins/          # Fastify 插件
+├── routes/           # 认证、站点、上报等顶层路由
+└── server.ts         # buildServer 工厂
 ```
 
-## 📖 应用的最佳实践
+## 测试与检查
 
-- **Prisma Client**：单例模式防止连接池耗尽
-- **Fastify 插件**：模块化插件架构，正确封装
-- **类型安全**：完整的 TypeScript 支持，声明合并
-- **速率限制**：基于 Redis 的 IP + 路径限流（10 秒窗口）
-- **环境变量**：Zod schema 验证实现类型安全配置
+```bash
+cd apps/server
+
+pnpm lint
+pnpm check
+pnpm test
+```
+
+当前已覆盖：
+
+- 基础健康检查
+- 统计查询关键场景
+- 上报链路关键场景
+- `buildServer + autoload + prefix` 真实装配链路
+
+## Docker
+
+```bash
+docker build -f apps/server/Dockerfile -t litetrack-server .
+```
+
+运行前请准备好外部 PostgreSQL、Redis，并传入必需环境变量。

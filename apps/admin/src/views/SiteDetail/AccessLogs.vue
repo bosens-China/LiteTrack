@@ -185,40 +185,27 @@ const columns: DataTableColumns<AccessLog> = [
   },
   {
     title: '设备',
-    key: 'userAgent',
-    width: 160,
+    key: 'browser',
+    width: 200,
     render(row) {
-      const { browser, os } = parseUserAgent(row.userAgent);
       return h('div', { class: 'flex items-center gap-2' }, [
-        h('span', { class: 'text-xs text-[var(--text-primary)]' }, browser),
+        h('span', { class: 'text-xs text-[var(--text-primary)]' }, row.browser || '未知浏览器'),
         h('span', { class: 'text-slate-400' }, '/'),
-        h('span', { class: 'text-xs text-[var(--text-secondary)]' }, os)
+        h('span', { class: 'text-xs text-[var(--text-secondary)]' }, row.os || '未知系统'),
+        row.deviceType
+          ? h(
+              'span',
+              {
+                class:
+                  'ml-1 inline-flex items-center rounded-md bg-slate-100 px-1.5 py-0.5 text-[10px] text-[var(--text-muted)]',
+              },
+              row.deviceType,
+            )
+          : null,
       ]);
     },
   },
 ];
-
-// 解析 User-Agent
-function parseUserAgent(ua: string | null): { browser: string; os: string } {
-  if (!ua) return { browser: '-', os: '-' };
-
-  let browser = '未知';
-  let os = '未知';
-
-  if (ua.includes('Edg/')) browser = 'Edge';
-  else if (ua.includes('Chrome')) browser = 'Chrome';
-  else if (ua.includes('Firefox')) browser = 'Firefox';
-  else if (ua.includes('Safari') && !ua.includes('Chrome')) browser = 'Safari';
-  else if (ua.includes('Edge')) browser = 'Edge';
-
-  if (ua.includes('iPhone') || ua.includes('iPad')) os = 'iOS';
-  else if (ua.includes('Android')) os = 'Android';
-  else if (ua.includes('Windows')) os = 'Windows';
-  else if (ua.includes('Mac')) os = 'macOS';
-  else if (ua.includes('Linux')) os = 'Linux';
-
-  return { browser, os };
-}
 
 // 根据时间范围计算日期
 function getDateRangeByDays(days: number): { startDate: string; endDate: string } {

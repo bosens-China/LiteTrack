@@ -32,6 +32,9 @@ const envToLogger = {
 
 export interface BuildServerOptions {
   trustProxy?: boolean | string | number;
+  pluginsDir?: string;
+  routesDir?: string;
+  routePrefix?: string;
 }
 
 /**
@@ -45,6 +48,10 @@ export interface BuildServerOptions {
  * @see https://fastify.dev/docs/latest/Reference/Server/
  */
 export function buildServer(options: BuildServerOptions = {}) {
+  const pluginsDir = options.pluginsDir ?? join(__dirname, 'plugins');
+  const routesDir = options.routesDir ?? join(__dirname, 'routes');
+  const routePrefix = options.routePrefix ?? '/litetrack/v1';
+
   const server = Fastify({
     // Logger 配置
     logger: envToLogger[config.NODE_ENV],
@@ -58,18 +65,18 @@ export function buildServer(options: BuildServerOptions = {}) {
     forceCloseConnections: 'idle',
 
     // 代理配置
-    trustProxy: options.trustProxy ?? false,
+    trustProxy: options.trustProxy ?? config.TRUST_PROXY,
   });
 
   // 自动加载插件（共享插件，使用 fastify-plugin）
   server.register(autoload, {
-    dir: join(__dirname, 'plugins'),
+    dir: pluginsDir,
   });
 
   // 自动加载路由（保持封装，不使用 fastify-plugin）
   server.register(autoload, {
-    dir: join(__dirname, 'routes'),
-    options: { prefix: '/litetrack/v1' },
+    dir: routesDir,
+    options: { prefix: routePrefix },
     autoHooks: true,
     cascadeHooks: true,
   });

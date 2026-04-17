@@ -1,16 +1,26 @@
 # Plugins Folder
 
-Plugins define behavior that is common to all the routes in your
-application. Authentication, caching, templates, and all the other cross
-cutting concerns should be handled by plugins placed in this folder.
+这里放 LiteTrack 的 Fastify 插件，负责提供跨路由共享的基础能力。
 
-Files in this folder are typically defined through the
-[`fastify-plugin`](https://github.com/fastify/fastify-plugin) module,
-making them non-encapsulated. They can define decorators and set hooks
-that will then be used in the rest of your application.
+## 当前插件
 
-Check out:
+- `zod.ts`
+  配置 Zod validator / serializer compiler。
+- `jwt.ts`
+  JWT 签发与鉴权装饰器，默认读取 `JWT_EXPIRES_IN`。
+- `cors.ts`
+  CORS 配置。
+- `sensible.ts`
+  Fastify 常用 HTTP errors。
+- `error-handler.ts`
+  统一错误处理。
+- `prisma.ts`
+  Prisma Client 单例与生命周期管理。
+- `redis.ts`
+  Redis 客户端与限流装饰器。
 
-* [The hitchhiker's guide to plugins](https://fastify.dev/docs/latest/Guides/Plugins-Guide/)
-* [Fastify decorators](https://fastify.dev/docs/latest/Reference/Decorators/).
-* [Fastify lifecycle](https://fastify.dev/docs/latest/Reference/Lifecycle/).
+## 约定
+
+- 插件负责声明 decorator、hook 和全局基础设施。
+- 路由只消费插件暴露的能力，不重复创建数据库或缓存连接。
+- 新增跨领域共享能力时，优先作为插件落地，而不是散落到业务路由中。

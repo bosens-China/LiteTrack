@@ -1,113 +1,198 @@
 # LiteTrack SDK
 
-轻量级、框架无关的网站访问统计，仅提供一个 JS 文件，通过 script 标签引入使用。
+面向浏览器环境的轻量统计 SDK，当前调用面围绕 `create()` 展开。
 
-## 使用方式
+## 设计目标
 
-1. 获取 `dist/index.iife.js`（可重命名为 `litetrack.js`），放到你的静态资源目录。
-2. 在页面中引入，在合适的时机调用上报与查询方法。
+- 默认调用简单
+- 对 SPA 友好
+- 不默认把数据发到官方域名
+- 提供最小可诊断能力
+
+## 快速开始
+
+```ts
+const tracker = LiteTrack.create({
+  siteToken: 'st_xxx',
+  baseUrl: 'https://your-api.com/litetrack/v1',
+  autoPageview: true,
+  autoReadProgress: true,
+});
+```
+
+`baseUrl` 必填，SDK 不再内置默认线上地址。
+
+## 浏览器 script 引入
 
 ```html
 <script src="/js/litetrack.js" defer></script>
 <script>
-  // 上报当前页面访问
   window.addEventListener('load', function () {
-    LiteTrack.track('your-site-token', location.pathname)
-  })
-
-  // 查询站点汇总
-  LiteTrack.getSiteStats('your-site-token').then(function (stats) {
-    if (!stats) return
-    console.log('total views:', stats.totalViews)
-    console.log('total pages:', stats.totalPages)
-  })
-
-  // 查询当前页面访问量
-  LiteTrack.getPageStats('your-site-token', location.pathname).then(function (page) {
-    if (!page) return
-    console.log('current page views:', page.count)
+    window.LiteTrack.create({
+      siteToken: 'st_xxx',
+      baseUrl: 'https://your-api.com/litetrack/v1',
+      autoPageview: true,
+      autoReadProgress: true
+    })
   })
 </script>
 ```
 
 ## API
 
-### 上报
+### `LiteTrack.create(options)`
 
-`LiteTrack.track(token, path, options?)`
-
-| 参数 | 说明 |
-|------|------|
-| token | 网站令牌，从 LiteTrack 后台获取 |
-| path | 页面路径，如 `/blog/hello-world` |
-| options | 可选配置对象 |
-| options.title | 可选，页面标题，默认自动读取 `document.title` |
-| options.apiUrl | 可选，自定义上报地址，默认为官方上报接口 |
-
-说明：
-- 仅发送请求，不关心返回值；网络错误会被内部捕获，不会抛异常
-- 路径会自动去除末尾斜杠，确保 `/foo/` 和 `/foo` 视为同一个路径
-
-**示例：**
-
-```javascript
-// 基础用法
-LiteTrack.track('your-site-token', location.pathname)
-
-// 指定页面标题
-LiteTrack.track('your-site-token', location.pathname, { title: '文章详情' })
-
-// 使用自定义上报地址
-LiteTrack.track('your-site-token', location.pathname, { apiUrl: 'https://your-api.com/track' })
-
-// 同时使用
-LiteTrack.track('your-site-token', location.pathname, {
-  title: '文章详情',
-  apiUrl: 'https://your-api.com/track'
+```ts
+const tracker = LiteTrack.create({
+  siteToken: 'st_xxx',
+  baseUrl: 'https://your-api.com/litetrack/v1',
+  autoPageview: true,
+  autoReadProgress: true,
+  readProgressMilestones: [25, 50, 75, 100],
+  identity: {
+    visitorId: 'visitor_123',
+    sessionId: 'session_456',
+  },
+  debug: false,
+  onError(error) {
+    console.error('[LiteTrack]', error)
+  },
 })
 ```
 
-### 查询站点汇总
-
-`LiteTrack.getSiteStats(token, apiUrl?) -> Promise<{ totalViews: number; totalPages: number } | null>`
+参数说明：
 
 | 参数 | 说明 |
-|------|------|
-| token | 网站令牌，从 LiteTrack 后台获取 |
-| apiUrl | 可选，自定义查询地址，默认为官方 `/track/stats` 接口 |
+| ---- | ---- |
+| `siteToken` | 站点令牌，必填 |
+| `baseUrl` | API 基础地址，必填，例如 `https://your-api.com/litetrack/v1` |
+| `autoPageview` | 默认 `true`，创建后自动上报首屏 PV |
+| `autoReadProgress` | 默认 `false`，自动监听滚动与离开事件 |
+| `readProgressMilestones` | 阅读深度里程碑，默认 `[25, 50, 75, 100]` |
+| `identity` | 可选，外部传入 `visitorId` / `sessionId` |
+| `debug` | 默认 `false`，开启后会把 SDK 错误输出到控制台 |
+| `onError` | SDK 内部请求失败时的回调 |
 
-返回值：
+## Tracker 方法
 
-- 成功：`{ totalViews, totalPages }`
-  - `totalViews`：站点所有页面的累计访问次数（PV 总和）
-  - `totalPages`：至少被访问过一次的不同页面数量
-- 失败（网络错误、token 无效等）：`null`
+### `tracker.page(input?)`
 
-### 查询指定页面
+```ts
+tracker.page()
 
-`LiteTrack.getPageStats(token, path, apiUrl?) -> Promise<{ path: string; count: number } | null>`
+tracker.page({
+  path: '/posts/hello',
+  title: 'Hello World',
+})
+```
 
-| 参数 | 说明 |
-|------|------|
-| token | 网站令牌，从 LiteTrack 后台获取 |
-| path | 页面路径，如 `/blog/hello-world` |
-| apiUrl | 可选，自定义查询地址（基础地址，不含 query），默认为官方 `/track/stats` 接口 |
+### `tracker.read(input)`
 
-返回值：
+```ts
+tracker.read(80)
 
-- 成功：`{ path, count }`
-  - `path`：实际返回的页面路径（默认等于传入的 `path`）
-  - `count`：该页面的累计访问次数
-- 失败（网络错误、token 无效等）：`null`
+tracker.read({
+  path: '/posts/hello',
+  percent: 80,
+})
+```
 
-## 避免影响首屏加载
+### `tracker.navigate(input)`
 
-- 使用 `defer` 或把 script 放在 `</body>` 前，不要用阻塞解析的同步脚本。
-- 在 `load` 或 `DOMContentLoaded` 之后再调用 `LiteTrack.track` / 查询方法；需要时可用 `setTimeout(fn, 0)` 或 `requestIdleCallback` 延后执行。
+用于 SPA 路由切换。
 
-## 构建
+```ts
+tracker.navigate({
+  path: '/posts/hello',
+  title: 'Hello World',
+})
+```
 
-在仓库中执行 `pnpm build`，产物为 **`dist/index.iife.js`**，仅此一个文件。
+也可以精细控制：
+
+```ts
+tracker.navigate({
+  path: '/posts/hello',
+  title: 'Hello World',
+  trackPageview: true,
+  resetReadProgress: true,
+})
+```
+
+### `tracker.identify(identity)`
+
+```ts
+tracker.identify({
+  visitorId: 'visitor_123',
+  sessionId: 'session_456',
+})
+```
+
+### `tracker.stats.site()`
+
+```ts
+const siteStats = await tracker.stats.site()
+```
+
+返回：
+
+```ts
+{
+  totalViews: number
+  totalPages: number
+}
+```
+
+### `tracker.stats.page(path)`
+
+```ts
+const pageStats = await tracker.stats.page('/posts/hello')
+```
+
+返回：
+
+```ts
+{
+  path: string
+  count: number
+}
+```
+
+### `tracker.destroy()`
+
+```ts
+tracker.destroy()
+```
+
+## 默认请求路径
+
+SDK 会基于你传入的 `baseUrl` 拼出以下接口：
+
+- 页面访问上报：`${baseUrl}/track`
+- 阅读深度上报：`${baseUrl}/track/read-progress`
+- 公开统计查询：`${baseUrl}/track/stats`
+
+## 错误处理
+
+- `page()` / `read()` / 自动上报属于 fire-and-forget，不会向外抛异常
+- 这些异常会进入 `onError`
+- `tracker.stats.site()` / `tracker.stats.page()` 失败时会 reject，同时也会触发 `onError`
+
+## 身份策略
+
+- 默认优先使用浏览器 `localStorage` / `sessionStorage`
+- 如果存储不可用，会自动退化到内存身份，不会让阅读进度直接失效
+
+## 构建与检查
+
+```bash
+cd apps/sdk
+
+pnpm build
+pnpm type-check
+pnpm lint
+pnpm test
+```
 
 ## 许可证
 

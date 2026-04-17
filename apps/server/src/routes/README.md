@@ -1,30 +1,22 @@
 # Routes Folder
 
-Routes define the pathways within your application.
-Fastify's structure supports the modular monolith approach, where your
-application is organized into distinct, self-contained modules.
-This facilitates easier scaling and future transition to a microservice architecture.
-In the future you might want
-to independently deploy some of those.
+这里放 LiteTrack 的顶层业务路由，统一由 `server.ts` 通过 autoload 加载，并挂载到 `/litetrack/v1` 前缀下。
 
-In this folder you should define all the routes that define the endpoints
-of your web application.
-Each service is a [Fastify
-plugin](https://fastify.dev/docs/latest/Reference/Plugins/), it is
-encapsulated (it can have its own independent plugins) and it is
-typically stored in a file; be careful to group your routes logically,
-e.g. all `/users` routes in a `users.js` file. We have added
-a `root.js` file for you with a '/' root added.
+## 当前路由划分
 
-If a single file becomes too large, create a folder and add a `index.js` file there:
-this file must be a Fastify plugin, and it will be loaded automatically
-by the application. You can now add as many files as you want inside that folder.
-In this way you can create complex routes within a single monolith,
-and eventually extract them.
+- `root.ts`
+  健康检查与基础服务信息。
+- `auth/`
+  GitHub OAuth 登录、回调、当前用户信息。
+- `sites/`
+  站点与 Site Token 管理。
+- `stats/`
+  统计查询入口，内部继续拆到 `src/modules/stats/*`。
+- `track/`
+  面向 SDK 的公开上报与校验接口。
 
-If you need to share functionality between routes, place that
-functionality into the `plugins` folder, and share it via
-[decorators](https://fastify.dev/docs/latest/Reference/Decorators/).
+## 约定
 
-If you're a bit confused about using `async/await` to write routes, you would
-better take a look at [Promise resolution](https://fastify.dev/docs/latest/Reference/Routes/#promise-resolution) for more details.
+- 顶层路由负责按领域组织接口。
+- 如果某个领域继续增长，优先拆目录并保留 `index.ts` 作为装配入口。
+- 共享能力通过 `plugins/` 提供，不要在路由之间直接耦合实现细节。

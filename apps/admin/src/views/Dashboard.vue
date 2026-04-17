@@ -60,7 +60,7 @@
                     </div>
                     <span class="stat-label">网站总数</span>
                   </div>
-                  <p class="stat-value text-3xl text-[var(--text-primary)]">{{ sitesStore.sites.length }}</p>
+                  <p class="stat-value text-3xl text-[var(--text-primary)]">{{ dashboardSummary.siteCount }}</p>
                 </div>
               </div>
             </div>
@@ -74,7 +74,7 @@
                     </div>
                     <span class="stat-label">今日访问</span>
                   </div>
-                  <p class="stat-value text-3xl text-[var(--text-primary)]">{{ formatNumber(todayViews) }}</p>
+                  <p class="stat-value text-3xl text-[var(--text-primary)]">{{ formatNumber(dashboardSummary.todayViews) }}</p>
                 </div>
               </div>
             </div>
@@ -88,7 +88,7 @@
                     </div>
                     <span class="stat-label">总访问量</span>
                   </div>
-                  <p class="stat-value text-3xl text-[var(--text-primary)]">{{ formatNumber(totalViews) }}</p>
+                  <p class="stat-value text-3xl text-[var(--text-primary)]">{{ formatNumber(dashboardSummary.totalViews) }}</p>
                 </div>
               </div>
             </div>
@@ -219,7 +219,7 @@ import {
 } from 'naive-ui'
 import { Icon } from '@iconify/vue'
 import { useSitesStore } from '@/stores/sites'
-import { getSiteStats } from '@/api/stats'
+import { getDashboardSummary, type DashboardSummaryResponse } from '@/api/stats'
 import CreateSiteModal from '@/components/CreateSiteModal.vue'
 
 const router = useRouter()
@@ -232,8 +232,11 @@ const showCreateModal = ref(false)
 // 加载状态
 const loading = ref(false)
 
-// 统计数据
-const sitesStats = ref<Map<number, { today: number; total: number }>>(new Map())
+const dashboardSummary = ref<DashboardSummaryResponse['summary']>({
+  siteCount: 0,
+  todayViews: 0,
+  totalViews: 0,
+})
 
 const recentSites = computed(() => {
   return [...sitesStore.sites]
@@ -247,49 +250,14 @@ function formatNumber(num: number): string {
   return num.toLocaleString('zh-CN')
 }
 
-const todayViews = computed(() => {
-  let total = 0
-  sitesStats.value.forEach((stats) => {
-    total += stats.today
-  })
-  return total
-})
-
-const totalViews = computed(() => {
-  let total = 0
-  sitesStats.value.forEach((stats) => {
-    total += stats.total
-  })
-  return total
-})
-
-async function fetchAllStats() {
-  sitesStats.value.clear()
-  if (sitesStore.sites.length === 0) return
-  
-  const today = new Date().toLocaleDateString('sv-SE')
-  
-  await Promise.all(
-    sitesStore.sites.map(async (site) => {
-      try {
-        const stats = await getSiteStats(site.id)
-        const todayData = stats.dailyViews.find(d => d.date === today)
-        sitesStats.value.set(site.id, {
-          today: todayData?.count || 0,
-          total: stats.summary.totalViews,
-        })
-      } catch {
-        sitesStats.value.set(site.id, { today: 0, total: 0 })
-      }
-    })
-  )
-}
-
 async function init() {
   loading.value = true
   try {
-    await sitesStore.fetchSites()
-    await fetchAllStats()
+    const [, dashboard] = await Promise.all([
+      sitesStore.fetchSites(),
+      getDashboardSummary(),
+    ])
+    dashboardSummary.value = dashboard.summary
   } catch (err) {
     const errorMessage = err instanceof Error ? err.message : '加载数据失败'
     message.error(errorMessage)

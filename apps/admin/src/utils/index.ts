@@ -2,18 +2,20 @@
  * 工具函数库
  */
 
+export const APP_TIMEZONE = 'Asia/Shanghai'
+
 /**
- * 获取今天的日期字符串（YYYY-MM-DD）
+ * 获取指定时区的日期字符串（YYYY-MM-DD）
  */
-export function getTodayString(): string {
-  return new Date().toLocaleDateString('sv-SE')
+export function getTodayString(timeZone: string = APP_TIMEZONE): string {
+  return new Intl.DateTimeFormat('sv-SE', { timeZone }).format(new Date())
 }
 
 /**
- * 将日期格式化为本地 YYYY-MM-DD，避免 UTC 时区偏移
+ * 将日期格式化为指定时区 YYYY-MM-DD，避免 UTC 时区偏移
  */
-export function formatLocalDate(value: number | Date): string {
-  return new Date(value).toLocaleDateString('sv-SE')
+export function formatLocalDate(value: number | Date, timeZone: string = APP_TIMEZONE): string {
+  return new Intl.DateTimeFormat('sv-SE', { timeZone }).format(new Date(value))
 }
 
 /**

@@ -11,6 +11,11 @@
       "sourceType": "github",
       "computedHash": "61abad28abf72555de08337de278052398d570dea227d13e9e458dfe2c61218e"
     },
+    "file-line-audit": {
+      "source": "bosens-China/file-line-audit",
+      "sourceType": "github",
+      "computedHash": "3e90dd91a35d88fc63360970c78e963db6b86289d89c45e81634ba06caae3343"
+    },
     "vue-best-practices": {
       "source": "vuejs-ai/skills",
       "sourceType": "github",

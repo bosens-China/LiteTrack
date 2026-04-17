@@ -1,6 +1,7 @@
 import { FastifyPluginAsync } from 'fastify'
 import { z } from 'zod'
 import { config } from '../../lib/config.js'
+import { parseUserAgent } from '../../lib/visitor.js'
 
 /**
  * 上报请求验证 Schema
@@ -8,6 +9,15 @@ import { config } from '../../lib/config.js'
 const trackSchema = z.object({
   path: z.string().min(1).max(500),
   title: z.string().max(500).optional(),
+  visitorId: z.string().trim().min(1).max(128).optional(),
+  sessionId: z.string().trim().min(1).max(128).optional(),
+})
+
+const readProgressSchema = z.object({
+  path: z.string().min(1).max(500),
+  visitorId: z.string().trim().min(1).max(128),
+  sessionId: z.string().trim().min(1).max(128).optional(),
+  maxDepth: z.coerce.number().int().min(0).max(100),
 })
 
 function formatDateInTimeZone(date: Date): string {
@@ -65,12 +75,15 @@ const track: FastifyPluginAsync = async (fastify, _opts): Promise<void> => {
       return reply.code(400).send({ error: parsed.error.format() })
     }
 
-    const { path: rawPath, title } = parsed.data
+    const { path: rawPath, title, visitorId, sessionId } = parsed.data
     const path = normalizePath(rawPath)
     const siteId = siteToken.siteId
 
     // 获取客户端 IP 用于速率限制
     const ip = request.ip || request.socket.remoteAddress || 'unknown'
+    const userAgent = request.headers['user-agent']
+    const referer = request.headers['referer']
+    const visitorAgent = parseUserAgent(userAgent)
 
     // 检查速率限制（10 秒窗口）
     const allowed = await fastify.checkRateLimit(ip, siteId, path, 10)
@@ -120,22 +133,122 @@ const track: FastifyPluginAsync = async (fastify, _opts): Promise<void> => {
       },
     })
 
+    if (visitorId) {
+      await Promise.all([
+        fastify.prisma.dailyVisitor.createMany({
+          data: [
+            {
+              siteId,
+              date: today,
+              visitorId,
+            },
+          ],
+          skipDuplicates: true,
+        }),
+        fastify.prisma.pageDailyVisitor.createMany({
+          data: [
+            {
+              siteId,
+              path,
+              date: today,
+              visitorId,
+            },
+          ],
+          skipDuplicates: true,
+        }),
+      ])
+    }
+
     // 记录访问日志（异步，不阻塞响应）
-    const userAgent = request.headers['user-agent']
-    const referer = request.headers['referer']
-    
     void fastify.prisma.accessLog.create({
       data: {
         siteId,
         path,
         title: title || null,
         ip,
+        visitorId: visitorId || null,
+        sessionId: sessionId || null,
         userAgent: userAgent || null,
+        deviceType: visitorAgent.deviceType,
+        browser: visitorAgent.browser,
+        os: visitorAgent.os,
         referer: referer || null,
       }
     }).catch(() => {
       // 忽略日志记录错误，不影响主流程
     })
+
+    return { success: true }
+  })
+
+  /**
+   * POST /read-progress
+   * 记录页面阅读进度（按 visitorId + 日期保留最大深度）
+   */
+  fastify.post('/read-progress', async (request, reply) => {
+    const token = request.headers['x-site-token'] as string
+
+    if (!token) {
+      return reply.code(401).send({ error: '缺少令牌' })
+    }
+
+    const siteToken = await fastify.prisma.siteToken.findUnique({
+      where: { token },
+    })
+
+    if (!siteToken || !siteToken.isActive) {
+      return reply.code(401).send({ error: '无效的令牌' })
+    }
+
+    const parsed = readProgressSchema.safeParse(request.body)
+    if (!parsed.success) {
+      return reply.code(400).send({ error: parsed.error.format() })
+    }
+
+    const { path: rawPath, visitorId, maxDepth } = parsed.data
+    const path = normalizePath(rawPath)
+    const today = formatDateInTimeZone(new Date())
+    const siteId = siteToken.siteId
+
+    const existing = await fastify.prisma.pageReadProgress.findUnique({
+      where: {
+        siteId_path_date_visitorId: {
+          siteId,
+          path,
+          date: today,
+          visitorId,
+        },
+      },
+      select: {
+        id: true,
+        maxDepth: true,
+      },
+    })
+
+    if (!existing) {
+      await fastify.prisma.pageReadProgress.create({
+        data: {
+          siteId,
+          path,
+          date: today,
+          visitorId,
+          maxDepth,
+        },
+      })
+
+      return { success: true }
+    }
+
+    if (maxDepth > existing.maxDepth) {
+      await fastify.prisma.pageReadProgress.update({
+        where: {
+          id: existing.id,
+        },
+        data: {
+          maxDepth,
+        },
+      })
+    }
 
     return { success: true }
   })
