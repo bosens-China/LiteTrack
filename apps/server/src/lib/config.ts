@@ -27,23 +27,26 @@ const configSchema = z.object({
   LOG_LEVEL: z
     .enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace', 'silent'])
     .default('info'),
+  // 生产环境 CORS 白名单，逗号分隔，如 https://admin.example.com,https://blog.example.com
+  // 不设置时允许所有来源（开发便利，生产建议配置）
+  CORS_ORIGIN: z.string().default(''),
 });
 
 function parseTrustProxyValue(value: string): boolean | string | number {
   if (value === 'true') {
-    return true
+    return true;
   }
 
   if (value === 'false') {
-    return false
+    return false;
   }
 
-  const numeric = Number(value)
+  const numeric = Number(value);
   if (Number.isInteger(numeric) && value.trim() !== '') {
-    return numeric
+    return numeric;
   }
 
-  return value
+  return value;
 }
 
 const parsed = configSchema.safeParse(process.env);

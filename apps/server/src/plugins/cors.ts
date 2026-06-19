@@ -1,30 +1,35 @@
-import fp from 'fastify-plugin'
-import fastifyCors from '@fastify/cors'
-import { FastifyInstance, FastifyPluginAsync } from 'fastify'
-import { config } from '../lib/config.js'
+import fp from 'fastify-plugin';
+import fastifyCors from '@fastify/cors';
+import type { FastifyInstance, FastifyPluginAsync } from 'fastify';
+import { config } from '../lib/config.js';
 
-/**
- * CORS 插件
- * 
- * 为所有来源启用跨域资源共享
- * SDK 和管理后台需要与 API 通信
- * 
- * 生产环境建议配置具体允许的域名
- */
-const corsPlugin: FastifyPluginAsync = async (fastify: FastifyInstance) => {
-  // 根据环境配置 CORS origin
-  const origin = config.NODE_ENV === 'production' 
-    ? true // 生产环境建议配置具体域名，如 ['https://admin.example.com']
-    : true // 开发环境允许所有
-
-  await fastify.register(fastifyCors, {
-    origin,
-    credentials: true,
-    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization', 'X-Site-Token', 'X-LiteTrack-SDK'],
-  })
+function resolveOrigin(): boolean | string[] {
+  if (!config.CORS_ORIGIN) {
+    if (config.NODE_ENV === 'production') {
+      // 生产环境未配置白名单时给出警告，但仍放行（避免首次部署即故障）
+      console.warn(
+        '[cors] 生产环境未设置 CORS_ORIGIN，当前允许所有来源。建议在环境变量中配置白名单。',
+      );
+    }
+    return true;
+  }
+  return config.CORS_ORIGIN.split(',')
+    .map((o) => o.trim())
+    .filter(Boolean);
 }
 
-export default fp(corsPlugin, {
-  name: 'cors-plugin',
-})
+const corsPlugin: FastifyPluginAsync = async (fastify: FastifyInstance) => {
+  await fastify.register(fastifyCors, {
+    origin: resolveOrigin(),
+    credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+    allowedHeaders: [
+      'Content-Type',
+      'Authorization',
+      'X-Site-Token',
+      'X-LiteTrack-SDK',
+    ],
+  });
+};
+
+export default fp(corsPlugin, { name: 'cors-plugin' });
