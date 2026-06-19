@@ -1,6 +1,12 @@
 {
   "version": 1,
   "skills": {
+    "chinese-article-writing": {
+      "source": "bosens-China/my-skills",
+      "sourceType": "github",
+      "skillPath": "skills/chinese-article-writing/SKILL.md",
+      "computedHash": "73804701320943f1af7ccb99a6eb68c7c821110250070a1ac5f1161c6927cd6a"
+    },
     "create-adaptable-composable": {
       "source": "vuejs-ai/skills",
       "sourceType": "github",
@@ -12,9 +18,16 @@
       "computedHash": "61abad28abf72555de08337de278052398d570dea227d13e9e458dfe2c61218e"
     },
     "file-line-audit": {
-      "source": "bosens-China/file-line-audit",
+      "source": "bosens-China/my-skills",
       "sourceType": "github",
-      "computedHash": "3e90dd91a35d88fc63360970c78e963db6b86289d89c45e81634ba06caae3343"
+      "skillPath": "skills/file-line-audit/SKILL.md",
+      "computedHash": "f859258e1f97a9b491fa895a0f75613473bf869f99e425dfafe25696b59e9e4a"
+    },
+    "git-step-commit": {
+      "source": "bosens-China/my-skills",
+      "sourceType": "github",
+      "skillPath": "skills/git-step-commit/SKILL.md",
+      "computedHash": "0a88f3826abe50f009d67ac758249d7d485453eabc98d997627e562b886eca03"
     },
     "vue-best-practices": {
       "source": "vuejs-ai/skills",
