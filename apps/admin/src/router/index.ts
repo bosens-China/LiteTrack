@@ -1,5 +1,5 @@
-import { createRouter, createWebHistory } from 'vue-router'
-import { useAuthStore } from '@/stores/auth'
+import { createRouter, createWebHistory } from 'vue-router';
+import { useAuthStore } from '@/stores/auth';
 
 // 页面标题映射
 const titleMap: Record<string, string> = {
@@ -10,7 +10,7 @@ const titleMap: Record<string, string> = {
   SiteDetail: '网站详情',
   SdkVersions: 'SDK 版本',
   NotFound: '页面不存在',
-}
+};
 
 const router = createRouter({
   history: createWebHistory(),
@@ -52,7 +52,7 @@ const router = createRouter({
         {
           path: 'sdk',
           name: 'SdkVersions',
-          component: () => import('@/views/SdkVersions.vue'),
+          component: () => import('@/views/SdkVersions/index.vue'),
           meta: { title: 'SDK 版本' },
         },
       ],
@@ -64,32 +64,32 @@ const router = createRouter({
       meta: { public: true, title: '页面不存在' },
     },
   ],
-})
+});
 
 // 路由拦截器 - 认证和标题设置
 router.beforeEach(async (to) => {
-  const authStore = useAuthStore()
+  const authStore = useAuthStore();
 
   // 设置页面标题
-  const title = typeof to.name === 'string' ? titleMap[to.name] : ''
-  document.title = title ? `${title} | LiteTrack` : 'LiteTrack'
+  const title = typeof to.name === 'string' ? titleMap[to.name] : '';
+  document.title = title ? `${title} | LiteTrack` : 'LiteTrack';
 
   // 公开页面直接通过
   if (to.meta.public) {
-    return true
+    return true;
   }
 
   // 已登录直接通过
   if (authStore.isLoggedIn) {
-    return true
+    return true;
   }
 
   // 有 token 但未获取用户信息，尝试获取
   if (authStore.token) {
     try {
-      await authStore.fetchUser()
+      await authStore.fetchUser();
       if (authStore.isLoggedIn) {
-        return true
+        return true;
       }
     } catch {
       // 获取用户信息失败，继续执行跳转到登录页
@@ -102,7 +102,7 @@ router.beforeEach(async (to) => {
     query: {
       redirect: to.fullPath,
     },
-  }
-})
+  };
+});
 
-export default router
+export default router;
