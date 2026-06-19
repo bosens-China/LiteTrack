@@ -23,6 +23,12 @@
       "skillPath": "skills/file-line-audit/SKILL.md",
       "computedHash": "f859258e1f97a9b491fa895a0f75613473bf869f99e425dfafe25696b59e9e4a"
     },
+    "frontend-design": {
+      "source": "anthropics/claude-plugins-official",
+      "sourceType": "github",
+      "skillPath": "plugins/frontend-design/skills/frontend-design/SKILL.md",
+      "computedHash": "4eabc66183767153e404b39d1b839b1c37f2d82d86f0a0d7e880a579d8d62336"
+    },
     "git-step-commit": {
       "source": "bosens-China/my-skills",
       "sourceType": "github",
