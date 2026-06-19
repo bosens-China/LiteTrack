@@ -1,22 +1,10 @@
 <template>
-  <n-config-provider :locale="zhCN" :date-locale="dateZhCN">
-    <n-message-provider>
-      <n-dialog-provider>
-        <n-notification-provider>
-          <router-view />
-        </n-notification-provider>
-      </n-dialog-provider>
-    </n-message-provider>
-  </n-config-provider>
+  <el-config-provider :locale="zhCn">
+    <router-view />
+  </el-config-provider>
 </template>
 
 <script setup lang="ts">
-import { 
-  NConfigProvider, 
-  NDialogProvider, 
-  NMessageProvider, 
-  NNotificationProvider,
-  zhCN,
-  dateZhCN 
-} from 'naive-ui'
+import { ElConfigProvider } from 'element-plus'
+import zhCn from 'element-plus/es/locale/lang/zh-cn'
 </script>

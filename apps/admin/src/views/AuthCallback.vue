@@ -16,7 +16,7 @@
 <script setup lang="ts">
 import { onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { useMessage } from 'naive-ui'
+import { ElMessage } from 'element-plus'
 import { Icon } from '@iconify/vue'
 import { useAuthStore } from '@/stores/auth'
 import {
@@ -28,7 +28,6 @@ import {
 const route = useRoute()
 const router = useRouter()
 const authStore = useAuthStore()
-const message = useMessage()
 
 onMounted(async () => {
   const code = typeof route.query.code === 'string' ? route.query.code : ''
@@ -36,14 +35,14 @@ onMounted(async () => {
   const storedState = sessionStorage.getItem(OAUTH_STATE_STORAGE_KEY) || ''
   
   if (!code || !returnedState) {
-    message.error('登录失败：缺少授权参数')
+    ElMessage.error('登录失败：缺少授权参数')
     sessionStorage.removeItem(OAUTH_STATE_STORAGE_KEY)
     await router.push('/login')
     return
   }
 
   if (!storedState || storedState !== returnedState) {
-    message.error('登录失败：授权状态校验失败')
+    ElMessage.error('登录失败：授权状态校验失败')
     sessionStorage.removeItem(OAUTH_STATE_STORAGE_KEY)
     localStorage.removeItem(POST_LOGIN_REDIRECT_STORAGE_KEY)
     await router.push('/login')
@@ -54,7 +53,7 @@ onMounted(async () => {
     const { token, user } = await loginWithGithub(code, returnedState)
     authStore.setToken(token)
     authStore.setUser(user)
-    message.success('登录成功')
+    ElMessage.success('登录成功')
     const redirect = localStorage.getItem(POST_LOGIN_REDIRECT_STORAGE_KEY) || '/'
     sessionStorage.removeItem(OAUTH_STATE_STORAGE_KEY)
     localStorage.removeItem(POST_LOGIN_REDIRECT_STORAGE_KEY)
@@ -63,7 +62,7 @@ onMounted(async () => {
     const errorMessage = error instanceof Error ? error.message : '登录失败'
     sessionStorage.removeItem(OAUTH_STATE_STORAGE_KEY)
     localStorage.removeItem(POST_LOGIN_REDIRECT_STORAGE_KEY)
-    message.error(errorMessage)
+    ElMessage.error(errorMessage)
     await router.push('/login')
   }
 })

@@ -11,7 +11,7 @@
           </div>
           <p class="stat-value text-3xl xl:text-4xl text-[var(--text-primary)]">
             <template v-if="!loading">{{ formatNumber(stats?.summary.totalViews || 0) }}</template>
-            <n-skeleton v-else text style="width: 60%; height: 36px" />
+            <el-skeleton-item v-else variant="text" style="width: 60%; height: 36px" />
           </p>
           <p v-if="!loading" class="text-sm text-blue-700 mt-1 flex items-center gap-1">
             <Icon icon="mdi:trending-up" class="text-xs" />
@@ -32,7 +32,7 @@
           </div>
           <p class="stat-value text-3xl xl:text-4xl text-[var(--text-primary)]">
             <template v-if="!loading">{{ formatNumber(stats?.summary.totalPages || 0) }}</template>
-            <n-skeleton v-else text style="width: 60%; height: 36px" />
+            <el-skeleton-item v-else variant="text" style="width: 60%; height: 36px" />
           </p>
           <p v-if="!loading" class="text-sm text-emerald-700 mt-1 flex items-center gap-1">
             <Icon icon="mdi:layers" class="text-xs" />
@@ -53,7 +53,7 @@
           </div>
           <p class="stat-value text-3xl xl:text-4xl text-[var(--text-primary)]">
             <template v-if="!loading">{{ formatNumber(todayViews) }}</template>
-            <n-skeleton v-else text style="width: 60%; height: 36px" />
+            <el-skeleton-item v-else variant="text" style="width: 60%; height: 36px" />
           </p>
           <p v-if="!loading" class="text-sm text-indigo-700 mt-1 flex items-center gap-1">
             <Icon icon="mdi:lightning-bolt" class="text-xs" />
@@ -66,7 +66,6 @@
 </template>
 
 <script setup lang="ts">
-import { NSkeleton } from 'naive-ui'
 import { Icon } from '@iconify/vue'
 import type { SiteStats } from '@/api/stats'
 

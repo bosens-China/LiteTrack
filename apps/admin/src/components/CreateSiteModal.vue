@@ -1,92 +1,74 @@
 <template>
   <!-- 创建网站弹窗 -->
-  <n-modal
-    v-model:show="visible"
-    preset="card"
+  <el-dialog
+    v-model="visible"
     title="创建新网站"
+    :width="600"
     class="create-modal"
-    style="width: 600px; max-width: 90vw"
-    :bordered="false"
-    segmented
+    @closed="resetForm"
   >
-    <div class="space-y-4">
-      <div>
-        <label class="block text-sm font-medium text-[var(--text-primary)] mb-2">
-          网站名称
-        </label>
-        <n-input
-          v-model:value="formData.title"
+    <el-form label-position="top">
+      <el-form-item label="网站名称">
+        <el-input
+          v-model="formData.title"
           placeholder="输入网站名称（可选）"
           maxlength="255"
-          show-count
+          show-word-limit
           clearable
-          size="large"
         />
-      </div>
+      </el-form-item>
 
-      <div>
-        <label class="block text-sm font-medium text-[var(--text-primary)] mb-2">
-          域名 <span class="text-rose-400">*</span>
-        </label>
-        <n-input
-          v-model:value="formData.domain"
+      <el-form-item label="域名" required>
+        <el-input
+          v-model="formData.domain"
           placeholder="example.com"
           maxlength="255"
           clearable
-          size="large"
         />
-        <p class="text-xs text-[var(--text-muted)] mt-1">输入网站域名，不需要包含 http:// 或 https://</p>
-      </div>
+        <div class="form-hint">输入网站域名，不需要包含 http:// 或 https://</div>
+      </el-form-item>
 
-      <div>
-        <label class="block text-sm font-medium text-[var(--text-primary)] mb-2">
-          描述
-        </label>
-        <n-input
-          v-model:value="formData.description"
+      <el-form-item label="描述">
+        <el-input
+          v-model="formData.description"
           type="textarea"
+          :rows="3"
           placeholder="输入网站描述（可选）"
           maxlength="1000"
-          show-count
-          :rows="3"
+          show-word-limit
         />
-      </div>
-    </div>
+      </el-form-item>
+    </el-form>
 
     <template #footer>
-      <div class="flex justify-end gap-3">
-        <button class="btn-glass px-4 py-2 rounded-lg" @click="close">
-          取消
-        </button>
-        <button 
-          class="btn-primary px-4 py-2 rounded-lg flex items-center gap-2"
-          :disabled="submitting || !formData.domain.trim()"
-          @click="handleSubmit"
-        >
-          <Icon v-if="submitting" icon="mdi:loading" class="animate-spin" />
-          <span>创建</span>
-        </button>
-      </div>
+      <el-button @click="close">取消</el-button>
+      <el-button
+        type="primary"
+        :loading="submitting"
+        :disabled="!formData.domain.trim()"
+        @click="handleSubmit"
+      >
+        创建
+      </el-button>
     </template>
-  </n-modal>
+  </el-dialog>
 
   <!-- 创建成功 - 显示令牌 -->
-  <n-modal
-    v-model:show="showTokenModal"
-    preset="dialog"
+  <el-dialog
+    v-model="showTokenModal"
     title="网站创建成功"
+    :width="480"
     class="token-modal"
-    :closable="true"
   >
     <div class="space-y-4">
       <div class="flex items-center gap-2 p-3 rounded-lg bg-emerald-50 border border-emerald-200">
         <Icon icon="mdi:check-circle" class="text-emerald-600 text-xl" />
         <p class="text-emerald-700 font-medium">网站创建成功</p>
       </div>
-      
+
       <p class="text-sm text-[var(--text-secondary)]">请立即保存以下访问令牌，它只会显示一次：</p>
-      
-      <div class="relative rounded-xl border border-[var(--border-soft)] bg-[var(--bg-tertiary)] p-3 pr-12">
+
+      <div class="relative rounded-lg border border-[var(--border-soft)] bg-[var(--bg-tertiary)] p-3 pr-12">
         <pre
           class="m-0 max-h-40 overflow-auto whitespace-pre-wrap break-all font-mono text-sm text-[var(--text-primary)] select-all"
           tabindex="0"
@@ -100,29 +82,22 @@
           <Icon icon="mdi:content-copy" />
         </button>
       </div>
-      
+
       <p class="text-sm text-[var(--text-muted)]">关闭弹窗后可在「网站管理」中查看该站点；需要统计详情时再进入站点页。</p>
     </div>
 
-    <template #action>
-      <button 
-        class="btn-primary w-full py-2.5 rounded-lg font-medium flex items-center justify-center gap-2"
-        @click="copyAndClose"
-      >
-        <Icon icon="mdi:content-copy" />
+    <template #footer>
+      <el-button type="primary" class="w-full" @click="copyAndClose">
+        <Icon icon="mdi:content-copy" class="mr-1" />
         复制并关闭
-      </button>
+      </el-button>
     </template>
-  </n-modal>
+  </el-dialog>
 </template>
 
 <script setup lang="ts">
 import { ref, watch, computed } from 'vue'
-import {
-  NModal,
-  NInput,
-  useMessage,
-} from 'naive-ui'
+import { ElMessage } from 'element-plus'
 import { Icon } from '@iconify/vue'
 import { useSitesStore } from '@/stores/sites'
 import { useClipboard } from '@/composables'
@@ -136,13 +111,12 @@ const emit = defineEmits<{
 }>()
 
 const sitesStore = useSitesStore()
-const message = useMessage()
 const { copy } = useClipboard({
   onSuccess: () => {
-    message.success('已复制到剪贴板')
+    ElMessage.success('已复制到剪贴板')
   },
   onError: () => {
-    message.error('复制失败')
+    ElMessage.error('复制失败')
   },
 })
 
@@ -152,7 +126,7 @@ const createdToken = ref('')
 
 const visible = computed({
   get: () => props.show,
-  set: (value) => emit('update:show', value)
+  set: (value) => emit('update:show', value),
 })
 
 const formData = ref({
@@ -187,12 +161,12 @@ async function handleSubmit() {
 
     createdToken.value = result.token
     showTokenModal.value = true
-    
+
     visible.value = false
     resetForm()
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : '创建失败'
-    message.error(errorMessage)
+    ElMessage.error(errorMessage)
   } finally {
     submitting.value = false
   }
@@ -216,29 +190,21 @@ watch(showTokenModal, (open) => {
   }
 })
 
-watch(() => props.show, (newVal) => {
-  if (newVal) {
-    resetForm()
-  }
-})
+watch(
+  () => props.show,
+  (newVal) => {
+    if (newVal) {
+      resetForm()
+    }
+  },
+)
 </script>
 
 <style scoped>
-:deep(.create-modal) {
-  --n-color: var(--bg-secondary) !important;
-}
-
-:deep(.create-modal .n-card-header__main) {
-  color: var(--text-primary) !important;
-  font-weight: 600;
-}
-
-:deep(.token-modal) {
-  --n-color: var(--bg-secondary) !important;
-}
-
-:deep(.token-modal .n-dialog__title) {
-  color: var(--text-primary) !important;
-  font-weight: 600;
+.form-hint {
+  margin-top: 4px;
+  font-size: 12px;
+  color: var(--text-muted);
+  line-height: 1.5;
 }
 </style>

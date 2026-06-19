@@ -1,5 +1,5 @@
 import { computed, ref, watch } from 'vue'
-import { useMessage } from 'naive-ui'
+import { ElMessage } from 'element-plus'
 import { useRequest } from 'vue-request'
 import { use } from 'echarts/core'
 import { CanvasRenderer } from 'echarts/renderers'
@@ -29,7 +29,6 @@ use([
   DataZoomComponent,
 ])
 export function useTrendChart(siteId: () => number) {
-  const message = useMessage()
   const timeRange = ref<TrendRangeValue>('7')
   const chartData = ref<DailyView[]>([])
   const weeklyMeta = ref<Map<string, WeeklyMeta>>(new Map())
@@ -97,7 +96,7 @@ export function useTrendChart(siteId: () => number) {
     {
       manual: true,
       onError: (error) => {
-        message.error(error instanceof Error ? error.message : '加载趋势数据失败')
+        ElMessage.error(error instanceof Error ? error.message : '加载趋势数据失败')
       },
     },
   )

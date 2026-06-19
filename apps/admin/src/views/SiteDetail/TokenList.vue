@@ -10,29 +10,18 @@
           <p class="panel-subtitle">只展示令牌元信息，明文仅在创建时显示一次。</p>
         </div>
       </div>
-      <button
-        type="button"
-        class="btn-primary shrink-0 inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm whitespace-nowrap"
-        @click="$emit('create')"
-      >
-        <Icon icon="mdi:plus" class="text-lg shrink-0" />
-        <span>创建</span>
-      </button>
+      <el-button type="primary" size="small" class="shrink-0" @click="$emit('create')">
+        <Icon icon="mdi:plus" class="mr-1" />
+        创建
+      </el-button>
     </div>
 
-    <n-empty v-if="tokens.length === 0" description="暂无令牌" class="flex-1 flex flex-col justify-center">
-      <template #icon>
-        <Icon icon="mdi:key-off" class="text-4xl text-slate-400" />
-      </template>
-      <template #extra>
-        <button class="btn-glass mt-4 px-4 py-2 rounded-lg text-sm" @click="$emit('create')">
-          创建第一个令牌
-        </button>
-      </template>
-    </n-empty>
+    <el-empty v-if="tokens.length === 0" description="暂无令牌" class="flex-1 flex flex-col justify-center">
+      <el-button @click="$emit('create')">创建第一个令牌</el-button>
+    </el-empty>
 
     <div v-else class="flex-1 overflow-hidden">
-      <n-scrollbar style="max-height: 320px">
+      <div style="max-height: 320px; overflow: auto">
         <div class="space-y-3">
           <div
             v-for="token in tokens"
@@ -74,8 +63,15 @@
                 >
                   <Icon icon="mdi:pencil-outline" class="text-lg" />
                 </button>
-                <n-popconfirm @positive-click="$emit('delete', token.id)">
-                  <template #trigger>
+                <el-popconfirm
+                  title="确定删除此令牌？此操作不可撤销。"
+                  confirm-button-text="删除"
+                  cancel-button-text="取消"
+                  confirm-button-type="danger"
+                  :width="220"
+                  @confirm="$emit('delete', token.id)"
+                >
+                  <template #reference>
                     <button
                       type="button"
                       class="opacity-0 group-hover:opacity-100 p-1.5 rounded-lg text-slate-400 hover:text-rose-700 hover:bg-rose-50 transition-all"
@@ -84,13 +80,12 @@
                       <Icon icon="mdi:delete-outline" class="text-lg" />
                     </button>
                   </template>
-                  <span class="text-sm">确定删除此令牌？此操作不可撤销。</span>
-                </n-popconfirm>
+                </el-popconfirm>
               </div>
             </div>
           </div>
         </div>
-      </n-scrollbar>
+      </div>
     </div>
 
     <div v-if="tokens.length > 0" class="mt-4 pt-4 border-t border-slate-200">
@@ -103,7 +98,6 @@
 </template>
 
 <script setup lang="ts">
-import { NEmpty, NScrollbar, NPopconfirm } from 'naive-ui';
 import { Icon } from '@iconify/vue';
 import type { SiteToken } from '@/api/sites';
 

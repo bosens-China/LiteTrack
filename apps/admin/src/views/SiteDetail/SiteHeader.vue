@@ -26,10 +26,11 @@
       </div>
 
       <div class="flex items-center gap-3 shrink-0">
-        <button class="btn-glass px-4 py-2 rounded-lg text-sm" @click="$emit('edit')">
-          <Icon icon="mdi:pencil" class="text-base" />
+        <!-- 编辑信息按钮：次操作，使用默认样式的 el-button -->
+        <el-button class="btn-glass" @click="$emit('edit')">
+          <Icon icon="mdi:pencil" class="mr-1" />
           编辑信息
-        </button>
+        </el-button>
       </div>
     </div>
 

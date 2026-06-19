@@ -1,15 +1,6 @@
 <template>
-  <n-layout has-sider class="admin-shell">
-    <n-layout-sider
-      collapse-mode="width"
-      :collapsed-width="72"
-      :width="252"
-      :collapsed="collapsed"
-      show-trigger
-      class="sidebar"
-      @collapse="collapsed = true"
-      @expand="collapsed = false"
-    >
+  <el-container class="admin-shell">
+    <el-aside :width="collapsed ? '64px' : '232px'" class="sidebar">
       <div class="sidebar-header">
         <div v-if="!collapsed" class="logo-full">
           <div class="logo-mark">
@@ -25,27 +16,30 @@
         </div>
       </div>
 
-      <div class="sidebar-section">
-        <div v-if="!collapsed" class="sidebar-caption">导航</div>
-        <n-menu
-          :collapsed="collapsed"
-          :collapsed-width="72"
-          :collapsed-icon-size="20"
-          :options="menuOptions"
-          :value="activeKey"
-          class="sidebar-menu"
-          @update:value="handleMenuSelect"
-        />
-      </div>
-    </n-layout-sider>
+      <el-menu
+        :collapse="collapsed"
+        :default-active="activeKey"
+        class="sidebar-menu"
+        @select="handleMenuSelect"
+      >
+        <el-menu-item
+          v-for="item in menuOptions"
+          :key="item.key"
+          :index="item.key"
+        >
+          <Icon :icon="item.icon" class="menu-icon" />
+          <template #title>{{ item.label }}</template>
+        </el-menu-item>
+      </el-menu>
+    </el-aside>
 
-    <n-layout class="main-layout" :style="mainLayoutOffsetStyle">
-      <n-layout-header bordered class="header">
+    <el-container class="main-layout">
+      <el-header class="header">
         <div class="header-main">
           <div class="header-title-group">
-            <div class="header-badge">
-              <Icon icon="mdi:view-dashboard-outline" />
-            </div>
+            <el-button text class="collapse-btn" @click="collapsed = !collapsed">
+              <Icon :icon="collapsed ? 'mdi:menu' : 'mdi:menu-open'" class="text-xl" />
+            </el-button>
             <div>
               <h2 class="header-title">{{ pageTitle }}</h2>
               <p class="header-subtitle">LiteTrack 访问统计后台</p>
@@ -53,18 +47,16 @@
           </div>
 
           <div class="header-actions">
-            <button class="btn-glass text-sm" @click="openSdkDistPage">
-              <Icon icon="mdi:download-outline" />
+            <el-button class="sdk-btn" @click="openSdkDistPage">
+              <Icon icon="mdi:download-outline" class="mr-1" />
               SDK 目录
-            </button>
+            </el-button>
 
-            <n-dropdown :options="userOptions" @select="handleUserAction">
+            <el-dropdown trigger="click" @command="handleUserAction">
               <div class="user-trigger">
-                <n-avatar
-                  round
-                  size="small"
-                  :src="authStore.avatar || undefined"
-                  :fallback-src="`https://ui-avatars.com/api/?name=${authStore.username}&background=2563EB&color=fff`"
+                <el-avatar
+                  :size="32"
+                  :src="authStore.avatar || avatarFallback"
                 />
                 <div v-if="authStore.username" class="user-info">
                   <span class="user-name">{{ authStore.username }}</span>
@@ -72,31 +64,29 @@
                 </div>
                 <Icon icon="mdi:chevron-down" class="user-chevron" />
               </div>
-            </n-dropdown>
+              <template #dropdown>
+                <el-dropdown-menu>
+                  <el-dropdown-item command="logout">
+                    <Icon icon="mdi:logout" class="mr-2" />
+                    退出登录
+                  </el-dropdown-item>
+                </el-dropdown-menu>
+              </template>
+            </el-dropdown>
           </div>
         </div>
-      </n-layout-header>
+      </el-header>
 
-      <n-layout-content class="content" :native-scrollbar="false">
+      <el-main class="content">
         <router-view />
-      </n-layout-content>
-    </n-layout>
-  </n-layout>
+      </el-main>
+    </el-container>
+  </el-container>
 </template>
 
 <script setup lang="ts">
-import { computed, h, ref } from 'vue'
+import { computed, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import {
-  NLayout,
-  NLayoutSider,
-  NLayoutHeader,
-  NLayoutContent,
-  NMenu,
-  NAvatar,
-  NDropdown,
-  type MenuOption,
-} from 'naive-ui'
 import { Icon } from '@iconify/vue'
 import { useAuthStore } from '@/stores/auth'
 
@@ -106,26 +96,18 @@ const authStore = useAuthStore()
 
 const collapsed = ref(false)
 
-/** 侧栏 fixed 后主区域左侧留白，与 sider 宽度一致 */
-const mainLayoutOffsetStyle = computed(() => ({
-  marginLeft: collapsed.value ? '72px' : '252px',
-  transition: 'margin-left 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-  minWidth: 0,
-}))
 const SDK_DIST_URL =
   'https://github.com/bosens-China/LiteTrack/tree/master/apps/sdk/dist'
 
-const menuOptions: MenuOption[] = [
-  {
-    label: '仪表盘',
-    key: 'Dashboard',
-    icon: () => h(Icon, { icon: 'mdi:view-dashboard', class: 'text-lg' }),
-  },
-  {
-    label: '网站管理',
-    key: 'Sites',
-    icon: () => h(Icon, { icon: 'mdi:web', class: 'text-lg' }),
-  },
+interface MenuItem {
+  label: string
+  key: string
+  icon: string
+}
+
+const menuOptions: MenuItem[] = [
+  { label: '仪表盘', key: 'Dashboard', icon: 'mdi:view-dashboard' },
+  { label: '网站管理', key: 'Sites', icon: 'mdi:web' },
 ]
 
 const activeKey = computed(() => {
@@ -144,20 +126,17 @@ const pageTitle = computed(() => {
   return titles[route.name as string] || 'LiteTrack'
 })
 
-const userOptions = [
-  {
-    label: '退出登录',
-    key: 'logout',
-    icon: () => h(Icon, { icon: 'mdi:logout' }),
-  },
-]
+const avatarFallback = computed(
+  () =>
+    `https://ui-avatars.com/api/?name=${authStore.username}&background=2563EB&color=fff`,
+)
 
 function handleMenuSelect(key: string) {
   void router.push({ name: key })
 }
 
-function handleUserAction(key: string) {
-  if (key === 'logout') {
+function handleUserAction(command: string) {
+  if (command === 'logout') {
     authStore.logout()
     void router.push('/login')
   }
@@ -170,38 +149,18 @@ function openSdkDistPage() {
 
 <style scoped>
 .admin-shell {
-  position: relative;
-  min-height: 100vh;
-}
-
-.main-layout {
-  min-width: 0;
   height: 100vh;
-  max-height: 100vh;
-  overflow: hidden;
-}
-
-/* 顶栏 + 可滚动内容区：由 scroll-container 承担纵向 flex */
-.main-layout :deep(.n-layout-scroll-container) {
-  display: flex !important;
-  flex-direction: column;
-  height: 100% !important;
-  min-height: 0 !important;
-  overflow: hidden !important;
 }
 
 .sidebar {
-  position: fixed !important;
-  top: 0;
-  left: 0;
-  bottom: 0;
-  height: 100vh;
-  z-index: 100;
+  background: var(--bg-sidebar);
   border-right: 1px solid var(--border-soft);
+  transition: width 0.25s ease;
+  overflow: hidden;
 }
 
 .sidebar-header {
-  height: 76px;
+  height: 60px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -212,51 +171,67 @@ function openSdkDistPage() {
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 0 18px;
+  padding: 0 16px;
+  width: 100%;
 }
 
 .logo-mark {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 42px;
-  height: 42px;
-  border-radius: 14px;
-  background: linear-gradient(135deg, #2563eb, #1d4ed8);
+  width: 36px;
+  height: 36px;
+  flex-shrink: 0;
+  border-radius: 8px;
+  background: var(--accent-blue);
   color: var(--text-inverse);
-  box-shadow: 0 10px 18px rgba(37, 99, 235, 0.2);
 }
 
 .logo-text {
-  font-size: 18px;
+  font-size: 16px;
   font-weight: 700;
   color: var(--text-primary);
+  line-height: 1.2;
 }
 
 .logo-subtitle {
-  font-size: 12px;
+  font-size: 11px;
   color: var(--text-muted);
 }
 
-.sidebar-section {
-  padding: 16px 12px;
+.sidebar-menu {
+  border-right: none;
+  padding: 8px;
 }
 
-.sidebar-caption {
-  padding: 0 8px 10px;
-  font-size: 12px;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  color: var(--text-muted);
-  text-transform: uppercase;
+.sidebar-menu:not(.el-menu--collapse) {
+  width: 100%;
+}
+
+.sidebar-menu .el-menu-item {
+  height: 44px;
+  border-radius: 8px;
+  margin-bottom: 4px;
+}
+
+.menu-icon {
+  font-size: 18px;
+  margin-right: 10px;
+}
+
+.el-menu--collapse .menu-icon {
+  margin-right: 0;
+}
+
+.main-layout {
+  min-width: 0;
 }
 
 .header {
-  flex-shrink: 0;
-  height: 76px;
-  padding: 0 24px;
-  z-index: 20;
+  height: 60px;
+  padding: 0 20px;
   background: var(--bg-secondary);
+  border-bottom: 1px solid var(--border-soft);
 }
 
 .header-main {
@@ -270,32 +245,26 @@ function openSdkDistPage() {
 .header-title-group {
   display: flex;
   align-items: center;
-  gap: 14px;
+  gap: 12px;
   min-width: 0;
 }
 
-.header-badge {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 40px;
-  height: 40px;
-  border-radius: 14px;
-  background: var(--bg-brand-soft);
-  color: var(--accent-blue);
+.collapse-btn {
+  color: var(--text-secondary);
+  padding: 4px;
 }
 
 .header-title {
   margin: 0;
-  font-size: 18px;
-  font-weight: 700;
+  font-size: 16px;
+  font-weight: 600;
   color: var(--text-primary);
 }
 
 .header-subtitle {
-  margin: 2px 0 0;
-  font-size: 13px;
-  color: var(--text-secondary);
+  margin: 1px 0 0;
+  font-size: 12px;
+  color: var(--text-muted);
 }
 
 .header-actions {
@@ -308,10 +277,11 @@ function openSdkDistPage() {
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 8px 12px;
-  border-radius: 12px;
+  padding: 5px 10px;
+  border-radius: 8px;
   border: 1px solid var(--border-soft);
-  background: #ffffff;
+  background: var(--bg-secondary);
+  cursor: pointer;
   transition: background-color 0.2s ease;
 }
 
@@ -323,16 +293,17 @@ function openSdkDistPage() {
   display: flex;
   flex-direction: column;
   min-width: 0;
+  line-height: 1.3;
 }
 
 .user-name {
   font-size: 13px;
-  font-weight: 700;
+  font-weight: 600;
   color: var(--text-primary);
 }
 
 .user-role {
-  font-size: 12px;
+  font-size: 11px;
   color: var(--text-muted);
 }
 
@@ -341,49 +312,18 @@ function openSdkDistPage() {
 }
 
 .content {
-  flex: 1;
-  min-height: 0;
+  background: var(--bg-primary);
+  padding: 20px;
   overflow-y: auto;
-  padding: 24px;
-  background: transparent;
-}
-
-:deep(.sidebar-menu) {
-  --n-item-height: 46px;
-}
-
-:deep(.sidebar-menu .n-menu-item) {
-  margin-bottom: 4px;
-}
-
-:deep(.sidebar-menu .n-menu-item-content) {
-  border-radius: 12px;
-}
-
-:deep(.sidebar-menu .n-menu-item-content:hover) {
-  background: #eef4ff !important;
-}
-
-:deep(.sidebar-menu .n-menu-item-content--selected) {
-  background: #eaf2ff !important;
-  color: var(--accent-blue) !important;
-}
-
-:deep(.sidebar-menu .n-menu-item-content--selected::before) {
-  display: none;
-}
-
-:deep(.sidebar-menu .n-menu-item-content__icon) {
-  color: inherit !important;
 }
 
 @media (max-width: 768px) {
   .header {
-    padding: 0 16px;
+    padding: 0 12px;
   }
 
   .content {
-    padding: 16px;
+    padding: 12px;
   }
 
   .user-info,

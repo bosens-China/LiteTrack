@@ -11,17 +11,23 @@
     </div>
 
     <div class="mb-4 flex flex-wrap items-center gap-3">
-      <n-select
-        v-model:value="timeRange"
-        :options="timeRangeOptions"
+      <el-select
+        v-model="timeRange"
         placeholder="时间范围"
         size="small"
         style="width: 120px"
-        @update:value="handleTimeRangeChange"
-      />
+        @change="handleTimeRangeChange"
+      >
+        <el-option
+          v-for="option in timeRangeOptions"
+          :key="option.value"
+          :label="option.label"
+          :value="option.value"
+        />
+      </el-select>
 
-      <n-input
-        v-model:value="filters.path"
+      <el-input
+        v-model="filters.path"
         placeholder="搜索路径"
         clearable
         size="small"
@@ -31,80 +37,137 @@
         <template #prefix>
           <Icon icon="mdi:magnify" class="text-slate-400 text-sm" />
         </template>
-      </n-input>
+      </el-input>
 
-      <n-date-picker
-        v-model:value="dateRange"
+      <el-date-picker
+        v-model="dateRange"
         type="daterange"
+        value-format="x"
         clearable
         size="small"
-        style="width: 200px"
-        placeholder="日期范围"
-        @update:value="handleDateChange"
+        style="width: 220px"
+        start-placeholder="开始日期"
+        end-placeholder="结束日期"
+        @change="handleDateChange"
       />
 
       <div class="flex items-center gap-2 ml-auto">
-        <button 
-          class="btn-primary px-3 py-1.5 rounded-lg text-xs font-medium flex items-center gap-1.5"
-          @click="handleSearch"
-        >
-          <Icon icon="mdi:magnify" />
+        <el-button type="primary" size="small" @click="handleSearch">
+          <Icon icon="mdi:magnify" class="mr-1" />
           查询
-        </button>
-        <button 
-          class="btn-glass px-3 py-1.5 rounded-lg text-xs font-medium flex items-center gap-1.5"
-          @click="handleReset"
-        >
-          <Icon icon="mdi:refresh" />
+        </el-button>
+        <el-button size="small" @click="handleReset">
+          <Icon icon="mdi:refresh" class="mr-1" />
           重置
-        </button>
+        </el-button>
       </div>
     </div>
 
     <div class="flex-1 overflow-hidden flex flex-col">
-      <n-data-table
-        :columns="columns"
+      <el-table
+        v-loading="loading"
         :data="logs"
-        :loading="loading"
-        :pagination="pagination"
-        :row-key="(row: AccessLog) => row.id"
-        :max-height="400"
-        remote
+        row-key="id"
         size="small"
-        class="h-full min-h-0"
-        @update:page="handlePageChange"
-        @update:page-size="handlePageSizeChange"
-      />
+        max-height="400"
+        class="logs-table"
+      >
+        <el-table-column label="时间" width="160">
+          <template #default="{ row }">
+            <div class="font-mono text-xs">
+              <div class="text-[var(--text-primary)]">
+                {{ formatLogDate(row.createdAt) }}
+              </div>
+              <div class="text-[var(--text-muted)]">
+                {{ formatLogTime(row.createdAt) }}
+              </div>
+            </div>
+          </template>
+        </el-table-column>
+
+        <el-table-column label="页面" min-width="200" show-overflow-tooltip>
+          <template #default="{ row }">
+            <div v-if="row.title && row.path && row.title !== row.path">
+              <div class="text-[var(--text-primary)] text-sm font-medium">
+                {{ row.title }}
+              </div>
+              <div class="text-[var(--text-secondary)] text-xs">{{ row.path }}</div>
+            </div>
+            <span v-else class="text-[var(--text-primary)] text-sm">
+              {{ row.title || row.path }}
+            </span>
+          </template>
+        </el-table-column>
+
+        <el-table-column label="IP" width="120">
+          <template #default="{ row }">
+            <span class="font-mono text-xs text-[var(--text-secondary)]">
+              {{ row.ip || '-' }}
+            </span>
+          </template>
+        </el-table-column>
+
+        <el-table-column label="来源" width="140" show-overflow-tooltip>
+          <template #default="{ row }">
+            <span v-if="!row.referer" class="text-[var(--text-muted)]">-</span>
+            <span v-else class="text-xs text-blue-700">{{ refererHost(row.referer) }}</span>
+          </template>
+        </el-table-column>
+
+        <el-table-column label="设备" width="200">
+          <template #default="{ row }">
+            <div class="flex items-center gap-2">
+              <span class="text-xs text-[var(--text-primary)]">
+                {{ row.browser || '未知浏览器' }}
+              </span>
+              <span class="text-slate-400">/</span>
+              <span class="text-xs text-[var(--text-secondary)]">
+                {{ row.os || '未知系统' }}
+              </span>
+              <span
+                v-if="row.deviceType"
+                class="ml-1 inline-flex items-center rounded-md bg-slate-100 px-1.5 py-0.5 text-[10px] text-[var(--text-muted)]"
+              >
+                {{ row.deviceType }}
+              </span>
+            </div>
+          </template>
+        </el-table-column>
+      </el-table>
+
+      <div class="table-pagination">
+        <el-pagination
+          layout="total, sizes, prev, pager, next"
+          :total="pagination.itemCount"
+          :page-size="pagination.pageSize"
+          :current-page="pagination.page"
+          :page-sizes="pagination.pageSizes"
+          size="small"
+          @current-change="handlePageChange"
+          @size-change="handlePageSizeChange"
+        />
+      </div>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { h, ref, watch } from 'vue';
-import {
-  NInput,
-  NDatePicker,
-  NSelect,
-  useMessage,
-  type SelectOption,
-} from 'naive-ui';
+import { ref, watch } from 'vue';
+import { ElMessage } from 'element-plus';
 import { Icon } from '@iconify/vue';
 import { useRequest } from 'vue-request';
 import { getAccessLogs } from '@/api/stats';
 import type { AccessLog } from '@/api/stats';
-import type { DataTableColumns } from 'naive-ui';
 import { formatLocalDate } from '@/utils';
 
 const props = defineProps<{
   siteId: number;
 }>();
 
-const message = useMessage();
-
 // 时间范围选项
 type TimeRangeValue = '1' | '3' | '7' | '30' | 'all';
 
-const timeRangeOptions: SelectOption[] = [
+const timeRangeOptions: { label: string; value: TimeRangeValue }[] = [
   { label: '今天', value: '1' },
   { label: '3天', value: '3' },
   { label: '7天', value: '7' },
@@ -120,92 +183,39 @@ const filters = ref({
   endDate: '',
 });
 
-const dateRange = ref<[number, number] | null>(null);
+// el-date-picker daterange，value-format="x" 返回毫秒时间戳字符串数组
+const dateRange = ref<[string, string] | null>(null);
 
 // 分页配置
 const pagination = ref({
   page: 1,
   pageSize: 20,
   itemCount: 0,
-  showSizePicker: true,
   pageSizes: [10, 20, 50, 100],
 });
 
-// 表格列定义
-const columns: DataTableColumns<AccessLog> = [
-  {
-    title: '时间',
-    key: 'createdAt',
-    width: 160,
-    render(row) {
-      const date = new Date(row.createdAt)
-      return h('div', { class: 'font-mono text-xs' }, [
-        h('div', { class: 'text-[var(--text-primary)]' }, date.toLocaleDateString('zh-CN')),
-        h('div', { class: 'text-[var(--text-muted)]' }, date.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit', second: '2-digit' }))
-      ])
-    },
-  },
-  {
-    title: '页面',
-    key: 'path',
-    ellipsis: { tooltip: true },
-    render(row) {
-      const displayText = row.title || row.path;
-      if (row.title && row.path && row.title !== row.path) {
-        return h('div', [
-          h('div', { class: 'text-[var(--text-primary)] text-sm font-medium' }, displayText),
-          h('div', { class: 'text-[var(--text-secondary)] text-xs' }, row.path),
-        ]);
-      }
-      return h('span', { class: 'text-[var(--text-primary)] text-sm' }, displayText);
-    },
-  },
-  {
-    title: 'IP',
-    key: 'ip',
-    width: 120,
-    render(row) {
-      return h('span', { class: 'font-mono text-xs text-[var(--text-secondary)]' }, row.ip || '-');
-    },
-  },
-  {
-    title: '来源',
-    key: 'referer',
-    width: 140,
-    ellipsis: { tooltip: true },
-    render(row) {
-      if (!row.referer) return h('span', { class: 'text-[var(--text-muted)]' }, '-');
-      try {
-        const url = new URL(row.referer);
-        return h('span', { class: 'text-xs text-blue-700' }, url.hostname);
-      } catch {
-        return h('span', { class: 'text-xs text-[var(--text-secondary)] truncate' }, row.referer);
-      }
-    },
-  },
-  {
-    title: '设备',
-    key: 'browser',
-    width: 200,
-    render(row) {
-      return h('div', { class: 'flex items-center gap-2' }, [
-        h('span', { class: 'text-xs text-[var(--text-primary)]' }, row.browser || '未知浏览器'),
-        h('span', { class: 'text-slate-400' }, '/'),
-        h('span', { class: 'text-xs text-[var(--text-secondary)]' }, row.os || '未知系统'),
-        row.deviceType
-          ? h(
-              'span',
-              {
-                class:
-                  'ml-1 inline-flex items-center rounded-md bg-slate-100 px-1.5 py-0.5 text-[10px] text-[var(--text-muted)]',
-              },
-              row.deviceType,
-            )
-          : null,
-      ]);
-    },
-  },
-];
+const logs = ref<AccessLog[]>([]);
+
+// 单元格格式化
+function formatLogDate(value: string): string {
+  return new Date(value).toLocaleDateString('zh-CN');
+}
+
+function formatLogTime(value: string): string {
+  return new Date(value).toLocaleTimeString('zh-CN', {
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+  });
+}
+
+function refererHost(referer: string): string {
+  try {
+    return new URL(referer).hostname;
+  } catch {
+    return referer;
+  }
+}
 
 // 根据时间范围计算日期
 function getDateRangeByDays(days: number): { startDate: string; endDate: string } {
@@ -256,14 +266,10 @@ const { run: fetchLogs, loading } = useRequest(
   {
     manual: true,
     onError: (error) => {
-      message.error(
-        error instanceof Error ? error.message : '加载访问日志失败',
-      );
+      ElMessage.error(error instanceof Error ? error.message : '加载访问日志失败');
     },
-  }
+  },
 );
-
-const logs = ref<AccessLog[]>([]);
 
 // 查询
 function handleSearch() {
@@ -285,11 +291,11 @@ function handleReset() {
   fetchLogs();
 }
 
-function handleDateChange(value: [number, number] | null) {
+function handleDateChange(value: [string, string] | null) {
   if (value) {
-    timeRange.value = 'all'
-    filters.value.startDate = formatLocalDate(value[0]);
-    filters.value.endDate = formatLocalDate(value[1]);
+    timeRange.value = 'all';
+    filters.value.startDate = formatLocalDate(Number(value[0]));
+    filters.value.endDate = formatLocalDate(Number(value[1]));
   } else {
     filters.value.startDate = '';
     filters.value.endDate = '';
@@ -317,3 +323,11 @@ watch(
   { immediate: true },
 );
 </script>
+
+<style scoped>
+.table-pagination {
+  display: flex;
+  justify-content: flex-end;
+  padding-top: 12px;
+}
+</style>

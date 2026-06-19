@@ -1,5 +1,5 @@
 import { computed, ref, watch } from 'vue'
-import { useMessage } from 'naive-ui'
+import { ElMessage } from 'element-plus'
 import { useSitesStore } from '@/stores/sites'
 import { getSite, type SiteToken } from '@/api/sites'
 import { getSiteStats, type SiteStats } from '@/api/stats'
@@ -8,7 +8,6 @@ import { getTodayString } from '@/utils'
 
 export function useSiteDetailPage(siteId: () => number) {
   const sitesStore = useSitesStore()
-  const message = useMessage()
 
   const site = computed(() => sitesStore.currentSite)
   const stats = ref<SiteStats | null>(null)
@@ -82,7 +81,7 @@ export function useSiteDetailPage(siteId: () => number) {
 
       sitesStore.setCurrentSite(null)
       stats.value = null
-      message.error(error instanceof Error ? error.message : '获取数据失败')
+      ElMessage.error(error instanceof Error ? error.message : '获取数据失败')
     } finally {
       if (sequence !== fetchSequence) {
         return
@@ -101,10 +100,10 @@ export function useSiteDetailPage(siteId: () => number) {
         title: editSiteTitle.value || undefined,
         description: editSiteDescription.value || undefined,
       })
-      message.success('更新成功')
+      ElMessage.success('更新成功')
       showEditModal.value = false
     } catch (error) {
-      message.error(error instanceof Error ? error.message : '更新失败')
+      ElMessage.error(error instanceof Error ? error.message : '更新失败')
     } finally {
       updating.value = false
     }
@@ -116,9 +115,9 @@ export function useSiteDetailPage(siteId: () => number) {
     try {
       const token = await sitesStore.addToken(siteId(), data)
       createdToken.value = token.token || ''
-      message.success('创建成功')
+      ElMessage.success('创建成功')
     } catch (error) {
-      message.error(error instanceof Error ? error.message : '创建失败')
+      ElMessage.error(error instanceof Error ? error.message : '创建失败')
     } finally {
       creatingToken.value = false
     }
@@ -127,9 +126,9 @@ export function useSiteDetailPage(siteId: () => number) {
   async function deleteToken(tokenId: number) {
     try {
       await sitesStore.removeToken(siteId(), tokenId)
-      message.success('删除成功')
+      ElMessage.success('删除成功')
     } catch (error) {
-      message.error(error instanceof Error ? error.message : '删除失败')
+      ElMessage.error(error instanceof Error ? error.message : '删除失败')
     }
   }
 
@@ -147,7 +146,7 @@ export function useSiteDetailPage(siteId: () => number) {
 
     const name = editTokenName.value.trim()
     if (!name) {
-      message.warning('请填写令牌名称')
+      ElMessage.warning('请填写令牌名称')
       return
     }
 
@@ -158,11 +157,11 @@ export function useSiteDetailPage(siteId: () => number) {
         name,
         description: editTokenDescription.value.trim(),
       })
-      message.success('已更新')
+      ElMessage.success('已更新')
       showEditTokenModal.value = false
       editingTokenId.value = null
     } catch (error) {
-      message.error(error instanceof Error ? error.message : '更新失败')
+      ElMessage.error(error instanceof Error ? error.message : '更新失败')
     } finally {
       updatingToken.value = false
     }

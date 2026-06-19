@@ -11,12 +11,13 @@
         </div>
       </div>
       
-      <n-radio-group v-model:value="timeRange" size="small" class="shrink-0">
-        <n-radio-button value="7">7天</n-radio-button>
-        <n-radio-button value="30">30天</n-radio-button>
-        <n-radio-button value="90">3个月</n-radio-button>
-        <n-radio-button value="365">1年</n-radio-button>
-      </n-radio-group>
+      <!-- 时间范围切换：保持原 value 字符串类型不变 -->
+      <el-radio-group v-model="timeRange" size="small" class="shrink-0">
+        <el-radio-button :value="'7'">7天</el-radio-button>
+        <el-radio-button :value="'30'">30天</el-radio-button>
+        <el-radio-button :value="'90'">3个月</el-radio-button>
+        <el-radio-button :value="'365'">1年</el-radio-button>
+      </el-radio-group>
     </div>
 
     <!-- 固定高度，避免父级 flex 链无高度导致 ECharts 画布为 0 -->
@@ -33,7 +34,6 @@
 </template>
 
 <script setup lang="ts">
-import { NRadioGroup, NRadioButton } from 'naive-ui'
 import { Icon } from '@iconify/vue'
 import VChart from 'vue-echarts'
 import { useTrendChart } from '@/composables/site-detail/useTrendChart'

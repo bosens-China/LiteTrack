@@ -1,5 +1,5 @@
 import { computed, ref, watch } from 'vue'
-import { useMessage } from 'naive-ui'
+import { ElMessage } from 'element-plus'
 import { useRequest } from 'vue-request'
 import { getReadingStats, type ReadingStatsResponse } from '@/api/stats'
 import { formatNumber } from '@/utils'
@@ -12,7 +12,6 @@ interface DepthStep {
 }
 
 export function useReadingAnalytics(siteId: () => number) {
-  const message = useMessage()
   const timeRange = ref<ReadingRangeValue>('30')
   const draftPath = ref('')
   const activePath = ref('')
@@ -31,7 +30,7 @@ export function useReadingAnalytics(siteId: () => number) {
     {
       manual: true,
       onError: (error) => {
-        message.error(error instanceof Error ? error.message : '加载阅读分析失败')
+        ElMessage.error(error instanceof Error ? error.message : '加载阅读分析失败')
       },
     },
   )

@@ -3,48 +3,63 @@
 @import url('https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;600&family=Fira+Sans:wght@400;500;600;700&display=swap');
 
 :root {
-  --bg-primary: #f3f6fb;
+  /* 传统 B 端：浅灰底 + 纯白卡片 */
+  --bg-primary: #f5f7fa;
   --bg-secondary: #ffffff;
-  --bg-tertiary: #eef3f8;
-  --bg-sidebar: #f8fafc;
-  --bg-brand-soft: #dbeafe;
-  --bg-success-soft: #dcfce7;
-  --bg-warning-soft: #fef3c7;
-  --bg-danger-soft: #fee2e2;
+  --bg-tertiary: #f0f2f5;
+  --bg-sidebar: #ffffff;
+  --bg-brand-soft: #ecf2ff;
+  --bg-success-soft: #e7f6ec;
+  --bg-warning-soft: #fdf3e3;
+  --bg-danger-soft: #fde6e6;
 
-  --border-default: #d9e2ec;
-  --border-strong: #bfccdb;
-  --border-soft: #e7eef6;
+  --border-default: #dcdfe6;
+  --border-strong: #c0c4cc;
+  --border-soft: #ebeef5;
 
-  --text-primary: #10233d;
-  --text-secondary: #4f6785;
-  --text-muted: #7d90aa;
+  --text-primary: #1f2937;
+  --text-secondary: #5a6573;
+  --text-muted: #909399;
   --text-inverse: #ffffff;
 
-  --accent-blue: #1e40af;
+  --accent-blue: #2563eb;
   --accent-blue-hover: #1d4ed8;
-  --accent-blue-soft: #dbeafe;
+  --accent-blue-soft: #ecf2ff;
   --accent-emerald: #0f766e;
   --accent-amber: #b45309;
   --accent-rose: #be123c;
 
-  --shadow-card: 0 10px 30px rgba(15, 23, 42, 0.08);
-  --shadow-card-hover: 0 14px 32px rgba(15, 23, 42, 0.12);
-  --shadow-focus: 0 0 0 4px rgba(37, 99, 235, 0.12);
+  --shadow-card: 0 1px 2px rgba(15, 23, 42, 0.04);
+  --shadow-card-hover: 0 4px 12px rgba(15, 23, 42, 0.08);
+  --shadow-focus: 0 0 0 3px rgba(37, 99, 235, 0.12);
+
+  /* 覆盖 Element Plus 主色，统一为品牌蓝 */
+  --el-color-primary: #2563eb;
+  --el-color-primary-light-3: #5a8af0;
+  --el-color-primary-light-5: #8fb0f5;
+  --el-color-primary-light-7: #c2d4fa;
+  --el-color-primary-light-8: #d9e3fc;
+  --el-color-primary-light-9: #ecf2ff;
+  --el-color-primary-dark-2: #1d4ed8;
+
+  --el-border-radius-base: 8px;
+  --el-text-color-primary: var(--text-primary);
+  --el-text-color-regular: var(--text-secondary);
+  --el-border-color: var(--border-default);
+  --el-border-color-light: var(--border-soft);
+  --el-fill-color-blank: var(--bg-secondary);
 }
 
 html {
   font-family: 'Fira Sans', system-ui, sans-serif;
-  background:
-    radial-gradient(circle at top left, rgba(59, 130, 246, 0.1), transparent 28%),
-    linear-gradient(180deg, #f8fbff 0%, var(--bg-primary) 100%);
+  background: var(--bg-primary);
   color: var(--text-primary);
 }
 
 body {
   min-height: 100vh;
   margin: 0;
-  background: transparent;
+  background: var(--bg-primary);
   color: var(--text-primary);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
@@ -84,15 +99,15 @@ textarea:focus-visible,
   font-family: 'Fira Code', monospace;
 }
 
+/* 卡片：扁平白底 + 细边框，传统中后台观感 */
 .glass-card {
   background: var(--bg-secondary);
   border: 1px solid var(--border-soft);
-  border-radius: 18px;
+  border-radius: 8px;
   box-shadow: var(--shadow-card);
   transition:
     box-shadow 0.2s ease,
-    border-color 0.2s ease,
-    background-color 0.2s ease;
+    border-color 0.2s ease;
 }
 
 .glass-card:hover {
@@ -100,6 +115,7 @@ textarea:focus-visible,
   box-shadow: var(--shadow-card-hover);
 }
 
+/* 统计卡变体：保留左侧色条作为强调，去掉渐变背景 */
 .glass-card-blue,
 .glass-card-emerald,
 .glass-card-violet {
@@ -107,62 +123,49 @@ textarea:focus-visible,
   overflow: hidden;
 }
 
-.glass-card-blue {
-  background: linear-gradient(180deg, #f8fbff 0%, #ffffff 100%);
-}
-
-.glass-card-emerald {
-  background: linear-gradient(180deg, #f6fffb 0%, #ffffff 100%);
-}
-
-.glass-card-violet {
-  background: linear-gradient(180deg, #f9f8ff 0%, #ffffff 100%);
-}
-
 .glass-card-blue::before,
 .glass-card-emerald::before,
 .glass-card-violet::before {
   content: '';
   position: absolute;
-  inset: 0 auto auto 0;
-  width: 100%;
-  height: 4px;
+  inset: 0 auto 0 0;
+  width: 3px;
+  height: 100%;
 }
 
 .glass-card-blue::before {
-  background: linear-gradient(90deg, #2563eb, #60a5fa);
+  background: #2563eb;
 }
 
 .glass-card-emerald::before {
-  background: linear-gradient(90deg, #059669, #34d399);
+  background: #059669;
 }
 
 .glass-card-violet::before {
-  background: linear-gradient(90deg, #4f46e5, #818cf8);
+  background: #4f46e5;
 }
 
+/* 自定义按钮：与 Element Plus 按钮视觉对齐 */
 .btn-primary,
 .btn-glass {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 0.5rem;
-  min-height: 40px;
-  padding: 0.625rem 1rem;
-  border-radius: 10px;
-  font-weight: 600;
+  min-height: 32px;
+  padding: 0.5rem 0.875rem;
+  border-radius: 8px;
+  font-weight: 500;
   transition:
     background-color 0.2s ease,
     border-color 0.2s ease,
-    color 0.2s ease,
-    box-shadow 0.2s ease;
+    color 0.2s ease;
 }
 
 .btn-primary {
   background: var(--accent-blue);
   border: 1px solid var(--accent-blue);
   color: var(--text-inverse);
-  box-shadow: 0 10px 18px rgba(37, 99, 235, 0.18);
 }
 
 .btn-primary:hover:not(:disabled) {
@@ -205,30 +208,30 @@ textarea:focus-visible,
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 2.75rem;
-  height: 2.75rem;
-  border-radius: 14px;
+  width: 2.5rem;
+  height: 2.5rem;
+  border-radius: 8px;
   background: var(--bg-brand-soft);
   color: var(--accent-blue);
 }
 
 .page-title {
   margin: 0;
-  font-size: 1.5rem;
-  font-weight: 700;
+  font-size: 1.375rem;
+  font-weight: 600;
   color: var(--text-primary);
 }
 
 .page-subtitle {
   margin: 0.25rem 0 0;
   color: var(--text-secondary);
-  font-size: 0.95rem;
+  font-size: 0.9rem;
 }
 
 .panel-title {
   margin: 0;
-  font-size: 1.0625rem;
-  font-weight: 700;
+  font-size: 1rem;
+  font-weight: 600;
   color: var(--text-primary);
 }
 
@@ -247,160 +250,11 @@ textarea:focus-visible,
 .stat-label {
   color: var(--text-secondary);
   font-size: 0.8125rem;
-  font-weight: 600;
+  font-weight: 500;
 }
 
 .gradient-text {
   color: var(--accent-blue);
-}
-
-.n-layout {
-  background: transparent !important;
-}
-
-.n-layout-sider {
-  background: var(--bg-sidebar) !important;
-}
-
-.n-layout-header {
-  background: rgba(255, 255, 255, 0.88) !important;
-  backdrop-filter: blur(12px);
-  border-bottom: 1px solid var(--border-soft);
-}
-
-.n-card,
-.n-modal,
-.n-dialog {
-  color: var(--text-primary) !important;
-}
-
-.n-card {
-  background: var(--bg-secondary) !important;
-  border: 1px solid var(--border-soft) !important;
-  border-radius: 18px !important;
-}
-
-.n-card-header {
-  border-bottom: 1px solid var(--border-soft) !important;
-}
-
-.n-card-header__main,
-.n-dialog__title {
-  color: var(--text-primary) !important;
-  font-weight: 700 !important;
-}
-
-.n-base-selection,
-.n-input,
-.n-input-number,
-.n-date-picker {
-  --n-color: #ffffff !important;
-  --n-color-active: #ffffff !important;
-  --n-color-focus: #ffffff !important;
-  --n-border: 1px solid var(--border-default) !important;
-  --n-border-focus: 1px solid #2563eb !important;
-  --n-border-hover: 1px solid #94a3b8 !important;
-  --n-box-shadow-focus: 0 0 0 4px rgba(37, 99, 235, 0.12) !important;
-  --n-text-color: var(--text-primary) !important;
-  --n-placeholder-color: var(--text-muted) !important;
-  --n-caret-color: var(--accent-blue) !important;
-}
-
-.n-button:not(.n-button--primary-type) {
-  --n-color: #ffffff !important;
-  --n-color-hover: var(--bg-tertiary) !important;
-  --n-color-pressed: #e8eef7 !important;
-  --n-text-color: var(--text-primary) !important;
-  --n-border: 1px solid var(--border-default) !important;
-  --n-border-hover: 1px solid var(--border-strong) !important;
-}
-
-.n-button.n-button--primary-type {
-  --n-color: var(--accent-blue) !important;
-  --n-color-hover: var(--accent-blue-hover) !important;
-  --n-color-pressed: #1e3a8a !important;
-  --n-text-color: #ffffff !important;
-}
-
-.n-data-table {
-  --n-merged-th-color: #f8fafc !important;
-  --n-th-color: #f8fafc !important;
-  --n-merged-td-color: #ffffff !important;
-  --n-td-color: #ffffff !important;
-  --n-merged-border-color: var(--border-soft) !important;
-  --n-th-text-color: var(--text-secondary) !important;
-  --n-td-text-color: var(--text-primary) !important;
-  border-radius: 16px;
-}
-
-.n-data-table .n-data-table-th {
-  color: var(--text-secondary) !important;
-  font-size: 0.75rem;
-  font-weight: 700 !important;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-}
-
-.n-data-table .n-data-table-td {
-  border-bottom: 1px solid var(--border-soft) !important;
-}
-
-.n-data-table .n-data-table-tr:hover .n-data-table-td {
-  background: #f8fbff !important;
-}
-
-.n-tag {
-  --n-color: var(--accent-blue-soft) !important;
-  --n-text-color: var(--accent-blue) !important;
-  --n-border: 1px solid #bfdbfe !important;
-}
-
-.n-tag.n-tag--success-type {
-  --n-color: var(--bg-success-soft) !important;
-  --n-text-color: var(--accent-emerald) !important;
-  --n-border: 1px solid #a7f3d0 !important;
-}
-
-.n-tag.n-tag--error-type {
-  --n-color: var(--bg-danger-soft) !important;
-  --n-text-color: var(--accent-rose) !important;
-  --n-border: 1px solid #fda4af !important;
-}
-
-/* Radio 按钮组：须使用 Naive 的 --n-button-* 变量，否则选中态文字色不会生效 */
-.n-radio-group.n-radio-group--button-group {
-  --n-button-color: #ffffff !important;
-  --n-button-color-active: var(--accent-blue) !important;
-  --n-button-border-color: var(--border-default) !important;
-  --n-button-border-color-active: var(--accent-blue) !important;
-  --n-button-text-color: var(--text-secondary) !important;
-  --n-button-text-color-hover: var(--text-primary) !important;
-  --n-button-text-color-active: #ffffff !important;
-}
-
-.n-empty {
-  --n-text-color: var(--text-secondary) !important;
-  --n-icon-color: var(--text-muted) !important;
-}
-
-.n-dropdown-menu,
-.n-popover,
-.n-base-select-menu,
-.n-date-panel,
-.n-dialog,
-.n-modal {
-  --n-color: #ffffff !important;
-  --n-text-color: var(--text-primary) !important;
-}
-
-.n-menu {
-  --n-item-text-color: var(--text-secondary) !important;
-  --n-item-text-color-hover: var(--text-primary) !important;
-  --n-item-icon-color: var(--text-muted) !important;
-  --n-item-icon-color-active: var(--accent-blue) !important;
-  --n-item-color-active: #eaf2ff !important;
-  --n-item-color-active-hover: #eaf2ff !important;
-  --n-item-text-color-active: var(--accent-blue) !important;
 }
 
 ::-webkit-scrollbar {
@@ -409,20 +263,20 @@ textarea:focus-visible,
 }
 
 ::-webkit-scrollbar-track {
-  background: #eef3f8;
+  background: var(--bg-tertiary);
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #c8d4e3;
+  background: #c8d0dc;
   border-radius: 999px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #afc0d4;
+  background: #aab5c4;
 }
 
 ::selection {
-  background: rgba(37, 99, 235, 0.18);
+  background: rgba(37, 99, 235, 0.16);
   color: var(--text-primary);
 }
 

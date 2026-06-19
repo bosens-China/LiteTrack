@@ -1,38 +1,42 @@
 <template>
   <div class="min-h-full page-shell">
-    <div v-if="loading" class="site-detail-grid">
-      <div class="full-width">
-        <div class="glass-card p-6">
-          <n-skeleton text style="width: 30%; height: 32px" />
-          <n-skeleton text style="width: 50%; margin-top: 12px" />
+    <el-skeleton v-if="loading" animated>
+      <template #template>
+        <div class="site-detail-grid">
+          <div class="full-width">
+            <div class="glass-card p-6">
+              <el-skeleton-item variant="text" style="width: 30%; height: 32px" />
+              <el-skeleton-item variant="text" style="width: 50%; margin-top: 12px" />
+            </div>
+          </div>
+          <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5 full-width">
+            <div class="glass-card p-5">
+              <el-skeleton-item variant="rect" style="height: 80px" />
+            </div>
+            <div class="glass-card p-5">
+              <el-skeleton-item variant="rect" style="height: 80px" />
+            </div>
+            <div class="glass-card p-5">
+              <el-skeleton-item variant="rect" style="height: 80px" />
+            </div>
+          </div>
+          <div class="glass-card p-5 full-width" style="height: 400px">
+            <el-skeleton-item variant="rect" style="height: 100%" />
+          </div>
+          <div class="glass-card p-5 full-width" style="height: 520px">
+            <el-skeleton-item variant="rect" style="height: 100%" />
+          </div>
+          <div class="content-row bottom-row">
+            <div class="glass-card p-5 logs-section" style="height: 400px">
+              <el-skeleton-item variant="rect" style="height: 100%" />
+            </div>
+            <div class="glass-card p-5 tokens-section" style="height: 400px">
+              <el-skeleton-item variant="rect" style="height: 100%" />
+            </div>
+          </div>
         </div>
-      </div>
-      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5 full-width">
-        <div class="glass-card p-5">
-          <n-skeleton height="80px" />
-        </div>
-        <div class="glass-card p-5">
-          <n-skeleton height="80px" />
-        </div>
-        <div class="glass-card p-5">
-          <n-skeleton height="80px" />
-        </div>
-      </div>
-      <div class="glass-card p-5 full-width" style="height: 400px">
-        <n-skeleton height="100%" />
-      </div>
-      <div class="glass-card p-5 full-width" style="height: 520px">
-        <n-skeleton height="100%" />
-      </div>
-      <div class="content-row bottom-row">
-        <div class="glass-card p-5 logs-section" style="height: 400px">
-          <n-skeleton height="100%" />
-        </div>
-        <div class="glass-card p-5 tokens-section" style="height: 400px">
-          <n-skeleton height="100%" />
-        </div>
-      </div>
-    </div>
+      </template>
+    </el-skeleton>
 
     <!-- 正常内容 -->
     <div v-else-if="site" class="site-detail-grid">
@@ -94,16 +98,11 @@
     </div>
 
     <div v-else class="flex items-center justify-center min-h-[60vh]">
-      <n-empty description="网站不存在或已被删除">
-        <template #icon>
-          <Icon icon="mdi:web-off" class="text-6xl text-slate-400" />
-        </template>
-        <template #extra>
-          <button class="btn-primary mt-4 px-6 py-2 rounded-lg" @click="router.push('/sites')">
-            返回网站列表
-          </button>
-        </template>
-      </n-empty>
+      <el-empty description="网站不存在或已被删除">
+        <el-button type="primary" @click="router.push('/sites')">
+          返回网站列表
+        </el-button>
+      </el-empty>
     </div>
   </div>
 </template>
@@ -111,8 +110,6 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { NEmpty, NSkeleton } from 'naive-ui'
-import { Icon } from '@iconify/vue'
 import { useSiteDetailPage } from '@/composables/site-detail/useSiteDetailPage'
 
 // 子组件导入

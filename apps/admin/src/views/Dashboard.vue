@@ -1,33 +1,35 @@
 <template>
   <div class="page-shell dashboard-container">
-    <template v-if="loading">
-      <div class="dashboard-grid">
-        <div class="main-content space-y-5">
-          <div class="glass-card p-6">
-            <n-skeleton text style="width: 150px; height: 32px" />
+    <el-skeleton v-if="loading" animated>
+      <template #template>
+        <div class="dashboard-grid">
+          <div class="main-content space-y-5">
+            <div class="glass-card p-6">
+              <el-skeleton-item variant="text" style="width: 150px; height: 32px" />
+            </div>
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+              <div class="glass-card p-5">
+                <el-skeleton-item variant="rect" style="height: 80px" />
+              </div>
+              <div class="glass-card p-5">
+                <el-skeleton-item variant="rect" style="height: 80px" />
+              </div>
+              <div class="glass-card p-5">
+                <el-skeleton-item variant="rect" style="height: 80px" />
+              </div>
+            </div>
+            <div class="glass-card p-5" style="height: 300px">
+              <el-skeleton-item variant="rect" style="height: 100%" />
+            </div>
           </div>
-          <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
-            <div class="glass-card p-5">
-              <n-skeleton height="80px" />
+          <div class="side-content hidden xl:block">
+            <div class="glass-card p-5 h-full">
+              <el-skeleton-item variant="rect" style="height: 100%" />
             </div>
-            <div class="glass-card p-5">
-              <n-skeleton height="80px" />
-            </div>
-            <div class="glass-card p-5">
-              <n-skeleton height="80px" />
-            </div>
-          </div>
-          <div class="glass-card p-5" style="height: 300px">
-            <n-skeleton height="100%" />
           </div>
         </div>
-        <div class="side-content hidden xl:block">
-          <div class="glass-card p-5 h-full">
-            <n-skeleton height="100%" />
-          </div>
-        </div>
-      </div>
-    </template>
+      </template>
+    </el-skeleton>
 
     <!-- 正常内容 -->
     <template v-else>
@@ -42,10 +44,10 @@
           </div>
         </div>
 
-        <button class="btn-primary" @click="showCreateModal = true">
-          <Icon icon="mdi:plus" />
+        <el-button type="primary" @click="showCreateModal = true">
+          <Icon icon="mdi:plus" class="mr-1" />
           新建网站
-        </button>
+        </el-button>
       </div>
 
       <div class="dashboard-grid">
@@ -107,16 +109,11 @@
               </div>
             </div>
             
-            <n-empty v-if="sitesStore.sites.length === 0" description="暂无网站，快去创建吧">
-              <template #icon>
-                <Icon icon="mdi:web-plus" class="text-5xl text-slate-400" />
-              </template>
-              <template #extra>
-                <button class="btn-primary mt-4 px-4 py-2 rounded-lg" @click="showCreateModal = true">
-                  创建网站
-                </button>
-              </template>
-            </n-empty>
+            <el-empty v-if="sitesStore.sites.length === 0" description="暂无网站，快去创建吧">
+              <el-button type="primary" @click="showCreateModal = true">
+                创建网站
+              </el-button>
+            </el-empty>
             
             <div v-else class="space-y-2">
               <div
@@ -160,22 +157,20 @@
             </div>
             
             <div class="space-y-3">
-              <button 
-                class="btn-primary w-full py-2.5 rounded-lg font-medium flex items-center justify-center gap-2"
+              <el-button
+                type="primary"
+                class="quick-btn"
                 @click="showCreateModal = true"
               >
-                <Icon icon="mdi:plus" />
+                <Icon icon="mdi:plus" class="mr-1" />
                 新建网站
-              </button>
-              
-              <button 
-                class="btn-glass w-full py-2.5 rounded-lg"
-                @click="router.push('/sites')"
-              >
-                <Icon icon="mdi:web" />
+              </el-button>
+
+              <el-button class="quick-btn" @click="router.push('/sites')">
+                <Icon icon="mdi:web" class="mr-1" />
                 管理网站
-              </button>
-              
+              </el-button>
+
               <div class="h-px bg-slate-200 my-4" />
               
               <div class="text-sm text-[var(--text-secondary)] space-y-3">
@@ -212,11 +207,7 @@
 <script setup lang="ts">
 import { computed, ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-import {
-  NEmpty,
-  NSkeleton,
-  useMessage,
-} from 'naive-ui'
+import { ElMessage } from 'element-plus'
 import { Icon } from '@iconify/vue'
 import { useSitesStore } from '@/stores/sites'
 import { getDashboardSummary, type DashboardSummaryResponse } from '@/api/stats'
@@ -224,7 +215,6 @@ import CreateSiteModal from '@/components/CreateSiteModal.vue'
 
 const router = useRouter()
 const sitesStore = useSitesStore()
-const message = useMessage()
 
 // 弹窗状态
 const showCreateModal = ref(false)
@@ -260,7 +250,7 @@ async function init() {
     dashboardSummary.value = dashboard.summary
   } catch (err) {
     const errorMessage = err instanceof Error ? err.message : '加载数据失败'
-    message.error(errorMessage)
+    ElMessage.error(errorMessage)
   } finally {
     loading.value = false
   }
@@ -274,6 +264,11 @@ onMounted(() => {
 <style scoped>
 .dashboard-container {
   width: 100%;
+}
+
+.quick-btn {
+  width: 100%;
+  margin-left: 0;
 }
 
 .dashboard-grid {

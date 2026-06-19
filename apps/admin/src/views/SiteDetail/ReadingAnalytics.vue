@@ -11,16 +11,17 @@
         </div>
       </div>
 
-      <n-radio-group v-model:value="timeRange" size="small" class="shrink-0">
-        <n-radio-button value="7">7天</n-radio-button>
-        <n-radio-button value="30">30天</n-radio-button>
-        <n-radio-button value="90">90天</n-radio-button>
-      </n-radio-group>
+      <!-- 时间范围切换：迁移为 Element Plus 单选按钮组 -->
+      <el-radio-group v-model="timeRange" size="small" class="shrink-0">
+        <el-radio-button :value="'7'">7天</el-radio-button>
+        <el-radio-button :value="'30'">30天</el-radio-button>
+        <el-radio-button :value="'90'">90天</el-radio-button>
+      </el-radio-group>
     </div>
 
     <div class="reading-analytics__toolbar">
-      <n-input
-        v-model:value="draftPath"
+      <el-input
+        v-model="draftPath"
         clearable
         placeholder="按页面路径筛选，例如 /docs/getting-started"
         @keyup.enter="applyPathFilter"
@@ -28,7 +29,7 @@
         <template #prefix>
           <Icon icon="mdi:map-marker-path" class="text-slate-400" />
         </template>
-      </n-input>
+      </el-input>
 
       <div class="reading-analytics__actions">
         <button type="button" class="btn-primary px-3 py-2 rounded-lg text-sm" @click="applyPathFilter">
@@ -49,7 +50,7 @@
         <div class="metric-card__label">完成率</div>
         <div class="metric-card__value">
           <template v-if="!loading">{{ formatPercent(summary.completionRate) }}</template>
-          <n-skeleton v-else text style="width: 60%; height: 32px" />
+          <el-skeleton-item v-else variant="text" style="width: 60%; height: 32px" />
         </div>
         <p class="metric-card__hint">完成定义：阅读深度达到 75%</p>
       </div>
@@ -58,7 +59,7 @@
         <div class="metric-card__label">平均深度</div>
         <div class="metric-card__value">
           <template v-if="!loading">{{ formatDepth(summary.averageDepth) }}</template>
-          <n-skeleton v-else text style="width: 60%; height: 32px" />
+          <el-skeleton-item v-else variant="text" style="width: 60%; height: 32px" />
         </div>
         <p class="metric-card__hint">样本 {{ formatNumber(summary.totalReaders) }} 人次</p>
       </div>
@@ -67,21 +68,18 @@
         <div class="metric-card__label">观察区间</div>
         <div class="metric-card__value">
           <template v-if="!loading">{{ summary.days }} 天</template>
-          <n-skeleton v-else text style="width: 60%; height: 32px" />
+          <el-skeleton-item v-else variant="text" style="width: 60%; height: 32px" />
         </div>
         <p class="metric-card__hint">适合用于验证内容页质量</p>
       </div>
     </div>
 
-    <n-empty
+    <!-- 空状态：el-empty 无 #icon 插槽，移除自定义图标 -->
+    <el-empty
       v-if="!loading && summary.totalReaders === 0"
       description="暂无阅读完成度数据"
       class="reading-analytics__empty"
-    >
-      <template #icon>
-        <Icon icon="mdi:book-remove-outline" class="text-5xl text-slate-400" />
-      </template>
-    </n-empty>
+    />
 
     <div v-else class="depth-panel">
       <div class="depth-panel__header">
@@ -90,13 +88,15 @@
       </div>
 
       <div class="depth-list">
-        <template v-if="loading && !hasReadingStats">
-          <div v-for="index in 4" :key="index" class="depth-row depth-row--loading">
-            <n-skeleton text style="width: 80px" />
-            <n-skeleton round style="height: 10px; flex: 1" />
-            <n-skeleton text style="width: 56px" />
-          </div>
-        </template>
+        <el-skeleton v-if="loading && !hasReadingStats" animated>
+          <template #template>
+            <div v-for="index in 4" :key="index" class="depth-row depth-row--loading">
+              <el-skeleton-item variant="text" style="width: 80px" />
+              <el-skeleton-item variant="rect" style="height: 10px; flex: 1" />
+              <el-skeleton-item variant="text" style="width: 56px" />
+            </div>
+          </template>
+        </el-skeleton>
 
         <template v-else>
           <div v-for="step in depthSteps" :key="step.label" class="depth-row">
@@ -113,7 +113,6 @@
 </template>
 
 <script setup lang="ts">
-import { NEmpty, NInput, NRadioButton, NRadioGroup, NSkeleton } from 'naive-ui'
 import { Icon } from '@iconify/vue'
 import { formatNumber } from '@/utils'
 import { useReadingAnalytics } from '@/composables/site-detail/useReadingAnalytics'

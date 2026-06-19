@@ -10,19 +10,17 @@
           <p class="panel-subtitle">优先显示页面标题，其次展示路径。</p>
         </div>
       </div>
-      <button 
-        class="btn-glass text-xs px-3 py-1.5 rounded-lg flex items-center gap-1"
-        @click="openAllPages"
-      >
+      <el-button text size="small" @click="openAllPages">
         查看全部
-        <Icon icon="mdi:chevron-right" class="text-sm" />
-      </button>
+        <Icon icon="mdi:chevron-right" class="text-sm ml-0.5" />
+      </el-button>
     </div>
     
-    <n-empty v-if="pages.length === 0" description="暂无数据" class="flex-1 flex flex-col justify-center" />
-    
+    <el-empty v-if="pages.length === 0" description="暂无数据" class="flex-1 flex flex-col justify-center" />
+
     <div v-else class="flex-1 overflow-hidden">
-      <n-scrollbar style="max-height: 320px">
+      <!-- 滚动容器：替换 n-scrollbar，高度限制移到原生 div -->
+      <div style="overflow: auto; max-height: 320px">
         <div class="space-y-2">
           <div
             v-for="(page, index) in pages"
@@ -41,22 +39,19 @@
             </div>
             
             <div class="flex-1 min-w-0">
-              <n-tooltip placement="top" trigger="hover">
-                <template #trigger>
-                  <div class="min-w-0">
-                    <p class="text-sm text-[var(--text-primary)] font-medium truncate">
-                      {{ primaryPageLabel(page) }}
-                    </p>
-                    <p
-                      v-if="showPagePathSubline(page)"
-                      class="text-xs text-[var(--text-secondary)] truncate font-mono"
-                    >
-                      {{ page.path }}
-                    </p>
-                  </div>
-                </template>
-                <span class="text-xs">{{ page.path }}</span>
-              </n-tooltip>
+              <el-tooltip :content="page.path" placement="top">
+                <div class="min-w-0">
+                  <p class="text-sm text-[var(--text-primary)] font-medium truncate">
+                    {{ primaryPageLabel(page) }}
+                  </p>
+                  <p
+                    v-if="showPagePathSubline(page)"
+                    class="text-xs text-[var(--text-secondary)] truncate font-mono"
+                  >
+                    {{ page.path }}
+                  </p>
+                </div>
+              </el-tooltip>
             </div>
             
             <div class="shrink-0 flex items-center gap-1.5">
@@ -65,60 +60,93 @@
             </div>
           </div>
         </div>
-      </n-scrollbar>
+      </div>
     </div>
 
-    <n-modal 
-      v-model:show="showModal" 
-      preset="card" 
-      title="全部页面访问排行" 
-      class="w-full max-w-5xl"
-      :style="{ background: 'var(--bg-secondary)' }"
+    <el-dialog
+      v-model="showModal"
+      title="全部页面访问排行"
+      :width="900"
+      class="all-pages-dialog"
     >
       <div class="modal-body">
         <div class="mb-4 flex justify-end">
-          <n-input
-            v-model:value="searchQuery"
+          <el-input
+            v-model="searchQuery"
             placeholder="搜索页面路径或标题"
             clearable
-            @input="handleSearch"
             class="w-64"
+            @input="handleSearch"
           >
             <template #prefix>
               <Icon icon="mdi:magnify" class="text-slate-400" />
             </template>
-          </n-input>
+          </el-input>
         </div>
-        <n-data-table
-          remote
-          :columns="columns"
+
+        <el-table
+          v-loading="loading"
           :data="allPages"
-          :loading="loading"
-          :pagination="pagination"
-          :max-height="540"
-          @update:page="handlePageChange"
-          @update:sorter="handleSorterChange"
-        />
+          row-key="path"
+          max-height="540"
+          :default-sort="{ prop: 'count', order: 'descending' }"
+          @sort-change="handleSortChange"
+        >
+          <el-table-column label="排名" width="80">
+            <template #default="{ $index }">
+              <span :class="rankClass(rankOf($index))">{{ rankOf($index) }}</span>
+            </template>
+          </el-table-column>
+
+          <el-table-column label="页面" min-width="200" show-overflow-tooltip>
+            <template #default="{ row }">
+              <span class="text-[var(--text-primary)] font-medium">
+                {{ primaryPageLabel(row) }}
+              </span>
+            </template>
+          </el-table-column>
+
+          <el-table-column label="路径" min-width="200" show-overflow-tooltip>
+            <template #default="{ row }">
+              <span class="font-mono text-xs text-[var(--text-secondary)]">{{ row.path }}</span>
+            </template>
+          </el-table-column>
+
+          <el-table-column label="访问量" width="150" prop="count" sortable="custom">
+            <template #default="{ row }">
+              <span class="font-mono text-emerald-700">{{ formatNumber(row.count) }}</span>
+            </template>
+          </el-table-column>
+        </el-table>
+
+        <div class="table-pagination">
+          <el-pagination
+            layout="total, sizes, prev, pager, next"
+            :total="pagination.itemCount"
+            :page-size="pagination.pageSize"
+            :current-page="pagination.page"
+            :page-sizes="[10, 20, 50, 100]"
+            @current-change="handlePageChange"
+            @size-change="handleSizeChange"
+          />
+        </div>
       </div>
-    </n-modal>
+    </el-dialog>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, watch, h } from 'vue'
-import { NEmpty, NModal, NDataTable, NInput, NScrollbar, NTooltip, useMessage } from 'naive-ui'
+import { ref, reactive, watch } from 'vue'
+import { ElMessage } from 'element-plus'
 import { Icon } from '@iconify/vue'
 import { getSitePages, getPopularPages } from '@/api/stats'
 import type { PageView } from '@/api/stats'
-import type { DataTableColumns, PaginationProps } from 'naive-ui'
 import { useRequest } from 'vue-request'
 import { useDebounceFn } from '@vueuse/core'
 
 const props = defineProps<{
   siteId: number
 }>()
-
-const message = useMessage()
 
 // 顶部列表数据
 const pages = ref<PageView[]>([])
@@ -127,71 +155,31 @@ const showModal = ref(false)
 const allPages = ref<PageView[]>([])
 const searchQuery = ref('')
 
-const pagination = reactive<PaginationProps>({
+// 弹窗表格分页状态
+const pagination = reactive({
   page: 1,
   pageSize: 20,
   itemCount: 0,
-  showSizePicker: true,
-  pageSizes: [10, 20, 50, 100],
-  onChange: (page: number) => {
-    pagination.page = page
-    refresh()
-  },
-  onUpdatePageSize: (pageSize: number) => {
-    pagination.pageSize = pageSize
-    pagination.page = 1
-    refresh()
-  }
 })
 
 const sortState = reactive({
   key: 'count',
-  order: 'desc' as 'asc' | 'desc' | false
+  order: 'desc' as 'asc' | 'desc',
 })
 
-const columns: DataTableColumns<PageView> = [
-  {
-    title: '排名',
-    key: 'index',
-    width: 80,
-    render: (_, index) => {
-      const rank = (pagination.page! - 1) * (pagination.pageSize!) + index + 1
-      return h('span', {
-        class: `inline-flex items-center justify-center w-6 h-6 rounded text-xs font-bold font-mono ${
-          rank === 1 ? 'bg-amber-100 text-amber-700' :
-          rank === 2 ? 'bg-slate-200 text-slate-700' :
-          rank === 3 ? 'bg-orange-100 text-orange-700' :
-          'text-slate-500'
-        }`
-      }, rank)
-    }
-  },
-  {
-    title: '页面',
-    key: 'title',
-    render: (row) => {
-      const displayText = primaryPageLabel(row)
-      return h(NTooltip, { placement: 'top', trigger: 'hover' }, {
-        trigger: () => h('span', { class: 'text-[var(--text-primary)] font-medium cursor-help' }, displayText),
-        default: () => h('span', { class: 'text-xs' }, row.path)
-      })
-    },
-    ellipsis: { tooltip: false }
-  },
-  {
-    title: '路径',
-    key: 'path',
-    render: (row) => h('span', { class: 'font-mono text-xs text-[var(--text-secondary)]' }, row.path),
-    ellipsis: { tooltip: true }
-  },
-  {
-    title: '访问量',
-    key: 'count',
-    width: 150,
-    sorter: true,
-    render: (row) => h('span', { class: 'font-mono text-emerald-700' }, formatNumber(row.count))
-  }
-]
+// 当前页内的排名（含分页偏移）
+function rankOf(index: number): number {
+  return (pagination.page - 1) * pagination.pageSize + index + 1
+}
+
+// 排名徽章样式
+function rankClass(rank: number): string {
+  const base = 'inline-flex items-center justify-center w-6 h-6 rounded text-xs font-bold font-mono'
+  if (rank === 1) return `${base} bg-amber-100 text-amber-700`
+  if (rank === 2) return `${base} bg-slate-200 text-slate-700`
+  if (rank === 3) return `${base} bg-orange-100 text-orange-700`
+  return `${base} text-slate-500`
+}
 
 // 格式化数字
 function formatNumber(num: number): string {
@@ -219,7 +207,7 @@ const { run: fetchTopPages } = useRequest(
   {
     manual: true,
     onError: (error) => {
-      message.error(error instanceof Error ? error.message : '加载热门页面失败')
+      ElMessage.error(error instanceof Error ? error.message : '加载热门页面失败')
     }
   }
 )
@@ -242,7 +230,7 @@ const { run: fetchPages, loading, refresh } = useRequest(
     manual: true,
     debounceInterval: 300,
     onError: (error) => {
-      message.error(error instanceof Error ? error.message : '加载页面数据失败')
+      ElMessage.error(error instanceof Error ? error.message : '加载页面数据失败')
     }
   }
 )
@@ -261,11 +249,22 @@ const handleSearch = useDebounceFn(() => {
 
 function handlePageChange(page: number) {
   pagination.page = page
+  refresh()
 }
 
-function handleSorterChange(sorter: { columnKey: string; order: 'ascend' | 'descend' | false }) {
-  sortState.key = sorter.columnKey
-  sortState.order = sorter.order === 'ascend' ? 'asc' : sorter.order === 'descend' ? 'desc' : 'desc'
+function handleSizeChange(pageSize: number) {
+  pagination.pageSize = pageSize
+  pagination.page = 1
+  refresh()
+}
+
+// el-table 自定义排序：order 为 ascending/descending/null
+function handleSortChange(payload: {
+  prop: string | null
+  order: 'ascending' | 'descending' | null
+}) {
+  sortState.key = payload.prop || 'count'
+  sortState.order = payload.order === 'ascending' ? 'asc' : 'desc'
   refresh()
 }
 

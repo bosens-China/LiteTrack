@@ -11,11 +11,12 @@
         </div>
       </div>
 
-      <n-radio-group v-model:value="timeRange" size="small" class="shrink-0">
-        <n-radio-button value="7">7天</n-radio-button>
-        <n-radio-button value="30">30天</n-radio-button>
-        <n-radio-button value="90">90天</n-radio-button>
-      </n-radio-group>
+      <!-- 时间范围切换：迁移为 Element Plus 单选按钮组 -->
+      <el-radio-group v-model="timeRange" size="small" class="shrink-0">
+        <el-radio-button :value="'7'">7天</el-radio-button>
+        <el-radio-button :value="'30'">30天</el-radio-button>
+        <el-radio-button :value="'90'">90天</el-radio-button>
+      </el-radio-group>
     </div>
 
     <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -26,7 +27,7 @@
         </div>
         <div class="metric-card__value">
           <template v-if="!loading">{{ formatNumber(summary.totalVisitors) }}</template>
-          <n-skeleton v-else text style="width: 60%; height: 32px" />
+          <el-skeleton-item v-else variant="text" style="width: 60%; height: 32px" />
         </div>
         <p class="metric-card__hint">最近 {{ summary.days }} 天去重访客</p>
       </div>
@@ -38,7 +39,7 @@
         </div>
         <div class="metric-card__value">
           <template v-if="!loading">{{ formatNumber(summary.todayVisitors) }}</template>
-          <n-skeleton v-else text style="width: 60%; height: 32px" />
+          <el-skeleton-item v-else variant="text" style="width: 60%; height: 32px" />
         </div>
         <p class="metric-card__hint">按 {{ APP_TIMEZONE }} 当天归档</p>
       </div>
@@ -50,7 +51,7 @@
         </div>
         <div class="metric-card__value">
           <template v-if="!loading">{{ formatNumber(averageVisitors) }}</template>
-          <n-skeleton v-else text style="width: 60%; height: 32px" />
+          <el-skeleton-item v-else variant="text" style="width: 60%; height: 32px" />
         </div>
         <p class="metric-card__hint">峰值 {{ formatNumber(peakVisitors) }} / 天</p>
       </div>
@@ -62,24 +63,23 @@
         <span class="summary-note__meta">{{ chartDescription }}</span>
       </div>
 
-      <n-empty
+      <!-- 空状态：el-empty 无 #icon 插槽，移除自定义图标 -->
+      <el-empty
         v-if="!loading && dailyVisitors.length === 0"
         description="暂无访客数据"
         class="visitor-summary__empty"
-      >
-        <template #icon>
-          <Icon icon="mdi:account-search-outline" class="text-5xl text-slate-400" />
-        </template>
-      </n-empty>
+      />
 
       <div v-else class="visitor-trend-list">
-        <template v-if="loading && dailyVisitors.length === 0">
-          <div v-for="index in 6" :key="index" class="trend-row">
-            <n-skeleton text style="width: 88px" />
-            <n-skeleton round style="height: 10px; flex: 1" />
-            <n-skeleton text style="width: 40px" />
-          </div>
-        </template>
+        <el-skeleton v-if="loading && dailyVisitors.length === 0" animated>
+          <template #template>
+            <div v-for="index in 6" :key="index" class="trend-row">
+              <el-skeleton-item variant="text" style="width: 88px" />
+              <el-skeleton-item variant="rect" style="height: 10px; flex: 1" />
+              <el-skeleton-item variant="text" style="width: 40px" />
+            </div>
+          </template>
+        </el-skeleton>
 
         <template v-else>
           <div v-for="item in dailyVisitors" :key="item.date" class="trend-row">
@@ -100,7 +100,7 @@
 
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
-import { NEmpty, NRadioButton, NRadioGroup, NSkeleton, useMessage } from 'naive-ui'
+import { ElMessage } from 'element-plus'
 import { Icon } from '@iconify/vue'
 import { useRequest } from 'vue-request'
 import { getVisitorsStats, type DailyView, type VisitorsStatsResponse } from '@/api/stats'
@@ -113,7 +113,6 @@ interface Props {
 }
 
 const props = defineProps<Props>()
-const message = useMessage()
 
 const timeRange = ref<TimeRangeValue>('30')
 const visitors = ref<VisitorsStatsResponse | null>(null)
@@ -127,7 +126,7 @@ const { run: fetchVisitors, loading } = useRequest(
   {
     manual: true,
     onError: (error) => {
-      message.error(error instanceof Error ? error.message : '加载访客分析失败')
+      ElMessage.error(error instanceof Error ? error.message : '加载访客分析失败')
     },
   },
 )

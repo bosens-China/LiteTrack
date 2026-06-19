@@ -11,11 +11,12 @@
         </div>
       </div>
 
-      <n-radio-group v-model:value="timeRange" size="small" class="shrink-0">
-        <n-radio-button value="7">7天</n-radio-button>
-        <n-radio-button value="30">30天</n-radio-button>
-        <n-radio-button value="90">90天</n-radio-button>
-      </n-radio-group>
+      <!-- 时间范围切换：迁移为 Element Plus 单选按钮组 -->
+      <el-radio-group v-model="timeRange" size="small" class="shrink-0">
+        <el-radio-button :value="'7'">7天</el-radio-button>
+        <el-radio-button :value="'30'">30天</el-radio-button>
+        <el-radio-button :value="'90'">90天</el-radio-button>
+      </el-radio-group>
     </div>
 
     <div class="device-analytics__meta">
@@ -23,15 +24,12 @@
       <span>样本日志 {{ formatNumber(totalSamples) }} 条</span>
     </div>
 
-    <n-empty
+    <!-- 空状态：el-empty 无 #icon 插槽，移除自定义图标 -->
+    <el-empty
       v-if="!loading && totalSamples === 0"
       description="暂无设备数据"
       class="device-analytics__empty"
-    >
-      <template #icon>
-        <Icon icon="mdi:laptop-off" class="text-5xl text-slate-400" />
-      </template>
-    </n-empty>
+    />
 
     <div v-else class="grid grid-cols-1 xl:grid-cols-3 gap-4">
       <article class="bucket-card">
@@ -40,12 +38,14 @@
           <span class="bucket-card__tag">UV 线索</span>
         </div>
         <div class="bucket-list">
-          <template v-if="loading && deviceTypes.length === 0">
-            <div v-for="index in 4" :key="index" class="bucket-row bucket-row--loading">
-              <n-skeleton text style="width: 40%" />
-              <n-skeleton round style="height: 8px; flex: 1" />
-            </div>
-          </template>
+          <el-skeleton v-if="loading && deviceTypes.length === 0" animated>
+            <template #template>
+              <div v-for="index in 4" :key="index" class="bucket-row bucket-row--loading">
+                <el-skeleton-item variant="text" style="width: 40%" />
+                <el-skeleton-item variant="rect" style="height: 8px; flex: 1" />
+              </div>
+            </template>
+          </el-skeleton>
           <template v-else>
             <div v-for="item in deviceTypes" :key="item.name" class="bucket-row">
               <div class="bucket-row__topline">
@@ -66,12 +66,14 @@
           <span class="bucket-card__tag">Top {{ browsers.length }}</span>
         </div>
         <div class="bucket-list">
-          <template v-if="loading && browsers.length === 0">
-            <div v-for="index in 4" :key="index" class="bucket-row bucket-row--loading">
-              <n-skeleton text style="width: 40%" />
-              <n-skeleton round style="height: 8px; flex: 1" />
-            </div>
-          </template>
+          <el-skeleton v-if="loading && browsers.length === 0" animated>
+            <template #template>
+              <div v-for="index in 4" :key="index" class="bucket-row bucket-row--loading">
+                <el-skeleton-item variant="text" style="width: 40%" />
+                <el-skeleton-item variant="rect" style="height: 8px; flex: 1" />
+              </div>
+            </template>
+          </el-skeleton>
           <template v-else>
             <div v-for="item in browsers" :key="item.name" class="bucket-row">
               <div class="bucket-row__topline">
@@ -92,12 +94,14 @@
           <span class="bucket-card__tag">Top {{ operatingSystems.length }}</span>
         </div>
         <div class="bucket-list">
-          <template v-if="loading && operatingSystems.length === 0">
-            <div v-for="index in 4" :key="index" class="bucket-row bucket-row--loading">
-              <n-skeleton text style="width: 40%" />
-              <n-skeleton round style="height: 8px; flex: 1" />
-            </div>
-          </template>
+          <el-skeleton v-if="loading && operatingSystems.length === 0" animated>
+            <template #template>
+              <div v-for="index in 4" :key="index" class="bucket-row bucket-row--loading">
+                <el-skeleton-item variant="text" style="width: 40%" />
+                <el-skeleton-item variant="rect" style="height: 8px; flex: 1" />
+              </div>
+            </template>
+          </el-skeleton>
           <template v-else>
             <div v-for="item in operatingSystems" :key="item.name" class="bucket-row">
               <div class="bucket-row__topline">
@@ -117,7 +121,7 @@
 
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
-import { NEmpty, NRadioButton, NRadioGroup, NSkeleton, useMessage } from 'naive-ui'
+import { ElMessage } from 'element-plus'
 import { Icon } from '@iconify/vue'
 import { useRequest } from 'vue-request'
 import { getDeviceStats, type DeviceBucket, type DevicesStatsResponse } from '@/api/stats'
@@ -130,7 +134,6 @@ interface Props {
 }
 
 const props = defineProps<Props>()
-const message = useMessage()
 
 const timeRange = ref<TimeRangeValue>('30')
 const deviceStats = ref<DevicesStatsResponse | null>(null)
@@ -144,7 +147,7 @@ const { run: fetchDeviceStats, loading } = useRequest(
   {
     manual: true,
     onError: (error) => {
-      message.error(error instanceof Error ? error.message : '加载设备分析失败')
+      ElMessage.error(error instanceof Error ? error.message : '加载设备分析失败')
     },
   },
 )

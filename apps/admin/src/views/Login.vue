@@ -17,15 +17,16 @@
           <p class="login-card__text">登录后可进入仪表盘、查看站点趋势并管理访问令牌。</p>
         </div>
 
-        <button
-          class="w-full btn-primary py-3 rounded-xl text-base"
-          :disabled="loading"
+        <el-button
+          type="primary"
+          size="large"
+          class="login-btn"
+          :loading="loading"
           @click="handleLogin"
         >
-          <Icon v-if="loading" icon="mdi:loading" class="text-xl animate-spin" />
-          <Icon v-else icon="mdi:github" class="text-xl" />
+          <Icon v-if="!loading" icon="mdi:github" class="text-xl mr-2" />
           <span>{{ loading ? '登录中...' : '使用 GitHub 登录' }}</span>
-        </button>
+        </el-button>
       </div>
 
       <p class="login-tips">
@@ -92,9 +93,12 @@ function handleLogin() {
   justify-content: center;
   width: 64px;
   height: 64px;
-  border-radius: 20px;
-  background: linear-gradient(135deg, #2563eb, #1d4ed8);
-  box-shadow: 0 12px 24px rgba(37, 99, 235, 0.22);
+  border-radius: 12px;
+  background: var(--accent-blue);
+}
+
+.login-btn {
+  width: 100%;
 }
 
 .login-title {
@@ -111,9 +115,9 @@ function handleLogin() {
 
 .login-card {
   border: 1px solid var(--border-soft);
-  border-radius: 16px;
+  border-radius: 8px;
   padding: 20px;
-  background: linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
+  background: var(--bg-tertiary);
 }
 
 .login-card__content {

@@ -11,13 +11,10 @@
       <p class="subtitle">页面找不到了</p>
       <p class="description">您访问的页面可能已被移除、更名或暂时不可用</p>
       
-      <button 
-        class="btn-primary px-8 py-3 rounded-xl font-medium flex items-center gap-2 mx-auto"
-        @click="router.push('/')"
-      >
-        <Icon icon="mdi:home" />
+      <el-button type="primary" size="large" class="mx-auto" @click="router.push('/')">
+        <Icon icon="mdi:home" class="mr-1" />
         返回首页
-      </button>
+      </el-button>
     </div>
   </div>
 </template>
@@ -43,7 +40,7 @@ const router = useRouter()
   background: var(--bg-secondary);
   border: 1px solid var(--border-soft);
   padding: 60px 80px;
-  border-radius: 24px;
+  border-radius: 8px;
   box-shadow: var(--shadow-card-hover);
 }
 
@@ -59,18 +56,14 @@ const router = useRouter()
   justify-content: center;
   width: 80px;
   height: 80px;
-  border-radius: 24px;
-  background: linear-gradient(135deg, #2563eb, #1d4ed8);
-  box-shadow: 0 12px 24px rgba(37, 99, 235, 0.18);
+  border-radius: 16px;
+  background: var(--accent-blue);
 }
 
 .title {
   font-size: 120px;
   font-weight: 800;
-  background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
+  color: var(--accent-blue);
   line-height: 1;
   margin: 0 0 16px 0;
 }
