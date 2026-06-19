@@ -2,17 +2,14 @@
   <el-container class="admin-shell">
     <el-aside :width="collapsed ? '64px' : '232px'" class="sidebar">
       <div class="sidebar-header">
-        <div v-if="!collapsed" class="logo-full">
+        <div class="logo-full">
           <div class="logo-mark">
             <Icon icon="mdi:chart-box-outline" class="text-xl" />
           </div>
-          <div class="min-w-0">
+          <div class="logo-title" :class="{ 'logo-title--hidden': collapsed }">
             <div class="logo-text">LiteTrack</div>
             <div class="logo-subtitle">Admin Console</div>
           </div>
-        </div>
-        <div v-else class="logo-mark">
-          <Icon icon="mdi:chart-box-outline" class="text-xl" />
         </div>
       </div>
 
@@ -37,8 +34,15 @@
       <el-header class="header">
         <div class="header-main">
           <div class="header-title-group">
-            <el-button text class="collapse-btn" @click="collapsed = !collapsed">
-              <Icon :icon="collapsed ? 'mdi:menu' : 'mdi:menu-open'" class="text-xl" />
+            <el-button
+              text
+              class="collapse-btn"
+              @click="collapsed = !collapsed"
+            >
+              <Icon
+                :icon="collapsed ? 'mdi:menu' : 'mdi:menu-open'"
+                class="text-xl"
+              />
             </el-button>
             <div>
               <h2 class="header-title">{{ pageTitle }}</h2>
@@ -80,35 +84,35 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
-import { Icon } from '@iconify/vue'
-import { useAuthStore } from '@/stores/auth'
+import { computed, ref } from 'vue';
+import { useRoute, useRouter } from 'vue-router';
+import { Icon } from '@iconify/vue';
+import { useAuthStore } from '@/stores/auth';
 
-const route = useRoute()
-const router = useRouter()
-const authStore = useAuthStore()
+const route = useRoute();
+const router = useRouter();
+const authStore = useAuthStore();
 
-const collapsed = ref(false)
+const collapsed = ref(false);
 
 interface MenuItem {
-  label: string
-  key: string
-  icon: string
+  label: string;
+  key: string;
+  icon: string;
 }
 
 const menuOptions: MenuItem[] = [
   { label: '仪表盘', key: 'Dashboard', icon: 'mdi:view-dashboard' },
   { label: '网站管理', key: 'Sites', icon: 'mdi:web' },
   { label: 'SDK 版本', key: 'SdkVersions', icon: 'mdi:package-variant-closed' },
-]
+];
 
 const activeKey = computed(() => {
   if (route.name === 'SiteDetail') {
-    return 'Sites'
+    return 'Sites';
   }
-  return route.name as string
-})
+  return route.name as string;
+});
 
 const pageTitle = computed(() => {
   const titles: Record<string, string> = {
@@ -116,27 +120,25 @@ const pageTitle = computed(() => {
     Sites: '网站管理',
     SiteDetail: '网站详情',
     SdkVersions: 'SDK 版本',
-  }
-  return titles[route.name as string] || 'LiteTrack'
-})
+  };
+  return titles[route.name as string] || 'LiteTrack';
+});
 
 const avatarFallback = computed(
   () =>
     `https://ui-avatars.com/api/?name=${authStore.username}&background=2563EB&color=fff`,
-)
+);
 
 function handleMenuSelect(key: string) {
-  void router.push({ name: key })
+  void router.push({ name: key });
 }
 
 function handleUserAction(command: string) {
   if (command === 'logout') {
-    authStore.logout()
-    void router.push('/login')
+    authStore.logout();
+    void router.push('/login');
   }
 }
-
-
 </script>
 
 <style scoped>
@@ -155,16 +157,17 @@ function handleUserAction(command: string) {
   height: 60px;
   display: flex;
   align-items: center;
-  justify-content: center;
   border-bottom: 1px solid var(--border-soft);
+  overflow: hidden;
 }
 
 .logo-full {
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 0 16px;
+  padding: 0 14px;
   width: 100%;
+  overflow: hidden;
 }
 
 .logo-mark {
@@ -177,6 +180,22 @@ function handleUserAction(command: string) {
   border-radius: 8px;
   background: var(--accent-blue);
   color: var(--text-inverse);
+}
+
+.logo-title {
+  overflow: hidden;
+  max-width: 180px;
+  opacity: 1;
+  white-space: nowrap;
+  min-width: 0;
+  transition:
+    max-width 0.25s ease,
+    opacity 0.2s ease;
+}
+
+.logo-title--hidden {
+  max-width: 0;
+  opacity: 0;
 }
 
 .logo-text {
@@ -207,12 +226,22 @@ function handleUserAction(command: string) {
 }
 
 .menu-icon {
-  font-size: 18px;
+  font-size: 20px;
   margin-right: 10px;
+  flex-shrink: 0;
 }
 
-.el-menu--collapse .menu-icon {
+:deep(.el-menu--collapse .el-menu-item) {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 0 !important;
+  width: 100%;
+}
+
+:deep(.el-menu--collapse) .menu-icon {
   margin-right: 0;
+  font-size: 22px;
 }
 
 .main-layout {
