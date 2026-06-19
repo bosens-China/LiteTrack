@@ -21,7 +21,7 @@ const corsPlugin: FastifyPluginAsync = async (fastify: FastifyInstance) => {
     origin,
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization', 'X-Site-Token'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Site-Token', 'X-LiteTrack-SDK'],
   })
 }
 
