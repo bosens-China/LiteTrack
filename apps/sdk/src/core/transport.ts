@@ -1,6 +1,7 @@
 import { buildApiUrl } from './env';
 import { createLiteTrackError, reportLiteTrackError } from './errors';
 import type { LiteTrackError } from './types';
+import { API_PREFIX, SDK_VERSION } from './version';
 
 interface TransportOptions {
   baseUrl: string;
@@ -37,7 +38,7 @@ export function createTransport(options: TransportOptions): Transport {
         });
       }
 
-      const url = buildApiUrl(options.baseUrl, endpoint, query);
+      const url = buildApiUrl(options.baseUrl, `${API_PREFIX}${endpoint}`, query);
 
       let response: Response;
       try {
@@ -45,6 +46,7 @@ export function createTransport(options: TransportOptions): Transport {
           method: 'GET',
           headers: {
             'X-Site-Token': options.siteToken,
+            'X-LiteTrack-SDK': SDK_VERSION,
           },
         });
       } catch (cause) {
@@ -94,13 +96,14 @@ export function createTransport(options: TransportOptions): Transport {
         return;
       }
 
-      const url = buildApiUrl(options.baseUrl, endpoint);
+      const url = buildApiUrl(options.baseUrl, `${API_PREFIX}${endpoint}`);
 
       void fetch(url, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'X-Site-Token': options.siteToken,
+          'X-LiteTrack-SDK': SDK_VERSION,
         },
         body: JSON.stringify(payload),
         keepalive: true,

@@ -14,13 +14,13 @@
 ```ts
 const tracker = LiteTrack.create({
   siteToken: 'st_xxx',
-  baseUrl: 'https://your-api.com/litetrack/v1',
+  baseUrl: 'https://your-api.com',
   autoPageview: true,
   autoReadProgress: true,
 });
 ```
 
-`baseUrl` 必填，SDK 不再内置默认线上地址。
+`baseUrl` 必填，只需填服务器源（如 `https://your-api.com`），**不要**带 `/litetrack/v1` 前缀。SDK 会按自身大版本号自动拼接 API 版本前缀：1.x 请求 `/litetrack/v1`，2.x 请求 `/litetrack/v2`，以此保证 SDK 与后端 API 版本始终对齐。SDK 不再内置默认线上地址。
 
 ## 浏览器 script 引入
 
@@ -30,7 +30,7 @@ const tracker = LiteTrack.create({
   window.addEventListener('load', function () {
     window.LiteTrack.create({
       siteToken: 'st_xxx',
-      baseUrl: 'https://your-api.com/litetrack/v1',
+      baseUrl: 'https://your-api.com',
       autoPageview: true,
       autoReadProgress: true
     })
@@ -45,7 +45,7 @@ const tracker = LiteTrack.create({
 ```ts
 const tracker = LiteTrack.create({
   siteToken: 'st_xxx',
-  baseUrl: 'https://your-api.com/litetrack/v1',
+  baseUrl: 'https://your-api.com',
   autoPageview: true,
   autoReadProgress: true,
   readProgressMilestones: [25, 50, 75, 100],
@@ -65,7 +65,7 @@ const tracker = LiteTrack.create({
 | 参数 | 说明 |
 | ---- | ---- |
 | `siteToken` | 站点令牌，必填 |
-| `baseUrl` | API 基础地址，必填，例如 `https://your-api.com/litetrack/v1` |
+| `baseUrl` | API 服务器源，必填，例如 `https://your-api.com`（不带版本前缀，SDK 自动按版本拼接） |
 | `autoPageview` | 默认 `true`，创建后自动上报首屏 PV |
 | `autoReadProgress` | 默认 `false`，自动监听滚动与离开事件 |
 | `readProgressMilestones` | 阅读深度里程碑，默认 `[25, 50, 75, 100]` |
@@ -166,11 +166,13 @@ tracker.destroy()
 
 ## 默认请求路径
 
-SDK 会基于你传入的 `baseUrl` 拼出以下接口：
+SDK 会基于 `baseUrl` 加上按版本推导的前缀 `/litetrack/v{major}` 拼出以下接口（以 1.x 为例）：
 
-- 页面访问上报：`${baseUrl}/track`
-- 阅读深度上报：`${baseUrl}/track/read-progress`
-- 公开统计查询：`${baseUrl}/track/stats`
+- 页面访问上报：`${baseUrl}/litetrack/v1/track`
+- 阅读深度上报：`${baseUrl}/litetrack/v1/track/read-progress`
+- 公开统计查询：`${baseUrl}/litetrack/v1/track/stats`
+
+所有请求都会带 `X-LiteTrack-SDK: <版本号>` 请求头，便于后端统计各 SDK 版本使用情况。
 
 ## 错误处理
 

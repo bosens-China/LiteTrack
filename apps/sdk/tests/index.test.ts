@@ -117,7 +117,7 @@ describe('create', () => {
   it('auto tracks pageview and first read milestone', () => {
     create({
       siteToken: 'st_test',
-      baseUrl: 'https://api.example.com/litetrack/v1',
+      baseUrl: 'https://api.example.com',
       autoReadProgress: true,
       identity: {
         visitorId: 'visitor-1',
@@ -151,7 +151,7 @@ describe('create', () => {
   it('resets reading milestones after navigate in SPA usage', () => {
     const tracker = create({
       siteToken: 'st_test',
-      baseUrl: 'https://api.example.com/litetrack/v1',
+      baseUrl: 'https://api.example.com',
       autoReadProgress: true,
       readProgressMilestones: [25, 50],
       identity: {
@@ -195,7 +195,7 @@ describe('create', () => {
 
     const tracker = create({
       siteToken: 'st_test',
-      baseUrl: 'https://api.example.com/litetrack/v1',
+      baseUrl: 'https://api.example.com',
       autoPageview: false,
       autoReadProgress: false,
     });
@@ -230,7 +230,7 @@ describe('create', () => {
 
     const tracker = create({
       siteToken: 'st_test',
-      baseUrl: 'https://api.example.com/litetrack/v1',
+      baseUrl: 'https://api.example.com',
       autoPageview: false,
       autoReadProgress: false,
       onError(error) {
@@ -252,7 +252,7 @@ describe('create', () => {
   it('only flushes read progress on visibilitychange when document becomes hidden', () => {
     const tracker = create({
       siteToken: 'st_test',
-      baseUrl: 'https://api.example.com/litetrack/v1',
+      baseUrl: 'https://api.example.com',
       autoReadProgress: true,
       autoPageview: false,
       identity: {
@@ -279,7 +279,7 @@ describe('create', () => {
   it('supports manual page, read and identify calls', () => {
     const tracker = create({
       siteToken: 'st_test',
-      baseUrl: 'https://api.example.com/litetrack/v1',
+      baseUrl: 'https://api.example.com',
       autoPageview: false,
       autoReadProgress: false,
       identity: {
@@ -328,7 +328,7 @@ describe('stats', () => {
 
     const tracker = create({
       siteToken: 'st_test',
-      baseUrl: 'https://api.example.com/litetrack/v1',
+      baseUrl: 'https://api.example.com',
       autoPageview: false,
       autoReadProgress: false,
     });
@@ -341,6 +341,7 @@ describe('stats', () => {
         method: 'GET',
         headers: {
           'X-Site-Token': 'st_test',
+          'X-LiteTrack-SDK': '1.0.0-dev',
         },
       },
     );
@@ -361,7 +362,7 @@ describe('stats', () => {
 
     const tracker = create({
       siteToken: 'st_test',
-      baseUrl: 'https://api.example.com/litetrack/v1',
+      baseUrl: 'https://api.example.com',
       autoPageview: false,
       autoReadProgress: false,
     });
@@ -388,7 +389,7 @@ describe('stats', () => {
 
     const tracker = create({
       siteToken: 'st_test',
-      baseUrl: 'https://api.example.com/litetrack/v1',
+      baseUrl: 'https://api.example.com',
       autoPageview: false,
       autoReadProgress: false,
       onError(error) {

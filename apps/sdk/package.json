@@ -1,6 +1,6 @@
 {
   "name": "litetrack-sdk",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "description": "LiteTrack analytics SDK - lightweight and framework-agnostic",
   "type": "module",
   "files": [
@@ -11,7 +11,8 @@
     "dev": "tsdown --watch",
     "type-check": "tsc --noEmit",
     "lint": "eslint src",
-    "test": "vitest run"
+    "test": "vitest run",
+    "publish-sdk": "node scripts/publish.mjs"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
