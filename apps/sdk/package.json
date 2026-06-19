@@ -1,11 +1,19 @@
 {
-  "name": "litetrack-sdk",
+  "name": "@boses/litetrack-sdk",
   "version": "1.0.0",
   "description": "LiteTrack analytics SDK - lightweight and framework-agnostic",
   "type": "module",
   "files": [
     "dist"
   ],
+  "exports": {
+    ".": {
+      "import": "./dist/index.mjs",
+      "types": "./dist/index.d.mts"
+    },
+    "./package.json": "./package.json"
+  },
+  "types": "./dist/index.d.mts",
   "scripts": {
     "build": "tsdown",
     "dev": "tsdown --watch",
@@ -13,6 +21,9 @@
     "lint": "eslint src",
     "test": "vitest run",
     "publish-sdk": "node scripts/publish.mjs"
+  },
+  "publishConfig": {
+    "access": "public"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
@@ -30,8 +41,5 @@
     "statistics",
     "sdk"
   ],
-  "license": "MIT",
-  "exports": {
-    "./package.json": "./package.json"
-  }
+  "license": "MIT"
 }
