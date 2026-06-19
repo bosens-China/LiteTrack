@@ -75,9 +75,9 @@ jobs:
         run: echo "No changes for server/admin/shared, skip building Docker images."
 
   sdk:
-    name: Build SDK and push dist
+    name: Build SDK and publish to admin/public
     runs-on: ubuntu-latest
-    needs: docker
+    # SDK 发版与 Docker 构建并行，互不阻塞
     permissions:
       contents: write
 
@@ -104,14 +104,22 @@ jobs:
       - name: Build SDK
         run: pnpm -C apps/sdk build
 
-      - name: Commit and push SDK dist if changed
+      - name: Read SDK version
+        id: sdk_version
+        run: echo "version=$(node -p "require('./apps/sdk/package.json').version")" >> "$GITHUB_OUTPUT"
+
+      - name: Publish versioned SDK + update manifest
+        run: node apps/sdk/scripts/publish.mjs
+
+      - name: Commit and push if changed
         run: |
-          if git status --porcelain apps/sdk/dist | grep .; then
+          VERSION="${{ steps.sdk_version.outputs.version }}"
+          if git status --porcelain apps/admin/public/sdk | grep .; then
             git config user.name "github-actions[bot]"
             git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-            git add apps/sdk/dist
-            git commit -m "chore: build sdk dist"
+            git add apps/admin/public/sdk
+            git commit -m "chore: publish sdk v${VERSION}"
             git push
           else
-            echo "No changes in apps/sdk/dist, skipping commit."
+            echo "SDK v${VERSION} already published, skipping commit."
           fi
