@@ -4,16 +4,22 @@
     <div class="insights-grid">
       <DeviceAnalytics :site-id="siteId" />
       <ReadingAnalytics :site-id="siteId" />
+      <ReferrersAnalytics :site-id="siteId" />
+      <BounceCard :site-id="siteId" />
     </div>
+    <DurationAnalytics :site-id="siteId" />
   </div>
 </template>
 
 <script setup lang="ts">
-import DeviceAnalytics from './DeviceAnalytics.vue'
-import ReadingAnalytics from './ReadingAnalytics.vue'
-import VisitorSummary from './VisitorSummary.vue'
+import BounceCard from './BounceCard.vue';
+import DeviceAnalytics from './DeviceAnalytics.vue';
+import DurationAnalytics from './DurationAnalytics.vue';
+import ReadingAnalytics from './ReadingAnalytics.vue';
+import ReferrersAnalytics from './ReferrersAnalytics.vue';
+import VisitorSummary from './VisitorSummary.vue';
 
-defineProps<{ siteId: number }>()
+defineProps<{ siteId: number }>();
 </script>
 
 <style scoped>

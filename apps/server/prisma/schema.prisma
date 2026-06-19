@@ -40,6 +40,7 @@ model Site {
   pageDailyVisitors PageDailyVisitor[]
   readProgress PageReadProgress[]
   accessLogs  AccessLog[]
+  durations   PageDuration[]
 
   @@unique([userId, domain])
   @@map("sites")
@@ -89,27 +90,46 @@ model DailyView {
 
 // 访问日志 - 记录每次访问的详细信息
 model AccessLog {
-  id        Int      @id @default(autoincrement())
-  siteId    Int      @map("site_id")
-  path      String   // 访问路径
-  title     String?  // 页面标题
-  ip        String?  // 访问者 IP
-  visitorId String?  @map("visitor_id")
-  sessionId String?  @map("session_id")
-  userAgent String?  @map("user_agent") // 用户代理
-  deviceType String? @map("device_type")
-  browser   String?
-  os        String?
-  referer   String?  // 来源页面
-  country   String?  // 国家（通过 IP 解析）
-  city      String?  // 城市
-  createdAt DateTime @default(now()) @map("created_at")
+  id          Int      @id @default(autoincrement())
+  siteId      Int      @map("site_id")
+  path        String
+  title       String?
+  ip          String?
+  visitorId   String?  @map("visitor_id")
+  sessionId   String?  @map("session_id")
+  userAgent   String?  @map("user_agent")
+  deviceType  String?  @map("device_type")
+  browser     String?
+  os          String?
+  referer     String?
+  language    String?  // 浏览器语言（如 zh-CN）
+  utmSource   String?  @map("utm_source")
+  utmMedium   String?  @map("utm_medium")
+  utmCampaign String?  @map("utm_campaign")
+  country     String?
+  city        String?
+  createdAt   DateTime @default(now()) @map("created_at")
 
   site Site @relation(fields: [siteId], references: [id], onDelete: Cascade)
 
   @@index([siteId, createdAt])
   @@index([siteId, path])
   @@map("access_logs")
+}
+
+model PageDuration {
+  id        Int      @id @default(autoincrement())
+  siteId    Int      @map("site_id")
+  path      String
+  date      String   // YYYY-MM-DD
+  visitorId String?  @map("visitor_id")
+  duration  Int      // 停留秒数
+  createdAt DateTime @default(now()) @map("created_at")
+
+  site Site @relation(fields: [siteId], references: [id], onDelete: Cascade)
+
+  @@index([siteId, path, date])
+  @@map("page_durations")
 }
 
 model DailyVisitor {
