@@ -1,5 +1,6 @@
 # AGENTS.md （AI规则指南）
 
+- prd文档在 `docs/prd.md` 中，每次变动需求后需要更新prd文档
 - 包管理工具使用 pnpm，此外这个项目是 monopore项目
 - 注意区分操作系统来决定调用的命令
 - 使用TS，避免出现any类型

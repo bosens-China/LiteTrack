@@ -78,15 +78,15 @@ SDK 大版本号与后端 API 版本前缀绑定：
 
 #### 3.1.1 页面访问上报（PV）
 
-- SDK 初始化时自动上报当前页面，无需手动调用。
-- SPA 场景通过 `tracker.navigate()` 手动触发，支持路由切换后刷新统计。
+- SDK **不自动上报**，由接入方在合适时机显式调用 `tracker.page()`。
+- 不传参时自动读取 `window.location.pathname` 和 `document.title`；SPA 场景在路由钩子中调用并传入当前路径。
 - 上报字段：`path`（标准化路径）、`title`、`visitorId`、`sessionId`。
 - 后端基于 `IP + siteId + path + 10s` 窗口限流，防止同一访客重复计数。
 
 #### 3.1.2 阅读深度上报
 
-- SDK 监听 `scroll` / `pagehide` / `visibilitychange`，在达到 25 / 50 / 75 / 100% 阅读位置时上报。
-- 里程碑可由接入方自定义（`readProgressMilestones` 选项）。
+- SDK **不内置滚动监听**，由接入方自行监听滚动事件并在适当时机调用 `tracker.read(percent)`。
+- 上报百分比（0–100），超出范围自动 clamp；路径不传时沿用上一次 `page()` 的路径。
 - 每个访客每天每页只保留最大深度，不重复写入。
 
 #### 3.1.3 访客识别
@@ -126,8 +126,9 @@ SDK 大版本号与后端 API 版本前缀绑定：
 ### 3.5 SDK 版本管理
 
 - 所有历史版本的 IIFE 均托管在 admin 静态服务（`/sdk/<version>/litetrack.min.js`）。
-- 每次发版由 CI 自动：构建 → 复制到 `apps/admin/public/sdk/<version>/` → 更新 `manifest.json`。
+- 每次发版由 CI 自动：构建 → 复制到 `apps/admin/public/sdk/<version>/` → 更新 `manifest.json` → 发布至 npm（`@boses/litetrack-sdk`）。
 - Admin 后台"SDK 版本"页面展示所有版本，含 SRI integrity、文件大小、一键复制接入代码。
+- npm 包同时提供 ESM 产物与完整 TypeScript 类型声明，供打包工具（Vite / webpack 等）直接 import 使用。
 
 ---
 
@@ -203,6 +204,8 @@ User
 
 ### 7.1 基本接入
 
+**方式一：CDN `<script>` 标签（IIFE）**
+
 ```html
 <!-- 推荐使用固定版本 + SRI 校验，确保可重现且安全 -->
 <script
@@ -211,13 +214,27 @@ User
   crossorigin="anonymous"
 ></script>
 <script>
-  window.LiteTrack.create({
+  const tracker = window.LiteTrack.create({
     siteToken: 'YOUR_SITE_TOKEN',
     baseUrl: 'https://your-domain.com',  // 只填服务器源，不带 /litetrack/v1
-    autoPageview: true,
-    autoReadProgress: true,
   })
+
+  // 在需要时手动上报
+  tracker.page()        // 上报当前页面访问
 </script>
+```
+
+**方式二：npm 包（ESM，适合打包工具）**
+
+```js
+import { create } from '@boses/litetrack-sdk'
+
+const tracker = create({
+  siteToken: 'YOUR_SITE_TOKEN',
+  baseUrl: 'https://your-domain.com',
+})
+
+tracker.page()
 ```
 
 ### 7.2 SDK 版本语义
@@ -230,12 +247,29 @@ User
 
 ### 7.3 SPA 接入
 
+SDK 不内置路由感知，由接入方在框架的路由钩子中调用：
+
 ```js
-// 路由切换时手动触发，保证 SPA 页面正确计数
-tracker.navigate({
-  path: '/new-page',
-  title: '新页面',
+// Vue Router
+router.afterEach((to) => {
+  tracker.page({ path: to.path, title: document.title })
 })
+
+// React Router（v6 loader / useEffect）
+useEffect(() => {
+  tracker.page({ path: location.pathname })
+}, [location.pathname])
+```
+
+阅读深度同理，在滚动回调中按需上报：
+
+```js
+window.addEventListener('scroll', () => {
+  const percent = Math.round(
+    ((window.scrollY + window.innerHeight) / document.body.scrollHeight) * 100
+  )
+  tracker.read(percent)
+}, { passive: true })
 ```
 
 ---
@@ -271,7 +305,6 @@ tracker.navigate({
 
 - [ ] 多成员协作（站点级别权限）
 - [ ] 告警规则（流量异常通知）
-- [ ] npm 包发布（供打包器直接 import 使用）
 - [ ] 更多 OAuth 提供商（Gitee、GitLab）
 
 ---
@@ -302,5 +335,5 @@ tracker.navigate({
 |---|---|
 | 后端 | Fastify 5 · Prisma 7 · PostgreSQL 16 · Redis 7 · Zod 4 |
 | 前端 | Vue 3 · Element Plus · Rsbuild · Pinia · Vue Router 4 |
-| SDK | TypeScript · tsdown（Rolldown）· IIFE |
+| SDK | TypeScript · tsdown（Rolldown）· IIFE + ESM · npm（@boses/litetrack-sdk） |
 | 基础设施 | Docker Compose · Nginx · GitHub Actions |
