@@ -80,6 +80,7 @@ jobs:
     # SDK 发版与 Docker 构建并行，互不阻塞
     permissions:
       contents: write
+      id-token: write  # npm provenance 溯源发布所需
 
     steps:
       - name: Checkout
@@ -95,8 +96,9 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version: 24
           cache: pnpm
+          registry-url: 'https://registry.npmjs.org'
 
       - name: Install dependencies
         run: pnpm install
@@ -122,4 +124,15 @@ jobs:
             git push
           else
             echo "SDK v${VERSION} already published, skipping commit."
+          fi
+
+      - name: Publish to npm
+        run: |
+          VERSION="${{ steps.sdk_version.outputs.version }}"
+          PUBLISHED=$(npm view @boses/litetrack-sdk@${VERSION} version 2>/dev/null || echo "")
+          if [ -z "$PUBLISHED" ]; then
+            pnpm -C apps/sdk publish --no-git-checks
+            echo "Published @boses/litetrack-sdk@${VERSION} to npm"
+          else
+            echo "@boses/litetrack-sdk@${VERSION} already exists on npm, skipping"
           fi
