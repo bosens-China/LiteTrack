@@ -1,0 +1,17 @@
+{
+  "channels": {
+    "v1": {
+      "latest": "1.0.0",
+      "url": "/sdk/1.0.0/litetrack.min.js"
+    }
+  },
+  "versions": [
+    {
+      "version": "1.0.0",
+      "apiVersion": "v1",
+      "url": "/sdk/1.0.0/litetrack.min.js",
+      "integrity": "sha384-v9euAngbUshAgucjc11ybYWoRfODAcutSXlh6l1OIHc1mnK5dsw4Tsj643rsWrZ0",
+      "size": 5896
+    }
+  ]
+}
