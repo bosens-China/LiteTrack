@@ -1,6 +1,15 @@
 {
   "name": "LiteTrack",
   "devDependencies": {
+    "husky": "^9.1.7",
+    "lint-staged": "^17.0.7",
+    "prettier": "^3.8.1",
     "typescript": "^6.0.3"
+  },
+  "scripts": {
+    "prepare": "husky"
+  },
+  "lint-staged": {
+    "**/*.{ts,tsx,vue,js,mjs,mts,jsx,json,css,md}": "prettier --write"
   }
 }
