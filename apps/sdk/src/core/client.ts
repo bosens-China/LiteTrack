@@ -1,5 +1,4 @@
 import {
-  DEFAULT_READ_PROGRESS_MILESTONES,
   READ_PROGRESS_ENDPOINT,
   STATS_ENDPOINT,
   TRACK_ENDPOINT,
@@ -7,11 +6,7 @@ import {
 import {
   getCurrentPath,
   getPageTitle,
-  getReadPercent,
-  isBrowser,
-  isDocumentHidden,
   normalizeBaseUrl,
-  normalizeMilestones,
   normalizePath,
 } from './env';
 import { createLiteTrackError } from './errors';
@@ -19,7 +14,6 @@ import { createIdentityStore } from './identity';
 import { createTransport } from './transport';
 import type {
   LiteTrackCreateOptions,
-  NavigateInput,
   PageInput,
   PageStats,
   ReadInput,
@@ -75,6 +69,23 @@ function parsePageStatsResponse(response: PageStatsResponse, path: string): Page
   };
 }
 
+/**
+ * 创建一个 LiteTrack 追踪器实例。
+ *
+ * 初始化时不会自动发送任何请求，所有上报均需显式调用。
+ *
+ * @param options 初始化选项，`siteToken` 和 `baseUrl` 为必填项
+ * @returns Tracker 实例
+ *
+ * @example
+ * const tracker = create({
+ *   siteToken: 'st_abc123',
+ *   baseUrl: 'https://your-api.example.com',
+ * })
+ *
+ * // 在路由钩子中上报页面访问
+ * router.afterEach(() => tracker.page())
+ */
 export function create(options: LiteTrackCreateOptions): Tracker {
   const validated = assertCreateOptions(options);
   const transport = createTransport({
@@ -84,19 +95,9 @@ export function create(options: LiteTrackCreateOptions): Tracker {
     onError: options.onError,
   });
   const identityStore = createIdentityStore(options.identity);
-  const milestones = normalizeMilestones(
-    options.readProgressMilestones ?? DEFAULT_READ_PROGRESS_MILESTONES,
-  );
 
   let destroyed = false;
   let currentPath = getCurrentPath();
-  let sentMaxPercent = 0;
-  let sentMilestones = new Set<number>();
-
-  const resetReadProgressState = (): void => {
-    sentMaxPercent = 0;
-    sentMilestones = new Set<number>();
-  };
 
   const sendPageview = (input?: PageInput): void => {
     const path = normalizePath(input?.path ?? currentPath);
@@ -114,110 +115,31 @@ export function create(options: LiteTrackCreateOptions): Tracker {
     const path = normalizePath(input.path ?? currentPath);
     currentPath = path;
 
-    const nextPercent = Math.max(0, Math.min(100, Math.round(input.percent)));
-    if (nextPercent <= sentMaxPercent) {
-      return;
-    }
-
-    sentMaxPercent = nextPercent;
-
+    const percent = Math.max(0, Math.min(100, Math.round(input.percent)));
     const identity = identityStore.get();
     transport.post(READ_PROGRESS_ENDPOINT, {
       path,
-      maxDepth: nextPercent,
+      maxDepth: percent,
       visitorId: identity.visitorId,
       sessionId: identity.sessionId,
     });
   };
 
-  const handleScroll = (): void => {
-    if (destroyed) {
-      return;
-    }
-
-    const currentPercent = getReadPercent();
-
-    milestones.forEach((milestone) => {
-      if (currentPercent >= milestone && !sentMilestones.has(milestone)) {
-        sentMilestones.add(milestone);
-        sendReadProgress({ percent: milestone, path: currentPath });
-      }
-    });
-  };
-
-  const handlePageHide = (): void => {
-    if (destroyed) {
-      return;
-    }
-
-    sendReadProgress({
-      percent: getReadPercent(),
-      path: currentPath,
-    });
-  };
-
-  const handleVisibilityChange = (): void => {
-    if (!isDocumentHidden()) {
-      return;
-    }
-
-    handlePageHide();
-  };
-
-  if (options.autoPageview !== false) {
-    sendPageview();
-  }
-
-  if (options.autoReadProgress && isBrowser()) {
-    window.addEventListener('scroll', handleScroll, { passive: true });
-    window.addEventListener('pagehide', handlePageHide);
-    document.addEventListener('visibilitychange', handleVisibilityChange);
-    handleScroll();
-  }
-
   return {
     page(input) {
-      if (destroyed) {
-        return;
-      }
-
+      if (destroyed) return;
       sendPageview(input);
     },
     read(input) {
-      if (destroyed) {
-        return;
-      }
-
+      if (destroyed) return;
       if (typeof input === 'number') {
         sendReadProgress({ percent: input, path: currentPath });
         return;
       }
-
       sendReadProgress(input);
     },
-    navigate(input: NavigateInput) {
-      if (destroyed) {
-        return;
-      }
-
-      currentPath = normalizePath(input.path);
-
-      if (input.resetReadProgress !== false) {
-        resetReadProgressState();
-      }
-
-      if (input.trackPageview !== false) {
-        sendPageview({
-          path: currentPath,
-          title: input.title,
-        });
-      }
-    },
     identify(identity) {
-      if (destroyed) {
-        return;
-      }
-
+      if (destroyed) return;
       identityStore.set(identity);
     },
     stats: {
@@ -234,17 +156,7 @@ export function create(options: LiteTrackCreateOptions): Tracker {
       },
     },
     destroy() {
-      if (destroyed) {
-        return;
-      }
-
       destroyed = true;
-
-      if (options.autoReadProgress && isBrowser()) {
-        window.removeEventListener('scroll', handleScroll);
-        window.removeEventListener('pagehide', handlePageHide);
-        document.removeEventListener('visibilitychange', handleVisibilityChange);
-      }
     },
   };
 }

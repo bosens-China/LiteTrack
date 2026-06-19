@@ -44,55 +44,6 @@ export function getPageTitle(override?: string): string | undefined {
   return title || undefined;
 }
 
-export function clampPercent(value: number): number {
-  return Math.max(0, Math.min(100, Math.round(value)));
-}
-
-export function normalizeMilestones(values: readonly number[]): number[] {
-  return [...values]
-    .map((value) => clampPercent(value))
-    .filter((value, index, items) => items.indexOf(value) === index)
-    .sort((left, right) => left - right);
-}
-
-export function getReadPercent(): number {
-  if (!isBrowser()) {
-    return 0;
-  }
-
-  const body = document.body;
-  const documentElement = document.documentElement;
-
-  const viewportHeight = window.innerHeight || documentElement?.clientHeight || 0;
-  const documentHeight = Math.max(
-    body?.scrollHeight ?? 0,
-    body?.offsetHeight ?? 0,
-    documentElement?.scrollHeight ?? 0,
-    documentElement?.offsetHeight ?? 0,
-    documentElement?.clientHeight ?? 0,
-  );
-
-  if (documentHeight <= viewportHeight) {
-    return 100;
-  }
-
-  const scrollTop =
-    window.scrollY ||
-    documentElement?.scrollTop ||
-    body?.scrollTop ||
-    0;
-
-  return clampPercent(((scrollTop + viewportHeight) / documentHeight) * 100);
-}
-
-export function isDocumentHidden(): boolean {
-  if (!isBrowser()) {
-    return false;
-  }
-
-  return document.visibilityState === 'hidden';
-}
-
 export function buildApiUrl(
   baseUrl: string,
   endpoint: string,

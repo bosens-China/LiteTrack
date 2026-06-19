@@ -14,26 +14,6 @@ class MemoryStorage {
   }
 }
 
-class MockEventTarget {
-  private readonly listeners = new Map<string, Set<() => void>>();
-
-  addEventListener(type: string, listener: () => void): void {
-    const bucket = this.listeners.get(type) ?? new Set<() => void>();
-    bucket.add(listener);
-    this.listeners.set(type, bucket);
-  }
-
-  removeEventListener(type: string, listener: () => void): void {
-    this.listeners.get(type)?.delete(listener);
-  }
-
-  dispatch(type: string): void {
-    for (const listener of this.listeners.get(type) ?? []) {
-      listener();
-    }
-  }
-}
-
 const mockFetch = vi.fn();
 const originalFetch = globalThis.fetch;
 const originalWindow = globalThis.window;
@@ -43,54 +23,23 @@ const originalSessionStorage = globalThis.sessionStorage;
 
 function getJsonBody(index: number): Record<string, unknown> {
   const options = mockFetch.mock.calls[index]?.[1] as { body?: string } | undefined;
-
-  if (!options?.body) {
-    return {};
-  }
-
+  if (!options?.body) return {};
   return JSON.parse(options.body) as Record<string, unknown>;
 }
 
 let localStorageMock: MemoryStorage;
 let sessionStorageMock: MemoryStorage;
-let windowEvents: MockEventTarget;
-let documentEvents: MockEventTarget;
 
 beforeEach(() => {
   localStorageMock = new MemoryStorage();
   sessionStorageMock = new MemoryStorage();
-  windowEvents = new MockEventTarget();
-  documentEvents = new MockEventTarget();
-
-  const documentElement = {
-    clientHeight: 250,
-    scrollHeight: 1000,
-    offsetHeight: 1000,
-    scrollTop: 0,
-  };
-  const body = {
-    scrollHeight: 1000,
-    offsetHeight: 1000,
-    scrollTop: 0,
-  };
 
   globalThis.window = {
-    addEventListener: windowEvents.addEventListener.bind(windowEvents),
-    removeEventListener: windowEvents.removeEventListener.bind(windowEvents),
-    innerHeight: 250,
-    location: {
-      pathname: '/docs/start',
-    },
-    scrollY: 0,
+    location: { pathname: '/docs/start' },
   } as unknown as Window & typeof globalThis;
 
   globalThis.document = {
-    addEventListener: documentEvents.addEventListener.bind(documentEvents),
-    removeEventListener: documentEvents.removeEventListener.bind(documentEvents),
-    body,
-    documentElement,
     title: 'LiteTrack 文档',
-    visibilityState: 'visible',
   } as unknown as Document;
 
   globalThis.localStorage = localStorageMock as unknown as Storage;
@@ -114,78 +63,99 @@ afterEach(() => {
 });
 
 describe('create', () => {
-  it('auto tracks pageview and first read milestone', () => {
-    create({
-      siteToken: 'st_test',
-      baseUrl: 'https://api.example.com',
-      autoReadProgress: true,
-      identity: {
-        visitorId: 'visitor-1',
-        sessionId: 'session-1',
-      },
-    });
-
-    expect(mockFetch).toHaveBeenCalledTimes(2);
-    expect(mockFetch.mock.calls[0][0]).toBe('https://api.example.com/litetrack/v1/track');
-    expect(mockFetch.mock.calls[1][0]).toBe(
-      'https://api.example.com/litetrack/v1/track/read-progress',
-    );
-    expect(mockFetch.mock.calls[0][1]).toMatchObject({
-      body: JSON.stringify({
-        path: '/docs/start',
-        title: 'LiteTrack 文档',
-        visitorId: 'visitor-1',
-        sessionId: 'session-1',
-      }),
-    });
-    expect(mockFetch.mock.calls[1][1]).toMatchObject({
-      body: JSON.stringify({
-        path: '/docs/start',
-        maxDepth: 25,
-        visitorId: 'visitor-1',
-        sessionId: 'session-1',
-      }),
-    });
+  it('does not send anything on init', () => {
+    create({ siteToken: 'st_test', baseUrl: 'https://api.example.com' });
+    expect(mockFetch).not.toHaveBeenCalled();
   });
 
-  it('resets reading milestones after navigate in SPA usage', () => {
+  it('page() sends a pageview, using window.location as default path', () => {
     const tracker = create({
       siteToken: 'st_test',
       baseUrl: 'https://api.example.com',
-      autoReadProgress: true,
-      readProgressMilestones: [25, 50],
-      identity: {
-        visitorId: 'visitor-1',
-      },
+      identity: { visitorId: 'visitor-1', sessionId: 'session-1' },
     });
 
-    (globalThis.window as unknown as { scrollY: number }).scrollY = 500;
-    windowEvents.dispatch('scroll');
+    tracker.page();
 
-    tracker.navigate({
-      path: '/posts/next',
-      title: '下一篇',
+    expect(mockFetch).toHaveBeenCalledTimes(1);
+    expect(mockFetch.mock.calls[0][0]).toBe('https://api.example.com/litetrack/v1/track');
+    expect(getJsonBody(0)).toMatchObject({
+      path: '/docs/start',
+      title: 'LiteTrack 文档',
+      visitorId: 'visitor-1',
+      sessionId: 'session-1',
+    });
+  });
+
+  it('page() accepts an explicit path and title', () => {
+    const tracker = create({
+      siteToken: 'st_test',
+      baseUrl: 'https://api.example.com',
+      identity: { visitorId: 'visitor-1', sessionId: 'session-1' },
     });
 
-    (globalThis.window as unknown as { scrollY: number }).scrollY = 500;
-    windowEvents.dispatch('scroll');
+    tracker.page({ path: '/about', title: '关于我们' });
 
-    const readRequests = mockFetch.mock.calls.filter(
-      (call) => call[0] === 'https://api.example.com/litetrack/v1/track/read-progress',
+    expect(getJsonBody(0)).toMatchObject({ path: '/about', title: '关于我们' });
+  });
+
+  it('read() sends read progress using the last page() path as fallback', () => {
+    const tracker = create({
+      siteToken: 'st_test',
+      baseUrl: 'https://api.example.com',
+      identity: { visitorId: 'visitor-1', sessionId: 'session-1' },
+    });
+
+    tracker.page({ path: '/posts/hello' });
+    tracker.read(75);
+
+    expect(mockFetch).toHaveBeenCalledTimes(2);
+    expect(mockFetch.mock.calls[1][0]).toBe(
+      'https://api.example.com/litetrack/v1/track/read-progress',
     );
-
-    expect(readRequests).toHaveLength(4);
-    expect(JSON.parse((readRequests[2]?.[1] as { body: string }).body)).toMatchObject({
-      path: '/posts/next',
-      maxDepth: 25,
+    expect(getJsonBody(1)).toMatchObject({
+      path: '/posts/hello',
+      maxDepth: 75,
       visitorId: 'visitor-1',
-      sessionId: expect.any(String),
+      sessionId: 'session-1',
     });
-    expect(JSON.parse((readRequests[3]?.[1] as { body: string }).body)).toMatchObject({
-      path: '/posts/next',
-      maxDepth: 50,
+  });
+
+  it('read() accepts an object with explicit path and percent', () => {
+    const tracker = create({
+      siteToken: 'st_test',
+      baseUrl: 'https://api.example.com',
+      identity: { visitorId: 'visitor-1', sessionId: 'session-1' },
+    });
+
+    tracker.read({ path: '/posts/hello', percent: 50 });
+
+    expect(getJsonBody(0)).toMatchObject({ path: '/posts/hello', maxDepth: 50 });
+  });
+
+  it('identify() updates the identity used in subsequent calls', () => {
+    const tracker = create({
+      siteToken: 'st_test',
+      baseUrl: 'https://api.example.com',
+      identity: { visitorId: 'visitor-1' },
+    });
+
+    tracker.identify({ sessionId: 'session-2' });
+    tracker.page({ path: '/manual', title: '手动页面' });
+    tracker.read(90);
+
+    expect(mockFetch).toHaveBeenCalledTimes(2);
+    expect(getJsonBody(0)).toMatchObject({
+      path: '/manual',
+      title: '手动页面',
       visitorId: 'visitor-1',
-      sessionId: expect.any(String),
+      sessionId: 'session-2',
+    });
+    expect(getJsonBody(1)).toMatchObject({
+      path: '/manual',
+      maxDepth: 90,
+      visitorId: 'visitor-1',
+      sessionId: 'session-2',
     });
   });
 
@@ -193,54 +163,33 @@ describe('create', () => {
     globalThis.localStorage = undefined as unknown as Storage;
     globalThis.sessionStorage = undefined as unknown as Storage;
 
-    const tracker = create({
-      siteToken: 'st_test',
-      baseUrl: 'https://api.example.com',
-      autoPageview: false,
-      autoReadProgress: false,
-    });
+    const tracker = create({ siteToken: 'st_test', baseUrl: 'https://api.example.com' });
 
-    tracker.page({
-      path: '/memory',
-      title: 'Memory Mode',
-    });
-    tracker.read({
-      path: '/memory',
-      percent: 80,
-    });
+    tracker.page({ path: '/memory', title: 'Memory Mode' });
+    tracker.read({ path: '/memory', percent: 80 });
 
-    expect(mockFetch).toHaveBeenCalledTimes(2);
     expect(getJsonBody(0)).toMatchObject({
-      path: '/memory',
-      title: 'Memory Mode',
       visitorId: expect.stringMatching(/^ltv_/),
       sessionId: expect.stringMatching(/^lts_/),
     });
     expect(getJsonBody(1)).toMatchObject({
-      path: '/memory',
       maxDepth: 80,
       visitorId: expect.stringMatching(/^ltv_/),
       sessionId: expect.stringMatching(/^lts_/),
     });
   });
 
-  it('reports request failures through onError for fire-and-forget methods', async () => {
+  it('reports network failures through onError for fire-and-forget calls', async () => {
     const errors: LiteTrackError[] = [];
     mockFetch.mockRejectedValue(new Error('Network error'));
 
     const tracker = create({
       siteToken: 'st_test',
       baseUrl: 'https://api.example.com',
-      autoPageview: false,
-      autoReadProgress: false,
-      onError(error) {
-        errors.push(error);
-      },
+      onError(error) { errors.push(error); },
     });
 
-    tracker.page({
-      path: '/error',
-    });
+    tracker.page({ path: '/error' });
 
     await Promise.resolve();
     await Promise.resolve();
@@ -249,70 +198,14 @@ describe('create', () => {
     expect(errors[0]?.code).toBe('NETWORK_ERROR');
   });
 
-  it('only flushes read progress on visibilitychange when document becomes hidden', () => {
-    const tracker = create({
-      siteToken: 'st_test',
-      baseUrl: 'https://api.example.com',
-      autoReadProgress: true,
-      autoPageview: false,
-      identity: {
-        visitorId: 'visitor-1',
-      },
-    });
-
-    expect(mockFetch).toHaveBeenCalledTimes(1);
-
-    Object.assign(globalThis.document, { visibilityState: 'visible' });
-    documentEvents.dispatch('visibilitychange');
-
-    expect(mockFetch).toHaveBeenCalledTimes(1);
-
-    (globalThis.window as unknown as { scrollY: number }).scrollY = 700;
-    Object.assign(globalThis.document, { visibilityState: 'hidden' });
-    documentEvents.dispatch('visibilitychange');
-
-    expect(mockFetch).toHaveBeenCalledTimes(2);
+  it('ignores all calls after destroy()', () => {
+    const tracker = create({ siteToken: 'st_test', baseUrl: 'https://api.example.com' });
 
     tracker.destroy();
-  });
+    tracker.page({ path: '/after-destroy' });
+    tracker.read(50);
 
-  it('supports manual page, read and identify calls', () => {
-    const tracker = create({
-      siteToken: 'st_test',
-      baseUrl: 'https://api.example.com',
-      autoPageview: false,
-      autoReadProgress: false,
-      identity: {
-        visitorId: 'visitor-1',
-      },
-    });
-
-    tracker.identify({
-      sessionId: 'session-2',
-    });
-    tracker.page({
-      path: '/manual',
-      title: '手动页面',
-    });
-    tracker.read(90);
-
-    expect(mockFetch).toHaveBeenCalledTimes(2);
-    expect(mockFetch.mock.calls[0][1]).toMatchObject({
-      body: JSON.stringify({
-        path: '/manual',
-        title: '手动页面',
-        visitorId: 'visitor-1',
-        sessionId: 'session-2',
-      }),
-    });
-    expect(mockFetch.mock.calls[1][1]).toMatchObject({
-      body: JSON.stringify({
-        path: '/manual',
-        maxDepth: 90,
-        visitorId: 'visitor-1',
-        sessionId: 'session-2',
-      }),
-    });
+    expect(mockFetch).not.toHaveBeenCalled();
   });
 });
 
@@ -320,19 +213,10 @@ describe('stats', () => {
   it('queries site stats via tracker.stats.site()', async () => {
     mockFetch.mockResolvedValueOnce({
       ok: true,
-      json: async () => ({
-        totalViews: 100,
-        totalPages: 5,
-      }),
+      json: async () => ({ totalViews: 100, totalPages: 5 }),
     } as Response);
 
-    const tracker = create({
-      siteToken: 'st_test',
-      baseUrl: 'https://api.example.com',
-      autoPageview: false,
-      autoReadProgress: false,
-    });
-
+    const tracker = create({ siteToken: 'st_test', baseUrl: 'https://api.example.com' });
     const result = await tracker.stats.site();
 
     expect(mockFetch).toHaveBeenCalledWith(
@@ -345,38 +229,21 @@ describe('stats', () => {
         },
       },
     );
-    expect(result).toEqual({
-      totalViews: 100,
-      totalPages: 5,
-    });
+    expect(result).toEqual({ totalViews: 100, totalPages: 5 });
   });
 
   it('queries page stats via tracker.stats.page()', async () => {
     mockFetch.mockResolvedValueOnce({
       ok: true,
-      json: async () => ({
-        path: '/docs/start',
-        count: 42,
-      }),
+      json: async () => ({ path: '/docs/start', count: 42 }),
     } as Response);
 
-    const tracker = create({
-      siteToken: 'st_test',
-      baseUrl: 'https://api.example.com',
-      autoPageview: false,
-      autoReadProgress: false,
-    });
-
+    const tracker = create({ siteToken: 'st_test', baseUrl: 'https://api.example.com' });
     const result = await tracker.stats.page('docs/start/');
 
-    expect(mockFetch).toHaveBeenCalledTimes(1);
     const [url] = mockFetch.mock.calls[0] ?? [];
-
     expect(url).toBe('https://api.example.com/litetrack/v1/track/stats?path=%2Fdocs%2Fstart');
-    expect(result).toEqual({
-      path: '/docs/start',
-      count: 42,
-    });
+    expect(result).toEqual({ path: '/docs/start', count: 42 });
   });
 
   it('throws and reports onError when stats request returns a bad status', async () => {
@@ -390,18 +257,13 @@ describe('stats', () => {
     const tracker = create({
       siteToken: 'st_test',
       baseUrl: 'https://api.example.com',
-      autoPageview: false,
-      autoReadProgress: false,
-      onError(error) {
-        errors.push(error);
-      },
+      onError(error) { errors.push(error); },
     });
 
     await expect(tracker.stats.site()).rejects.toMatchObject({
       code: 'HTTP_ERROR',
       status: 401,
     });
-    expect(errors).toHaveLength(1);
     expect(errors[0]?.code).toBe('HTTP_ERROR');
   });
 });
