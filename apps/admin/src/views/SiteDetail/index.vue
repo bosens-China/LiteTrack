@@ -1,118 +1,104 @@
 <template>
-  <div class="min-h-full page-shell">
-    <el-skeleton v-if="loading" animated>
-      <template #template>
-        <div class="site-detail-grid">
-          <div class="full-width">
-            <div class="glass-card p-6">
-              <el-skeleton-item variant="text" style="width: 30%; height: 32px" />
-              <el-skeleton-item variant="text" style="width: 50%; margin-top: 12px" />
-            </div>
-          </div>
-          <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5 full-width">
-            <div class="glass-card p-5">
-              <el-skeleton-item variant="rect" style="height: 80px" />
-            </div>
-            <div class="glass-card p-5">
-              <el-skeleton-item variant="rect" style="height: 80px" />
-            </div>
-            <div class="glass-card p-5">
-              <el-skeleton-item variant="rect" style="height: 80px" />
-            </div>
-          </div>
-          <div class="glass-card p-5 full-width" style="height: 400px">
-            <el-skeleton-item variant="rect" style="height: 100%" />
-          </div>
-          <div class="glass-card p-5 full-width" style="height: 520px">
-            <el-skeleton-item variant="rect" style="height: 100%" />
-          </div>
-          <div class="content-row bottom-row">
-            <div class="glass-card p-5 logs-section" style="height: 400px">
-              <el-skeleton-item variant="rect" style="height: 100%" />
-            </div>
-            <div class="glass-card p-5 tokens-section" style="height: 400px">
-              <el-skeleton-item variant="rect" style="height: 100%" />
-            </div>
+  <div v-if="loading" style="padding: 24px">
+    <el-skeleton animated :rows="8" />
+  </div>
+
+  <template v-else-if="site">
+    <SiteHeader :site="site" @edit="openEditModal" />
+
+    <el-tabs v-model="activeTab" style="margin-top: 16px">
+      <el-tab-pane label="概览" name="overview">
+        <div class="flex flex-col gap-4">
+          <StatCards :stats="stats" :today-views="todayViews" :loading="statsLoading" />
+          <div class="overview-row">
+            <TrendChart :site-id="siteId" class="trend-col" />
+            <PopularPages :site-id="siteId" class="pages-col" />
           </div>
         </div>
-      </template>
-    </el-skeleton>
+      </el-tab-pane>
 
-    <!-- 正常内容 -->
-    <div v-else-if="site" class="site-detail-grid">
-      <SiteHeader 
-        :site="site" 
-        @edit="openEditModal"
-        class="full-width"
-      />
-      
-      <StatCards 
-        :stats="stats" 
-        :today-views="todayViews"
-        :loading="statsLoading"
-        class="full-width"
-      />
-      
-      <div class="content-row">
-        <TrendChart :site-id="siteId" class="trend-section" />
-        <PopularPages :site-id="siteId" class="pages-section" />
-      </div>
+      <el-tab-pane label="受众分析" name="audience">
+        <AudienceInsights :site-id="siteId" />
+      </el-tab-pane>
 
-      <AudienceInsights :site-id="siteId" class="full-width" />
+      <el-tab-pane label="访问日志" name="logs">
+        <AccessLogs :site-id="siteId" />
+      </el-tab-pane>
 
-      <div class="content-row bottom-row">
-        <AccessLogs :site-id="siteId" class="logs-section" />
-        <TokenList 
-          :tokens="site.tokens"
-          @create="showTokenModal = true"
-          @delete="deleteToken"
-          @edit="openEditTokenModal"
-          class="tokens-section"
-        />
-      </div>
+      <el-tab-pane label="设置" name="settings">
+        <div class="flex flex-col gap-4">
+          <el-card shadow="never">
+            <template #header>
+              <div class="flex items-center justify-between">
+                <span class="font-medium">基本信息</span>
+                <el-button size="small" @click="openEditModal">
+                  <Icon icon="mdi:pencil" class="mr-1" />编辑
+                </el-button>
+              </div>
+            </template>
+            <el-descriptions :column="2" border>
+              <el-descriptions-item label="站点名称">
+                {{ site.title || '—' }}
+              </el-descriptions-item>
+              <el-descriptions-item label="域名">
+                <span class="font-mono text-sm">{{ site.domain }}</span>
+              </el-descriptions-item>
+              <el-descriptions-item label="描述" :span="2">
+                {{ site.description || '暂无描述' }}
+              </el-descriptions-item>
+              <el-descriptions-item label="创建时间">{{ formatDate(site.createdAt) }}</el-descriptions-item>
+              <el-descriptions-item label="最后更新">{{ formatDate(site.updatedAt) }}</el-descriptions-item>
+            </el-descriptions>
+          </el-card>
 
-      <SiteEditModal
-        v-model:show="showEditModal"
-        v-model:title="editSiteTitle"
-        v-model:description="editSiteDescription"
-        :updating="updating"
-        @save="handleUpdate"
-      />
+          <TokenList
+            :tokens="site.tokens"
+            @create="showTokenModal = true"
+            @delete="deleteToken"
+            @edit="openEditTokenModal"
+          />
+        </div>
+      </el-tab-pane>
+    </el-tabs>
 
-      <!-- 创建令牌弹窗 -->
-      <TokenModal
-        v-model:show="showTokenModal"
-        :created-token="createdToken"
-        :creating="creatingToken"
-        @create="handleCreateToken"
-        @close="resetTokenModal"
-      />
+    <SiteEditModal
+      v-model:show="showEditModal"
+      v-model:title="editSiteTitle"
+      v-model:description="editSiteDescription"
+      :updating="updating"
+      @save="handleUpdate"
+    />
 
-      <TokenEditModal
-        v-model:show="showEditTokenModal"
-        v-model:name="editTokenName"
-        v-model:description="editTokenDescription"
-        :updating="updatingToken"
-        @save="handleUpdateToken"
-      />
-    </div>
+    <TokenModal
+      v-model:show="showTokenModal"
+      :created-token="createdToken"
+      :creating="creatingToken"
+      @create="handleCreateToken"
+      @close="resetTokenModal"
+    />
 
-    <div v-else class="flex items-center justify-center min-h-[60vh]">
-      <el-empty description="网站不存在或已被删除">
-        <el-button type="primary" @click="router.push('/sites')">
-          返回网站列表
-        </el-button>
-      </el-empty>
-    </div>
+    <TokenEditModal
+      v-model:show="showEditTokenModal"
+      v-model:name="editTokenName"
+      v-model:description="editTokenDescription"
+      :updating="updatingToken"
+      @save="handleUpdateToken"
+    />
+  </template>
+
+  <div v-else style="min-height: 60vh; display: flex; align-items: center; justify-content: center">
+    <el-empty description="网站不存在或已被删除">
+      <el-button type="primary" @click="router.push('/sites')">返回网站列表</el-button>
+    </el-empty>
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import { Icon } from '@iconify/vue'
 import { useSiteDetailPage } from '@/composables/site-detail/useSiteDetailPage'
 
-// 子组件导入
 import SiteHeader from './SiteHeader.vue'
 import StatCards from './StatCards.vue'
 import TrendChart from './TrendChart.vue'
@@ -128,6 +114,7 @@ const route = useRoute()
 const router = useRouter()
 
 const siteId = computed(() => parseInt(route.params.id as string, 10))
+const activeTab = ref('overview')
 
 const {
   createdToken,
@@ -154,102 +141,37 @@ const {
   updating,
   updatingToken,
 } = useSiteDetailPage(() => siteId.value)
+
+function formatDate(date: string | Date): string {
+  return new Date(date).toLocaleDateString('zh-CN', {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+  })
+}
 </script>
 
 <style scoped>
-.site-detail-grid {
+.overview-row {
   display: flex;
   flex-direction: column;
-  gap: 1.25rem;
+  gap: 16px;
 }
 
-.full-width {
-  width: 100%;
-}
-
-/* 内容行：默认垂直堆叠 */
-.content-row {
-  display: flex;
-  flex-direction: column;
-  gap: 1.25rem;
-}
-
-.trend-section,
-.pages-section {
-  flex: 1;
-  min-width: 0;
-}
-
-/* 大屏 (>1440px): 趋势图和热门页面并排 */
 @media (min-width: 1440px) {
-  .site-detail-grid {
-    gap: 1.5rem;
-  }
-  
-  .content-row {
+  .overview-row {
     flex-direction: row;
     align-items: stretch;
   }
-  
-  .trend-section {
-    flex: 1.5;
-  }
-  
-  .pages-section {
-    flex: 1;
-    max-width: 420px;
-  }
-}
 
-/* 底部行：日志和令牌默认堆叠 */
-.bottom-row {
-  display: flex;
-  flex-direction: column;
-  gap: 1.25rem;
-}
-
-.logs-section,
-.tokens-section {
-  flex: 1;
-  min-width: 0;
-}
-
-/* 大屏 (>1440px): 日志和令牌并排 */
-@media (min-width: 1440px) {
-  .bottom-row {
-    flex-direction: row;
-    align-items: stretch;
-  }
-  
-  /* 与上方「访问趋势 : 热门页面」列宽比例一致（1.5 : 1） */
-  .logs-section {
+  .trend-col {
     flex: 1.5;
     min-width: 0;
   }
 
-  .tokens-section {
+  .pages-col {
     flex: 1;
     max-width: 420px;
   }
 }
-
-/* 超大屏 (>1920px): 更宽松的间距 */
-@media (min-width: 1920px) {
-  .site-detail-grid {
-    gap: 1.75rem;
-  }
-  
-  .content-row {
-    gap: 1.75rem;
-  }
-  
-  .pages-section {
-    max-width: 480px;
-  }
-  
-  .tokens-section {
-    max-width: 480px;
-  }
-}
-
 </style>

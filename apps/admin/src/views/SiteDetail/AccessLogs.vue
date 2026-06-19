@@ -1,14 +1,16 @@
 <template>
-  <div class="glass-card p-5 h-full flex flex-col">
-    <div class="flex items-center gap-3 mb-4">
-      <div class="w-8 h-8 rounded-lg bg-emerald-100 text-emerald-700 flex items-center justify-center">
-        <Icon icon="mdi:clipboard-list" class="text-lg" />
+  <el-card shadow="never">
+    <template #header>
+      <div class="flex items-center gap-2">
+        <div class="panel-icon">
+          <Icon icon="mdi:clipboard-list" class="text-lg" />
+        </div>
+        <div>
+          <div class="font-medium text-sm">访问日志</div>
+          <div class="text-xs" style="color: var(--el-text-color-secondary)">默认显示最近 7 天访问记录</div>
+        </div>
       </div>
-      <div>
-        <h3 class="panel-title">访问日志</h3>
-        <p class="panel-subtitle">默认显示最近 7 天访问记录。</p>
-      </div>
-    </div>
+    </template>
 
     <div class="mb-4 flex flex-wrap items-center gap-3">
       <el-select
@@ -63,7 +65,7 @@
       </div>
     </div>
 
-    <div class="flex-1 overflow-hidden flex flex-col">
+    <div class="flex flex-col">
       <el-table
         v-loading="loading"
         :data="logs"
@@ -148,7 +150,7 @@
         />
       </div>
     </div>
-  </div>
+  </el-card>
 </template>
 
 <script setup lang="ts">
@@ -329,5 +331,17 @@ watch(
   display: flex;
   justify-content: flex-end;
   padding-top: 12px;
+}
+
+.panel-icon {
+  width: 30px;
+  height: 30px;
+  border-radius: 6px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  background: var(--el-color-success-light-9);
+  color: var(--el-color-success);
 }
 </style>

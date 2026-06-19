@@ -1,23 +1,23 @@
 <template>
-  <section class="glass-card p-5 reading-analytics">
-    <div class="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-      <div class="flex items-center gap-3 min-w-0">
-        <div class="w-8 h-8 rounded-lg bg-amber-100 text-amber-700 flex items-center justify-center shrink-0">
-          <Icon icon="mdi:book-open-page-variant-outline" class="text-lg" />
+  <el-card shadow="never" class="reading-analytics">
+    <template #header>
+      <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+        <div class="flex items-center gap-2 min-w-0">
+          <div class="panel-icon">
+            <Icon icon="mdi:book-open-page-variant-outline" class="text-lg" />
+          </div>
+          <div>
+            <div class="font-medium text-sm">阅读完成度</div>
+            <div class="text-xs" style="color: var(--el-text-color-secondary)">观察读者是否真正读到内容中后段</div>
+          </div>
         </div>
-        <div>
-          <h3 class="panel-title">阅读完成度</h3>
-          <p class="panel-subtitle">观察读者是否真正读到内容中后段。</p>
-        </div>
+        <el-radio-group v-model="timeRange" size="small" class="shrink-0">
+          <el-radio-button :value="'7'">7天</el-radio-button>
+          <el-radio-button :value="'30'">30天</el-radio-button>
+          <el-radio-button :value="'90'">90天</el-radio-button>
+        </el-radio-group>
       </div>
-
-      <!-- 时间范围切换：迁移为 Element Plus 单选按钮组 -->
-      <el-radio-group v-model="timeRange" size="small" class="shrink-0">
-        <el-radio-button :value="'7'">7天</el-radio-button>
-        <el-radio-button :value="'30'">30天</el-radio-button>
-        <el-radio-button :value="'90'">90天</el-radio-button>
-      </el-radio-group>
-    </div>
+    </template>
 
     <div class="reading-analytics__toolbar">
       <el-input
@@ -32,12 +32,8 @@
       </el-input>
 
       <div class="reading-analytics__actions">
-        <button type="button" class="btn-primary px-3 py-2 rounded-lg text-sm" @click="applyPathFilter">
-          筛选
-        </button>
-        <button type="button" class="btn-glass px-3 py-2 rounded-lg text-sm" @click="resetPathFilter">
-          重置
-        </button>
+        <el-button type="primary" size="small" @click="applyPathFilter">筛选</el-button>
+        <el-button size="small" @click="resetPathFilter">重置</el-button>
       </div>
     </div>
 
@@ -109,7 +105,7 @@
         </template>
       </div>
     </div>
-  </section>
+  </el-card>
 </template>
 
 <script setup lang="ts">
@@ -141,11 +137,22 @@ const {
 </script>
 
 <style scoped>
-.reading-analytics {
+.reading-analytics :deep(.el-card__body) {
   display: flex;
   flex-direction: column;
   gap: 1rem;
-  min-height: 100%;
+}
+
+.panel-icon {
+  width: 30px;
+  height: 30px;
+  border-radius: 6px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  background: var(--el-color-warning-light-9);
+  color: var(--el-color-warning);
 }
 
 .reading-analytics__toolbar {

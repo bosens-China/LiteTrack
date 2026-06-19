@@ -23,9 +23,9 @@
     "noUnusedParameters": true,
 
     /* paths */
-    "baseUrl": ".",
+    // "baseUrl": ".",
     "paths": {
-      "@/*": ["src/*"]
+      "@/*": ["./src/*"]
     }
   },
   "include": ["src"]

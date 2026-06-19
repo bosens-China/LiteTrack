@@ -1,69 +1,53 @@
 <template>
-  <div class="glass-card p-6">
-    <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-      <div class="flex-1 min-w-0">
-        <div class="flex items-center gap-3 mb-2">
-          <div class="w-10 h-10 rounded-xl bg-blue-100 text-blue-700 flex items-center justify-center">
-            <Icon icon="mdi:web" class="text-xl" />
-          </div>
-          <div>
-            <h1 class="text-2xl font-bold text-[var(--text-primary)] tracking-tight">
-              {{ site.title || '未命名网站' }}
-            </h1>
-            <p class="text-[var(--text-secondary)] text-sm flex items-center gap-1.5">
-              <Icon icon="mdi:link-variant" class="text-xs text-slate-400" />
-              <span class="font-mono">{{ site.domain }}</span>
-            </p>
-          </div>
+  <el-card shadow="never">
+    <div class="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
+      <div class="flex items-start gap-3 flex-1 min-w-0">
+        <div class="site-icon">
+          <Icon icon="mdi:web" class="text-xl" />
         </div>
-        
-        <p v-if="site.description" class="text-[var(--text-secondary)] mt-3 text-sm leading-relaxed max-w-2xl">
-          {{ site.description }}
-        </p>
-        <p v-else class="text-[var(--text-muted)] mt-3 text-sm italic">
-          暂无描述
-        </p>
+        <div class="min-w-0">
+          <h1 class="site-title">{{ site.title || '未命名网站' }}</h1>
+          <a
+            :href="'https://' + site.domain"
+            target="_blank"
+            rel="noopener"
+            class="site-domain"
+          >
+            <Icon icon="mdi:link-variant" />
+            <span class="font-mono">{{ site.domain }}</span>
+          </a>
+          <p v-if="site.description" class="site-desc">{{ site.description }}</p>
+          <p v-else class="site-desc site-desc--empty">暂无描述</p>
+        </div>
       </div>
 
-      <div class="flex items-center gap-3 shrink-0">
-        <!-- 编辑信息按钮：次操作，使用默认样式的 el-button -->
-        <el-button class="btn-glass" @click="$emit('edit')">
-          <Icon icon="mdi:pencil" class="mr-1" />
-          编辑信息
-        </el-button>
-      </div>
+      <el-button @click="$emit('edit')">
+        <Icon icon="mdi:pencil" class="mr-1" />编辑信息
+      </el-button>
     </div>
 
-    <div class="mt-5 pt-5 border-t border-slate-200 flex flex-wrap items-center gap-6 text-sm">
-      <div class="flex items-center gap-2 text-[var(--text-secondary)]">
-        <Icon icon="mdi:calendar-plus" class="text-slate-400" />
-        <span>创建于 {{ formatDate(site.createdAt) }}</span>
-      </div>
-      <div class="flex items-center gap-2 text-[var(--text-secondary)]">
-        <Icon icon="mdi:sync" class="text-slate-400" />
-        <span>更新于 {{ formatDate(site.updatedAt) }}</span>
-      </div>
-      <div class="flex items-center gap-2">
-        <Icon icon="mdi:shield-check" class="text-emerald-600" />
-        <span class="text-emerald-700 font-medium">运行中</span>
-      </div>
-    </div>
-  </div>
+    <el-divider style="margin: 16px 0 12px" />
+
+    <el-space :size="24">
+      <span class="meta-item">
+        <Icon icon="mdi:calendar-plus" />
+        创建于 {{ formatDate(site.createdAt) }}
+      </span>
+      <span class="meta-item">
+        <Icon icon="mdi:sync" />
+        更新于 {{ formatDate(site.updatedAt) }}
+      </span>
+    </el-space>
+  </el-card>
 </template>
 
 <script setup lang="ts">
 import { Icon } from '@iconify/vue'
 import type { SiteDetail } from '@/api/sites'
 
-interface Props {
-  site: SiteDetail
-}
+defineProps<{ site: SiteDetail }>()
 
-defineProps<Props>()
-
-defineEmits<{
-  edit: []
-}>()
+defineEmits<{ edit: [] }>()
 
 function formatDate(date: string | Date): string {
   return new Date(date).toLocaleDateString('zh-CN', {
@@ -73,3 +57,58 @@ function formatDate(date: string | Date): string {
   })
 }
 </script>
+
+<style scoped>
+.site-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  flex-shrink: 0;
+  border-radius: 8px;
+  background: var(--el-color-primary-light-9);
+  color: var(--el-color-primary);
+}
+
+.site-title {
+  margin: 0 0 4px;
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: var(--el-text-color-primary);
+  line-height: 1.3;
+}
+
+.site-domain {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 13px;
+  color: var(--el-text-color-secondary);
+  text-decoration: none;
+}
+
+.site-domain:hover {
+  color: var(--el-color-primary);
+}
+
+.site-desc {
+  margin: 8px 0 0;
+  font-size: 13px;
+  color: var(--el-text-color-secondary);
+  line-height: 1.5;
+}
+
+.site-desc--empty {
+  font-style: italic;
+  color: var(--el-text-color-placeholder);
+}
+
+.meta-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 13px;
+  color: var(--el-text-color-secondary);
+}
+</style>
