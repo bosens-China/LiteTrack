@@ -44,6 +44,23 @@ export function getPageTitle(override?: string): string | undefined {
   return title || undefined;
 }
 
+export function getLanguage(): string | undefined {
+  if (!isBrowser()) return undefined;
+  return navigator.language || undefined;
+}
+
+export function getUtmParams(): Record<string, string | undefined> {
+  if (!isBrowser() || typeof window.location?.search !== 'string') {
+    return {};
+  }
+  const params = new URLSearchParams(window.location.search);
+  return {
+    utmSource: params.get('utm_source') ?? undefined,
+    utmMedium: params.get('utm_medium') ?? undefined,
+    utmCampaign: params.get('utm_campaign') ?? undefined,
+  };
+}
+
 export function buildApiUrl(
   baseUrl: string,
   endpoint: string,

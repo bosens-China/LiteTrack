@@ -106,7 +106,7 @@ export interface PageInput {
 export interface ReadInput {
   /**
    * 页面路径。
-   * @default 上一次 `page()` 上报的路径
+   * @default window.location.pathname
    */
   path?: string;
   /**
@@ -155,8 +155,8 @@ export interface Tracker {
   /**
    * 上报一次页面访问（PV）。
    *
-   * 不传参数时自动读取 `window.location.pathname` 和 `document.title`。
-   * 传入 `path` 后，后续 `read()` 调用若不指定 `path`，会沿用此路径。
+   * 不传参数时实时读取 `window.location.pathname` 和 `document.title`，
+   * 适合直接在 SPA 路由钩子（如 `router.afterEach`）里调用，无需手动传路径。
    *
    * @example
    * tracker.page()                            // 自动读取当前路径和标题
@@ -169,7 +169,7 @@ export interface Tracker {
    * 上报阅读深度。
    *
    * 简写形式直接传百分比数字；完整形式传对象可同时指定路径。
-   * 路径不传时沿用上一次 `page()` 上报的路径。
+   * 路径不传时实时读取 `window.location.pathname`。
    *
    * @param input 阅读百分比（0–100）或包含 `path` 的对象
    *

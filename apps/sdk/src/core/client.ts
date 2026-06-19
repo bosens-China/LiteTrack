@@ -1,11 +1,15 @@
 import {
+  DURATION_ENDPOINT,
   READ_PROGRESS_ENDPOINT,
   STATS_ENDPOINT,
   TRACK_ENDPOINT,
 } from './constants';
 import {
   getCurrentPath,
+  getLanguage,
   getPageTitle,
+  getUtmParams,
+  isBrowser,
   normalizeBaseUrl,
   normalizePath,
 } from './env';
@@ -57,14 +61,20 @@ function assertCreateOptions(options: LiteTrackCreateOptions): {
 
 function parseSiteStatsResponse(response: SiteStatsResponse): SiteStats {
   return {
-    totalViews: typeof response.totalViews === 'number' ? response.totalViews : 0,
-    totalPages: typeof response.totalPages === 'number' ? response.totalPages : 0,
+    totalViews:
+      typeof response.totalViews === 'number' ? response.totalViews : 0,
+    totalPages:
+      typeof response.totalPages === 'number' ? response.totalPages : 0,
   };
 }
 
-function parsePageStatsResponse(response: PageStatsResponse, path: string): PageStats {
+function parsePageStatsResponse(
+  response: PageStatsResponse,
+  path: string,
+): PageStats {
   return {
-    path: typeof response.path === 'string' ? normalizePath(response.path) : path,
+    path:
+      typeof response.path === 'string' ? normalizePath(response.path) : path,
     count: typeof response.count === 'number' ? response.count : 0,
   };
 }
@@ -97,23 +107,54 @@ export function create(options: LiteTrackCreateOptions): Tracker {
   const identityStore = createIdentityStore(options.identity);
 
   let destroyed = false;
-  let currentPath = getCurrentPath();
+  // lastPath/pageEntryTime 仅用于停留时长 flush，不参与路径解析
+  let lastPath: string | null = null;
+  let pageEntryTime: number | null = null;
+
+  const flushDuration = (): void => {
+    if (lastPath === null || pageEntryTime === null) return;
+    const duration = Math.round((Date.now() - pageEntryTime) / 1000);
+    pageEntryTime = null;
+    if (duration < 1) return;
+
+    transport.post(DURATION_ENDPOINT, {
+      path: lastPath,
+      visitorId: identityStore.get().visitorId,
+      duration,
+    });
+  };
+
+  const handleBeforeUnload = (): void => {
+    if (!destroyed) flushDuration();
+  };
+
+  if (isBrowser()) {
+    window.addEventListener('beforeunload', handleBeforeUnload);
+  }
 
   const sendPageview = (input?: PageInput): void => {
-    const path = normalizePath(input?.path ?? currentPath);
-    currentPath = path;
+    // 每次都从当前 URL 实时读取，不使用内部缓存——SPA 路由切换后调用无需手动传 path
+    const path = normalizePath(input?.path ?? getCurrentPath());
 
+    flushDuration();
+
+    lastPath = path;
+    pageEntryTime = Date.now();
+
+    const utmParams = getUtmParams();
     transport.post(TRACK_ENDPOINT, {
       path,
       title: getPageTitle(input?.title),
       visitorId: identityStore.get().visitorId,
       sessionId: identityStore.get().sessionId,
+      language: getLanguage(),
+      ...utmParams,
     });
   };
 
   const sendReadProgress = (input: ReadInput): void => {
-    const path = normalizePath(input.path ?? currentPath);
-    currentPath = path;
+    // 同样实时读取，不依赖 page() 调用留下的状态
+    const path = normalizePath(input.path ?? getCurrentPath());
 
     const percent = Math.max(0, Math.min(100, Math.round(input.percent)));
     const identity = identityStore.get();
@@ -133,7 +174,7 @@ export function create(options: LiteTrackCreateOptions): Tracker {
     read(input) {
       if (destroyed) return;
       if (typeof input === 'number') {
-        sendReadProgress({ percent: input, path: currentPath });
+        sendReadProgress({ percent: input });
         return;
       }
       sendReadProgress(input);
@@ -149,14 +190,20 @@ export function create(options: LiteTrackCreateOptions): Tracker {
       },
       async page(path) {
         const normalizedPath = normalizePath(path);
-        const response = await transport.get<PageStatsResponse>(STATS_ENDPOINT, {
-          path: normalizedPath,
-        });
+        const response = await transport.get<PageStatsResponse>(
+          STATS_ENDPOINT,
+          {
+            path: normalizedPath,
+          },
+        );
         return parsePageStatsResponse(response, normalizedPath);
       },
     },
     destroy() {
       destroyed = true;
+      if (isBrowser()) {
+        window.removeEventListener('beforeunload', handleBeforeUnload);
+      }
     },
   };
 }
