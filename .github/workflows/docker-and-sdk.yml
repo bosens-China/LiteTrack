@@ -126,13 +126,19 @@ jobs:
             echo "SDK v${VERSION} already published, skipping commit."
           fi
 
-      - name: Publish to npm
+      # OIDC 可信发布需 npm >= 11.5.1，Node 内置版本可能偏旧，这里强制升级
+      - name: Ensure npm supports trusted publishing
+        run: npm install -g npm@latest
+
+      - name: Publish to npm (trusted publishing + provenance)
+        # 走 Trusted Publishing：不传 NODE_AUTH_TOKEN，由 id-token 自动鉴权
         run: |
           VERSION="${{ steps.sdk_version.outputs.version }}"
           PUBLISHED=$(npm view @boses/litetrack-sdk@${VERSION} version 2>/dev/null || echo "")
           if [ -z "$PUBLISHED" ]; then
-            pnpm -C apps/sdk publish --no-git-checks
+            npm publish --provenance --access public
             echo "Published @boses/litetrack-sdk@${VERSION} to npm"
           else
             echo "@boses/litetrack-sdk@${VERSION} already exists on npm, skipping"
           fi
+        working-directory: apps/sdk

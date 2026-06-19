@@ -141,6 +141,16 @@ SDK 大版本号与后端 API 版本前缀绑定：
 - Admin 后台"SDK 版本"页面展示所有版本，含 SRI integrity、文件大小、一键复制接入代码。
 - npm 包同时提供 ESM 产物与完整 TypeScript 类型声明，供打包工具（Vite / webpack 等）直接 import 使用。
 
+#### npm 发布机制（Trusted Publishing / OIDC）
+
+- 采用 npm **Trusted Publishing**：CI 通过 GitHub OIDC（`id-token: write`）免 token 发布，并自动附带 provenance 溯源，**无需在仓库配置 `NPM_TOKEN`**。
+- 发布命令：`npm publish --provenance --access public`（要求 npm ≥ 11.5.1，CI 中已加 `npm install -g npm@latest` 兜底）。
+- CI 按版本号去重：若 `@boses/litetrack-sdk@<version>` 已存在则跳过，避免重复发布。
+- **首次启用需手动一次性配置**（仅一次）：
+  1. 本地 `npm login`（账号需对 `@boses` scope 有发布权限）→ `pnpm -C apps/sdk build` → `cd apps/sdk && npm publish --access public` 手动发首版。
+  2. 在 npmjs.com 包的 Settings → Trusted Publisher 配置 GitHub Actions：Organization/user = `bosens-China`，Repository = `LiteTrack`，Workflow filename = `docker-and-sdk.yml`。
+- 配置完成后，后续只需 bump `apps/sdk/package.json` 版本号并推送至 `master`，CI 即自动发版。
+
 ---
 
 ## 4. 管理后台页面
