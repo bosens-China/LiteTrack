@@ -8,6 +8,7 @@ const titleMap: Record<string, string> = {
   Dashboard: '仪表盘',
   Sites: '网站管理',
   SiteDetail: '网站详情',
+  SdkVersions: 'SDK 版本',
   NotFound: '页面不存在',
 }
 
@@ -48,7 +49,12 @@ const router = createRouter({
           component: () => import('@/views/SiteDetail/index.vue'),
           meta: { title: '网站详情' },
         },
-
+        {
+          path: 'sdk',
+          name: 'SdkVersions',
+          component: () => import('@/views/SdkVersions.vue'),
+          meta: { title: 'SDK 版本' },
+        },
       ],
     },
     {

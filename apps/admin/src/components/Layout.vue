@@ -47,11 +47,6 @@
           </div>
 
           <div class="header-actions">
-            <el-button class="sdk-btn" @click="openSdkDistPage">
-              <Icon icon="mdi:download-outline" class="mr-1" />
-              SDK 目录
-            </el-button>
-
             <el-dropdown trigger="click" @command="handleUserAction">
               <div class="user-trigger">
                 <el-avatar
@@ -96,9 +91,6 @@ const authStore = useAuthStore()
 
 const collapsed = ref(false)
 
-const SDK_DIST_URL =
-  'https://github.com/bosens-China/LiteTrack/tree/master/apps/sdk/dist'
-
 interface MenuItem {
   label: string
   key: string
@@ -108,6 +100,7 @@ interface MenuItem {
 const menuOptions: MenuItem[] = [
   { label: '仪表盘', key: 'Dashboard', icon: 'mdi:view-dashboard' },
   { label: '网站管理', key: 'Sites', icon: 'mdi:web' },
+  { label: 'SDK 版本', key: 'SdkVersions', icon: 'mdi:package-variant-closed' },
 ]
 
 const activeKey = computed(() => {
@@ -122,6 +115,7 @@ const pageTitle = computed(() => {
     Dashboard: '仪表盘',
     Sites: '网站管理',
     SiteDetail: '网站详情',
+    SdkVersions: 'SDK 版本',
   }
   return titles[route.name as string] || 'LiteTrack'
 })
@@ -142,9 +136,7 @@ function handleUserAction(command: string) {
   }
 }
 
-function openSdkDistPage() {
-  window.open(SDK_DIST_URL, '_blank', 'noopener,noreferrer')
-}
+
 </script>
 
 <style scoped>
