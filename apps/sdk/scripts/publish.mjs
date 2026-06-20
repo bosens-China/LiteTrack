@@ -4,12 +4,14 @@
  * 用途：把构建好的 IIFE 复制到 admin 静态目录（带 SRI 的版本化 CDN），更新版本清单。
  * 运行：node apps/sdk/scripts/publish.mjs
  *
- * 版本号由 Changesets 管理，**不要手动改**（见 PRD 2.2）。正常流程由 CI 驱动：
- *   1. 开发时 `pnpm changeset` 声明 patch/minor/major
- *   2. 合并 master → CI 开 "Version Packages" PR 提升版本号
- *   3. 合并该 PR → CI 构建并运行本脚本写入 CDN，再发布 npm
+ * 版本号由 release-please 依据 Conventional Commits 自动维护，**不要手动改**
+ * （见 PRD 2.2）。正常流程由 CI 驱动：
+ *   1. 提交遵循 Conventional Commits（feat/fix/...，作用于 apps/sdk 才算 SDK 变更）
+ *   2. 推送 master → release-please 自动开/更新 "release PR"，已算好版本号与 CHANGELOG
+ *   3. 合并该 PR → release-please 打 tag，触发 CI 构建并运行本脚本写入 CDN，再发布 npm
  *
- * 不可变保护：已存在的版本目录会被冻结跳过，绝不覆盖（见下方 main 中的守卫）。
+ * 不可变保护：已存在的版本目录会被冻结跳过，绝不覆盖（见下方 main 中的守卫）；
+ * manifest 同样只增不改，已登记版本不重算（见 scanVersions）。
  */
 
 import { createHash } from 'node:crypto';
@@ -77,18 +79,21 @@ async function readManifest() {
 }
 
 /**
- * 扫描 sdk/ 子目录重建 versions 数组，保证 manifest 与文件系统一致。
+ * 扫描 sdk/ 子目录重建 versions 数组。manifest 是一份**只增不改的账本**：
+ * 已在旧 manifest 登记过的版本一律原样沿用（integrity/size/apiVersion/url 全部
+ * 不可变），**绝不按当前磁盘字节重算**。只有从未登记过的新版本目录才首次计算哈希。
+ *
+ * 为什么不重算历史版本：产物已冻结、客户端用固定 URL + SRI 加载。若某历史版本的
+ * 文件被意外改动（如 CI 竞态把另一构建写了进来），重算会把"错误字节"洗成新的
+ * integrity 写进 manifest，让线上失配静默扩散。账本式只增不改可彻底杜绝此类漂移。
  * 目录名必须是合法 semver（x.y.z）。
  *
- * @param {string} currentVersion 本次发布的 SDK 版本（取当前 API_VERSION）
- * @param {string} currentApiVersion 当前源码声明的 API 契约版本
- * @param {Array<{version:string, apiVersion:string}>} prevVersions 旧 manifest 记录
+ * @param {string} currentApiVersion 当前源码声明的 API 契约版本（仅用于新版本）
+ * @param {Array<{version:string, apiVersion:string, url:string, integrity:string, size:number}>} prevVersions 旧 manifest 记录
  */
-async function scanVersions(currentVersion, currentApiVersion, prevVersions) {
-  // 历史版本的 apiVersion 沿用旧 manifest：破坏性迁移后，老 SDK 仍指向旧契约
-  const prevApiMap = new Map(
-    prevVersions.map((v) => [v.version, v.apiVersion]),
-  );
+async function scanVersions(currentApiVersion, prevVersions) {
+  // 旧 manifest 完整条目索引：命中即沿用，实现"已发布版本不可变"
+  const prevMap = new Map(prevVersions.map((v) => [v.version, v]));
   const entries = await readdir(SDK_PUBLIC_DIR, { withFileTypes: true });
   const versionDirs = entries
     .filter((e) => e.isDirectory() && /^\d+\.\d+\.\d+/.test(e.name))
@@ -107,18 +112,20 @@ async function scanVersions(currentVersion, currentApiVersion, prevVersions) {
     const file = resolve(SDK_PUBLIC_DIR, ver, 'litetrack.min.js');
     if (!existsSync(file)) continue;
 
+    // 已登记版本：原样沿用旧条目，不可变，不重算
+    const prev = prevMap.get(ver);
+    if (prev) {
+      versions.push(prev);
+      continue;
+    }
+
+    // 全新版本（正常即本次发布的 currentVersion）：首次计算并定格 integrity/size
     const integrity = await computeIntegrity(file);
     const size = await getFileSize(file);
 
-    // 正在发布的版本采用当前契约版本；历史版本沿用旧记录，无记录则回退当前
-    const apiVersion =
-      ver === currentVersion
-        ? currentApiVersion
-        : (prevApiMap.get(ver) ?? currentApiVersion);
-
     versions.push({
       version: ver,
-      apiVersion,
+      apiVersion: currentApiVersion,
       url: `/sdk/${ver}/litetrack.min.js`,
       integrity,
       size,
@@ -169,9 +176,8 @@ async function main() {
   const currentApiVersion = await getCurrentApiVersion();
   const prevManifest = await readManifest();
 
-  // 扫描所有版本目录重建 manifest（幂等）
+  // 扫描所有版本目录重建 manifest（幂等；已登记版本不可变，只增不改）
   const versions = await scanVersions(
-    version,
     currentApiVersion,
     prevManifest.versions ?? [],
   );
