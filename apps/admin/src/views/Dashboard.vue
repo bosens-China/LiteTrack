@@ -3,10 +3,23 @@
     <!-- 操作栏 -->
     <div class="flex items-center justify-between">
       <div>
-        <h2 style="margin: 0; font-size: 16px; font-weight: 600; color: var(--el-text-color-primary)">
+        <h2
+          style="
+            margin: 0;
+            font-size: 16px;
+            font-weight: 600;
+            color: var(--el-text-color-primary);
+          "
+        >
           全站概览
         </h2>
-        <p style="margin: 4px 0 0; font-size: 13px; color: var(--el-text-color-secondary)">
+        <p
+          style="
+            margin: 4px 0 0;
+            font-size: 13px;
+            color: var(--el-text-color-secondary);
+          "
+        >
           汇总所有站点的访问数据
         </p>
       </div>
@@ -37,7 +50,9 @@
             </div>
             <span class="summary-label">今日访问</span>
           </div>
-          <div class="summary-value">{{ formatNumber(dashboardSummary.todayViews) }}</div>
+          <div class="summary-value">
+            {{ formatNumber(dashboardSummary.todayViews) }}
+          </div>
         </el-card>
       </el-col>
       <el-col :xs="24" :sm="8">
@@ -48,92 +63,52 @@
             </div>
             <span class="summary-label">总访问量</span>
           </div>
-          <div class="summary-value">{{ formatNumber(dashboardSummary.totalViews) }}</div>
+          <div class="summary-value">
+            {{ formatNumber(dashboardSummary.totalViews) }}
+          </div>
         </el-card>
       </el-col>
     </el-row>
 
-    <!-- 站点列表 -->
+    <!-- 最近网站（只读速览，完整管理在「网站管理」） -->
     <el-card shadow="never">
       <template #header>
         <div class="flex items-center justify-between">
-          <span class="font-medium">网站列表</span>
+          <span class="font-medium">最近网站</span>
           <el-button size="small" @click="router.push('/sites')">
             管理网站 <Icon icon="mdi:arrow-right" class="ml-1" />
           </el-button>
         </div>
       </template>
 
-      <el-empty v-if="!loading && sitesStore.sites.length === 0" description="暂无网站，快去创建吧">
-        <el-button type="primary" @click="showCreateModal = true">创建网站</el-button>
+      <el-empty
+        v-if="!loading && sitesStore.sites.length === 0"
+        description="暂无网站，快去创建吧"
+      >
+        <el-button type="primary" @click="showCreateModal = true"
+          >创建网站</el-button
+        >
       </el-empty>
 
-      <el-table
+      <SiteTable
         v-else
-        v-loading="loading"
-        :data="sitesStore.sites"
-        style="width: 100%"
-        row-class-name="cursor-pointer"
-        @row-click="(row: Site) => router.push(`/sites/${row.id}`)"
+        :sites="recentSites"
+        :loading="loading"
+        :action-width="100"
+        row-clickable
+        @row-click="(row) => router.push(`/sites/${row.id}`)"
       >
-        <el-table-column label="网站" min-width="220">
-          <template #default="{ row }">
-            <div class="flex items-center gap-3">
-              <div class="site-icon">
-                <Icon icon="mdi:web" class="text-lg" />
-              </div>
-              <div class="min-w-0">
-                <div class="font-medium text-sm truncate" style="color: var(--el-text-color-primary)">
-                  {{ row.title || row.domain }}
-                </div>
-                <div class="text-xs truncate font-mono" style="color: var(--el-text-color-secondary)">
-                  {{ row.domain }}
-                </div>
-              </div>
-            </div>
-          </template>
-        </el-table-column>
-
-        <el-table-column label="描述" min-width="180" show-overflow-tooltip>
-          <template #default="{ row }">
-            <span v-if="row.description" class="text-sm" style="color: var(--el-text-color-secondary)">
-              {{ row.description }}
-            </span>
-            <span v-else class="text-sm" style="color: var(--el-text-color-placeholder); font-style: italic">
-              暂无描述
-            </span>
-          </template>
-        </el-table-column>
-
-        <el-table-column label="令牌数" width="90" align="center">
-          <template #default="{ row }">
-            <el-tag type="success" size="small" effect="light">
-              {{ row._count?.tokens ?? 0 }}
-            </el-tag>
-          </template>
-        </el-table-column>
-
-        <el-table-column label="创建时间" width="140">
-          <template #default="{ row }">
-            <span class="text-sm font-mono" style="color: var(--el-text-color-secondary)">
-              {{ formatDate(row.createdAt) }}
-            </span>
-          </template>
-        </el-table-column>
-
-        <el-table-column label="操作" width="100" align="right">
-          <template #default="{ row }">
-            <el-button
-              size="small"
-              type="primary"
-              link
-              @click.stop="router.push(`/sites/${row.id}`)"
-            >
-              查看详情
-            </el-button>
-          </template>
-        </el-table-column>
-      </el-table>
+        <template #actions="{ row }">
+          <el-button
+            size="small"
+            type="primary"
+            link
+            @click.stop="router.push(`/sites/${row.id}`)"
+          >
+            查看详情
+          </el-button>
+        </template>
+      </SiteTable>
     </el-card>
 
     <CreateSiteModal v-model:show="showCreateModal" />
@@ -141,58 +116,56 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, ref } from 'vue'
-import { useRouter } from 'vue-router'
-import { ElMessage } from 'element-plus'
-import { Icon } from '@iconify/vue'
-import { useSitesStore } from '@/stores/sites'
-import { getDashboardSummary, type DashboardSummaryResponse } from '@/api/stats'
-import CreateSiteModal from '@/components/CreateSiteModal.vue'
-import type { Site } from '@/api/sites'
+import { computed, onMounted, ref } from 'vue';
+import { useRouter } from 'vue-router';
+import { ElMessage } from 'element-plus';
+import { Icon } from '@iconify/vue';
+import { useSitesStore } from '@/stores/sites';
+import {
+  getDashboardSummary,
+  type DashboardSummaryResponse,
+} from '@/api/stats';
+import CreateSiteModal from '@/components/CreateSiteModal.vue';
+import SiteTable from '@/components/SiteTable.vue';
 
-const router = useRouter()
-const sitesStore = useSitesStore()
+const router = useRouter();
+const sitesStore = useSitesStore();
 
-const showCreateModal = ref(false)
-const loading = ref(false)
+const showCreateModal = ref(false);
+const loading = ref(false);
+
+/** 概览页只展示最近的若干网站，完整列表在「网站管理」 */
+const recentSites = computed(() => sitesStore.sites.slice(0, 5));
 
 const dashboardSummary = ref<DashboardSummaryResponse['summary']>({
   siteCount: 0,
   todayViews: 0,
   totalViews: 0,
-})
+});
 
 function formatNumber(num: number): string {
-  return num.toLocaleString('zh-CN')
-}
-
-function formatDate(date: string | Date): string {
-  return new Date(date).toLocaleDateString('zh-CN', {
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric',
-  })
+  return num.toLocaleString('zh-CN');
 }
 
 async function init() {
-  loading.value = true
+  loading.value = true;
   try {
     const [, dashboard] = await Promise.all([
       sitesStore.fetchSites(),
       getDashboardSummary(),
-    ])
-    dashboardSummary.value = dashboard.summary
+    ]);
+    dashboardSummary.value = dashboard.summary;
   } catch (err) {
-    const errorMessage = err instanceof Error ? err.message : '加载数据失败'
-    ElMessage.error(errorMessage)
+    const errorMessage = err instanceof Error ? err.message : '加载数据失败';
+    ElMessage.error(errorMessage);
   } finally {
-    loading.value = false
+    loading.value = false;
   }
 }
 
 onMounted(() => {
-  void init()
-})
+  void init();
+});
 </script>
 
 <style scoped>
@@ -237,18 +210,6 @@ onMounted(() => {
   font-family: 'Fira Code', monospace;
   letter-spacing: -0.02em;
   line-height: 1.2;
-}
-
-.site-icon {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 32px;
-  height: 32px;
-  flex-shrink: 0;
-  border-radius: 6px;
-  background: var(--el-color-primary-light-9);
-  color: var(--el-color-primary);
 }
 
 @media (min-width: 576px) {
