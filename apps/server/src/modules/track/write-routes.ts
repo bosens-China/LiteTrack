@@ -1,7 +1,16 @@
 import type { FastifyPluginAsync, FastifyReply } from 'fastify';
 import { z } from 'zod';
-import { parseUserAgent, validateOrigin } from '../../lib/visitor.js';
+import {
+  parseGeoHeaders,
+  parseUserAgent,
+  validateOrigin,
+} from '../../lib/visitor.js';
+import { config } from '../../lib/config.js';
+import { lookupGeoByIp } from '../../lib/geoip.js';
 import { formatDateInTimeZone, normalizePath } from '../stats/shared.js';
+
+/** 是否经可信反代部署：决定能否信任客户端可控的地理头（与 IP 限流同源） */
+const TRUST_PROXY_HEADERS = config.TRUST_PROXY !== false;
 
 const trackSchema = z.object({
   path: z.string().min(1).max(500),
@@ -95,6 +104,14 @@ const writeRoutes: FastifyPluginAsync = async (fastify) => {
     const userAgent = request.headers['user-agent'];
     const referer = request.headers['referer'];
     const visitorAgent = parseUserAgent(userAgent);
+    // 地理信息：可信反代注入的头（如 Cloudflare CF-IPCountry）优先，
+    // 缺失字段再用 ip2region 离线库按 IP 补全（国内省/市定位准）。
+    const geoHeaders = parseGeoHeaders(request.headers, TRUST_PROXY_HEADERS);
+    const geoFromIp = lookupGeoByIp(ip);
+    const geo = {
+      country: geoHeaders.country ?? geoFromIp.country,
+      city: geoHeaders.city ?? geoFromIp.city,
+    };
 
     const allowed = await fastify.checkRateLimit(ip, siteId, path, 10);
     if (!allowed) return { success: true, cached: true };
@@ -147,6 +164,8 @@ const writeRoutes: FastifyPluginAsync = async (fastify) => {
           utmSource: utmSource || null,
           utmMedium: utmMedium || null,
           utmCampaign: utmCampaign || null,
+          country: geo.country,
+          city: geo.city,
         },
       })
       .catch(() => {});

@@ -25,6 +25,55 @@ export interface VisitorAgentInfo {
   os: string;
 }
 
+/** 访客地理信息（国家/城市），由反向代理注入的请求头解析 */
+export interface VisitorGeoInfo {
+  country: string | null;
+  city: string | null;
+}
+
+/** Cloudflare 在无法识别归属地时回填的占位值，应视为未知 */
+const UNKNOWN_COUNTRY_CODES = new Set(['XX', 'T1']);
+
+function pickHeader(value: string | string[] | undefined): string | undefined {
+  if (Array.isArray(value)) return value[0];
+  return value;
+}
+
+/**
+ * 从反向代理（Cloudflare / Nginx 等）注入的请求头解析地理信息。
+ * 本地直连或未经反代时这些头不存在，返回 null——不自带 GeoIP 库。
+ *
+ * - 国家：优先 `CF-IPCountry`（两位 ISO 码），其次 `X-Geo-Country`
+ * - 城市：`X-Geo-City`（Cloudflare 免费版无城市头，需自建反代注入）
+ *
+ * ⚠️ 这些头由客户端可控，仅在**可信反代**后才有意义（与 IP 限流信任
+ * `X-Forwarded-For` 同理）。`trustProxyHeaders` 为 false 时直接返回空，
+ * 避免直连部署被任意客户端伪造头污染地理统计。反代须剥离入站的同名头。
+ */
+export function parseGeoHeaders(
+  headers: Record<string, string | string[] | undefined>,
+  trustProxyHeaders: boolean,
+): VisitorGeoInfo {
+  if (!trustProxyHeaders) {
+    return { country: null, city: null };
+  }
+
+  const rawCountry = (
+    pickHeader(headers['cf-ipcountry']) ??
+    pickHeader(headers['x-geo-country']) ??
+    ''
+  )
+    .trim()
+    .toUpperCase();
+  const country =
+    rawCountry && !UNKNOWN_COUNTRY_CODES.has(rawCountry) ? rawCountry : null;
+
+  const rawCity = (pickHeader(headers['x-geo-city']) ?? '').trim();
+  const city = rawCity || null;
+
+  return { country, city };
+}
+
 function includesSome(value: string, patterns: string[]): boolean {
   return patterns.some((pattern) => value.includes(pattern));
 }
