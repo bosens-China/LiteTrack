@@ -2,3 +2,7 @@
 package-lock.json
 pnpm-lock.yaml
 yarn.lock
+
+# 不可变的 SDK CDN 产物：已冻结 + 客户端按 SRI 校验加载，
+# 绝不能被格式化改动字节（否则 integrity 失配、脚本被浏览器拒绝执行）
+apps/admin/public/sdk/**/*.js
