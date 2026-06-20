@@ -20,7 +20,7 @@ const tracker = LiteTrack.create({
 });
 ```
 
-`baseUrl` 必填，只需填服务器源（如 `https://your-api.com`），**不要**带 `/litetrack/v1` 前缀。SDK 会按自身大版本号自动拼接 API 版本前缀：1.x 请求 `/litetrack/v1`，2.x 请求 `/litetrack/v2`，以此保证 SDK 与后端 API 版本始终对齐。SDK 不再内置默认线上地址。
+`baseUrl` 必填，只需填服务器源（如 `https://your-api.com`），**不要**带 `/litetrack/v1` 前缀。SDK 会自动拼接 API 契约前缀。注意：API 契约版本与 SDK 语义化版本**刻意解耦**——契约前缀由源码 `src/core/version.ts` 的 `API_VERSION` 常量显式声明（当前为 `v1`），**不随 SDK 大版本号变化**。只有后端上报协议发生破坏性变更时才会手动迁移到 `v2`。SDK 不再内置默认线上地址。
 
 ## 浏览器 script 引入
 
@@ -32,9 +32,9 @@ const tracker = LiteTrack.create({
       siteToken: 'st_xxx',
       baseUrl: 'https://your-api.com',
       autoPageview: true,
-      autoReadProgress: true
-    })
-  })
+      autoReadProgress: true,
+    });
+  });
 </script>
 ```
 
@@ -55,46 +55,46 @@ const tracker = LiteTrack.create({
   },
   debug: false,
   onError(error) {
-    console.error('[LiteTrack]', error)
+    console.error('[LiteTrack]', error);
   },
-})
+});
 ```
 
 参数说明：
 
-| 参数 | 说明 |
-| ---- | ---- |
-| `siteToken` | 站点令牌，必填 |
-| `baseUrl` | API 服务器源，必填，例如 `https://your-api.com`（不带版本前缀，SDK 自动按版本拼接） |
-| `autoPageview` | 默认 `true`，创建后自动上报首屏 PV |
-| `autoReadProgress` | 默认 `false`，自动监听滚动与离开事件 |
-| `readProgressMilestones` | 阅读深度里程碑，默认 `[25, 50, 75, 100]` |
-| `identity` | 可选，外部传入 `visitorId` / `sessionId` |
-| `debug` | 默认 `false`，开启后会把 SDK 错误输出到控制台 |
-| `onError` | SDK 内部请求失败时的回调 |
+| 参数                     | 说明                                                                                |
+| ------------------------ | ----------------------------------------------------------------------------------- |
+| `siteToken`              | 站点令牌，必填                                                                      |
+| `baseUrl`                | API 服务器源，必填，例如 `https://your-api.com`（不带版本前缀，SDK 自动按版本拼接） |
+| `autoPageview`           | 默认 `true`，创建后自动上报首屏 PV                                                  |
+| `autoReadProgress`       | 默认 `false`，自动监听滚动与离开事件                                                |
+| `readProgressMilestones` | 阅读深度里程碑，默认 `[25, 50, 75, 100]`                                            |
+| `identity`               | 可选，外部传入 `visitorId` / `sessionId`                                            |
+| `debug`                  | 默认 `false`，开启后会把 SDK 错误输出到控制台                                       |
+| `onError`                | SDK 内部请求失败时的回调                                                            |
 
 ## Tracker 方法
 
 ### `tracker.page(input?)`
 
 ```ts
-tracker.page()
+tracker.page();
 
 tracker.page({
   path: '/posts/hello',
   title: 'Hello World',
-})
+});
 ```
 
 ### `tracker.read(input)`
 
 ```ts
-tracker.read(80)
+tracker.read(80);
 
 tracker.read({
   path: '/posts/hello',
   percent: 80,
-})
+});
 ```
 
 ### `tracker.navigate(input)`
@@ -105,7 +105,7 @@ tracker.read({
 tracker.navigate({
   path: '/posts/hello',
   title: 'Hello World',
-})
+});
 ```
 
 也可以精细控制：
@@ -116,7 +116,7 @@ tracker.navigate({
   title: 'Hello World',
   trackPageview: true,
   resetReadProgress: true,
-})
+});
 ```
 
 ### `tracker.identify(identity)`
@@ -125,43 +125,43 @@ tracker.navigate({
 tracker.identify({
   visitorId: 'visitor_123',
   sessionId: 'session_456',
-})
+});
 ```
 
 ### `tracker.stats.site()`
 
 ```ts
-const siteStats = await tracker.stats.site()
+const siteStats = await tracker.stats.site();
 ```
 
 返回：
 
 ```ts
 {
-  totalViews: number
-  totalPages: number
+  totalViews: number;
+  totalPages: number;
 }
 ```
 
 ### `tracker.stats.page(path)`
 
 ```ts
-const pageStats = await tracker.stats.page('/posts/hello')
+const pageStats = await tracker.stats.page('/posts/hello');
 ```
 
 返回：
 
 ```ts
 {
-  path: string
-  count: number
+  path: string;
+  count: number;
 }
 ```
 
 ### `tracker.destroy()`
 
 ```ts
-tracker.destroy()
+tracker.destroy();
 ```
 
 ## 默认请求路径

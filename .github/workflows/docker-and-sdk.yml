@@ -74,10 +74,53 @@ jobs:
         if: steps.changes.outputs.server != 'true' && steps.changes.outputs.admin != 'true' && steps.changes.outputs.shared != 'true'
         run: echo "No changes for server/admin/shared, skip building Docker images."
 
+  # 用 changesets 把「发版」做成刻意动作：
+  # - master 上累积了 .changeset/*.md 时，自动开/更新一个 "Version Packages" PR，
+  #   PR 内已算好新版本号、写好 CHANGELOG、删除 changeset 文件；
+  # - 合并该 PR = 正式发版（package.json 版本号被提升），随后由下面 sdk 任务真正发布。
+  # 这里只做版本号 PR，不在此发布，避免与现有 trusted publishing 流程耦合。
+  release-pr:
+    name: Open version bump PR (changesets)
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    # 串行化 release，避免两次推送并发开出互相冲突的版本 PR（官方推荐）
+    concurrency: changesets-release-${{ github.ref }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Create or update Version Packages PR
+        uses: changesets/action@v1
+        with:
+          # 默认即 `changeset version`，这里显式走 version-packages 脚本，留出后续扩展空间
+          version: pnpm run version-packages
+          title: 'chore: version packages'
+          commit: 'chore: version packages'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
   sdk:
     name: Build SDK and publish to admin/public
     runs-on: ubuntu-latest
-    # SDK 发版与 Docker 构建并行，互不阻塞
+    # SDK 发版与 Docker 构建并行，互不阻塞；版本号由上面 release-pr 经 changeset 维护，
+    # 此任务幂等：仅当版本号变新（Version PR 合并后）才真正写入 CDN 并发布到 npm。
     permissions:
       contents: write
       id-token: write  # npm provenance 溯源发布所需
