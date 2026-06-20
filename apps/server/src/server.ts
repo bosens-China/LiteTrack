@@ -34,7 +34,10 @@ export interface BuildServerOptions {
   trustProxy?: boolean | string | number;
   pluginsDir?: string;
   routesDir?: string;
-  routePrefix?: string;
+  /** 公共 SDK 上报契约前缀（带版本，破坏性变更才升 v2） */
+  publicApiPrefix?: string;
+  /** 内部后台接口前缀（不带版本，随前端一起部署演进） */
+  internalApiPrefix?: string;
 }
 
 /**
@@ -50,7 +53,11 @@ export interface BuildServerOptions {
 export function buildServer(options: BuildServerOptions = {}) {
   const pluginsDir = options.pluginsDir ?? join(__dirname, 'plugins');
   const routesDir = options.routesDir ?? join(__dirname, 'routes');
-  const routePrefix = options.routePrefix ?? '/litetrack/v1';
+  // 按受众拆分两套接口：
+  // - public：面向 SDK 的上报契约，带版本，契约稳定，破坏性变更才迁移到 v2
+  // - internal：面向后台前端的接口，不带版本，与前端一起部署、可自由演进
+  const publicApiPrefix = options.publicApiPrefix ?? '/litetrack/v1';
+  const internalApiPrefix = options.internalApiPrefix ?? '/litetrack/api';
 
   const server = Fastify({
     // Logger 配置
@@ -68,15 +75,29 @@ export function buildServer(options: BuildServerOptions = {}) {
     trustProxy: options.trustProxy ?? config.TRUST_PROXY,
   });
 
+  // 健康检查端点：不带版本，供容器 / 编排探活，与业务版本解耦
+  server.get('/health', async () => ({
+    name: 'LiteTrack API',
+    status: 'ok',
+  }));
+
   // 自动加载插件（共享插件，使用 fastify-plugin）
   server.register(autoload, {
     dir: pluginsDir,
   });
 
-  // 自动加载路由（保持封装，不使用 fastify-plugin）
+  // 公共 SDK 上报契约（带版本，破坏性变更才迁移到 v2）
   server.register(autoload, {
-    dir: routesDir,
-    options: { prefix: routePrefix },
+    dir: join(routesDir, 'public'),
+    options: { prefix: publicApiPrefix },
+    autoHooks: true,
+    cascadeHooks: true,
+  });
+
+  // 内部后台接口（不带版本，与前端一起部署、可自由演进）
+  server.register(autoload, {
+    dir: join(routesDir, 'internal'),
+    options: { prefix: internalApiPrefix },
     autoHooks: true,
     cascadeHooks: true,
   });

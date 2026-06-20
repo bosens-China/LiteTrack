@@ -15,7 +15,7 @@ export default defineConfig({
   },
   server: {
     // port: 8080,
-    // 开发时 Login 等使用相对路径 /litetrack/v1，需转发到 Fastify，否则会 404
+    // 开发时后台接口走 /litetrack/api、SDK 上报走 /litetrack/v1，整段 /litetrack 转发到 Fastify，否则会 404
     proxy: {
       '/litetrack': {
         target: 'http://localhost:3000',

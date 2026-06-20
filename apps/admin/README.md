@@ -27,7 +27,7 @@ pnpm dev
 ## 环境变量
 
 ```env
-PUBLIC_API_BASE_URL=http://localhost:3000/litetrack/v1
+PUBLIC_API_BASE_URL=http://localhost:3000/litetrack/api
 ```
 
 ## OAuth 对接要求
@@ -36,18 +36,18 @@ PUBLIC_API_BASE_URL=http://localhost:3000/litetrack/v1
 - 该地址必须与：
   - `apps/server/.env` 中的 `GITHUB_CALLBACK_URL`
   - GitHub OAuth App 的 `Authorization callback URL`
-  保持一致
+    保持一致
 - 登录页会生成随机 `state`，并在回调页完成校验
 
 ## 页面路由
 
-| 路由 | 页面 | 说明 |
-| ---- | ---- | ---- |
-| `/login` | 登录页 | 发起 GitHub OAuth 登录 |
-| `/auth/callback` | 登录回调 | 校验 `state` 并完成登录 |
-| `/` | 仪表盘 | 聚合展示站点数、今日 PV、总 PV |
-| `/sites` | 网站列表 | 管理全部站点 |
-| `/sites/:id` | 网站详情 | 查看统计、访问日志、管理 Token |
+| 路由             | 页面     | 说明                           |
+| ---------------- | -------- | ------------------------------ |
+| `/login`         | 登录页   | 发起 GitHub OAuth 登录         |
+| `/auth/callback` | 登录回调 | 校验 `state` 并完成登录        |
+| `/`              | 仪表盘   | 聚合展示站点数、今日 PV、总 PV |
+| `/sites`         | 网站列表 | 管理全部站点                   |
+| `/sites/:id`     | 网站详情 | 查看统计、访问日志、管理 Token |
 
 ## 目录结构
 

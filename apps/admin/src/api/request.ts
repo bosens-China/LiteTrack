@@ -1,7 +1,9 @@
 import axios, { type AxiosError, type InternalAxiosRequestConfig } from 'axios';
 
 // API 基础配置
-const API_BASE_URL = import.meta.env.PUBLIC_API_BASE_URL || '/litetrack/v1';
+// 后台接口走「内部接口」前缀（不带版本，与后端一起部署演进）；
+// SDK 上报走的是带版本的 /litetrack/v1，二者刻意分离，互不影响。
+const API_BASE_URL = import.meta.env.PUBLIC_API_BASE_URL || '/litetrack/api';
 
 // 创建 axios 实例
 const request = axios.create({

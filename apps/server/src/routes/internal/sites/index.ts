@@ -1,7 +1,7 @@
 import { FastifyPluginAsync } from 'fastify';
 import { z } from 'zod';
 import crypto from 'crypto';
-import { UserPayload } from '../../plugins/jwt.js';
+import { UserPayload } from '../../../plugins/jwt.js';
 
 /**
  * 路由参数类型

@@ -2,8 +2,8 @@ import { FastifyPluginAsync } from 'fastify';
 import axios from 'axios';
 import type { ZodTypeProvider } from 'fastify-type-provider-zod';
 import { z } from 'zod';
-import { config } from '../../lib/config.js';
-import { UserPayload } from '../../plugins/jwt.js';
+import { config } from '../../../lib/config.js';
+import { UserPayload } from '../../../plugins/jwt.js';
 
 /**
  * 认证路由
