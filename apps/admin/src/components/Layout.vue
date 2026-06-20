@@ -51,17 +51,15 @@
           </div>
 
           <div class="header-actions">
-            <el-dropdown trigger="click" @command="handleUserAction">
+            <el-dropdown trigger="hover" @command="handleUserAction">
               <div class="user-trigger">
                 <el-avatar
                   :size="32"
                   :src="authStore.avatar || avatarFallback"
                 />
-                <div v-if="authStore.username" class="user-info">
-                  <span class="user-name">{{ authStore.username }}</span>
-                  <span class="user-role">管理员</span>
-                </div>
-                <Icon icon="mdi:chevron-down" class="user-chevron" />
+                <span v-if="authStore.username" class="user-name">{{
+                  authStore.username
+                }}</span>
               </div>
               <template #dropdown>
                 <el-dropdown-menu>
@@ -300,36 +298,25 @@ function handleUserAction(command: string) {
   gap: 10px;
   padding: 5px 10px;
   border-radius: 8px;
-  border: 1px solid var(--border-soft);
-  background: var(--bg-secondary);
   cursor: pointer;
   transition: background-color 0.2s ease;
+}
+
+/* 去掉 el-dropdown 触发元素默认的蓝色焦点轮廓，改用灰色 hover 背景 */
+.user-trigger:focus,
+.user-trigger:focus-visible {
+  outline: none;
+  box-shadow: none;
 }
 
 .user-trigger:hover {
   background: var(--bg-tertiary);
 }
 
-.user-info {
-  display: flex;
-  flex-direction: column;
-  min-width: 0;
-  line-height: 1.3;
-}
-
 .user-name {
   font-size: 13px;
   font-weight: 600;
   color: var(--text-primary);
-}
-
-.user-role {
-  font-size: 11px;
-  color: var(--text-muted);
-}
-
-.user-chevron {
-  color: var(--text-muted);
 }
 
 .content {
@@ -347,7 +334,7 @@ function handleUserAction(command: string) {
     padding: 12px;
   }
 
-  .user-info,
+  .user-name,
   .header-subtitle {
     display: none;
   }
