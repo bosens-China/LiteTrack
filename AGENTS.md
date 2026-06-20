@@ -31,14 +31,15 @@
 
 每次修改完代码，使用 `pnpm type-check` 和 `pnpm lint` 检查代码
 
-### 发版流程（Changesets，禁止手动改版本号）
+### 发版流程（release-please，禁止手动改版本号）
 
-SDK（`@boses/litetrack-sdk`，唯一发布到 npm 的包）版本由 **Changesets** 管理，**不要手动改 `apps/sdk/package.json` 的 version**：
+SDK（`@boses/litetrack-sdk`，唯一发布到 npm 的包）版本由 **release-please** 依据 **Conventional Commits** 自动维护，**不要手动改 `apps/sdk/package.json` 的 version**。配置在仓库根的 `release-please-config.json` 与 `.release-please-manifest.json`：
 
-1. 改完 SDK，运行 `pnpm changeset`，按提示选 patch/minor/major 并写一句变更说明（生成 `.changeset/*.md`，需提交）。
-   - 判断依据：JS 公共 API 破坏性变更 → major；新增功能 → minor；修复 → patch。
+1. 改完 SDK，按 **Conventional Commits** 提交即可（无需再写 changeset）：
+   - 类型决定版本：`fix:` → patch；`feat:` → minor；带 `!` 或 `BREAKING CHANGE:` → major。
+   - **归属按文件路径**：release-please 只统计作用于 `apps/sdk/**` 的提交来决定 SDK 是否发版（动 server/admin 不会触发 SDK 发版）；scope 写 `(sdk)` 是习惯，真正生效的是路径。
    - 与 API 契约版本（`API_VERSION`）无关，二者解耦。
-2. 合并到 master 后，CI 自动开一个 **"Version Packages" PR**（已算好版本号、写好 CHANGELOG）。
-3. **合并该 PR = 正式发版**：版本号提升落到 master，CI 的 sdk 任务才把产物写入 `apps/admin/public/sdk/<version>/`（CDN）并发布到 npm。
+2. 推送到 master 后，release-please 自动开/更新一个 **release PR**（已算好版本号、生成 `apps/sdk/CHANGELOG.md`、bump `apps/sdk/package.json`）。
+3. **合并该 PR = 正式发版**：release-please 打 git tag（`vX.Y.Z`）并建 GitHub Release，触发 CI 的 sdk 任务把产物写入 `apps/admin/public/sdk/<version>/`（CDN）并发布到 npm。
 
-**已发布版本的产物不可变**：`publish.mjs` 会冻结已存在的版本目录，绝不覆盖（客户页面用固定 URL + SRI 加载，覆盖会破坏 integrity）。要发新内容必须升版本号。
+**已发布版本的产物不可变**：`publish.mjs` 会冻结已存在的版本目录，绝不覆盖；`manifest.json` 同样**只增不改**——已登记版本的 integrity/size 不重算，仅追加新版本（客户页面用固定 URL + SRI 加载，任何字节/记录变化都会破坏 integrity）。要发新内容必须升版本号。

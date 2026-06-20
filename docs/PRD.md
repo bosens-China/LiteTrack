@@ -85,20 +85,20 @@ PostgreSQL    Redis
 - **Tolerant reader 纪律**：`track` 上报 schema 必须「只增不改」——新字段一律可选、未知字段忽略，让 v1 尽量**永不升级**。
 - 升 v2 时后端需**同时保留 v1**，靠 `X-LiteTrack-SDK` 头观测老版本流量，确认无 1.x 流量后才可下线 v1。埋点 SDK 嵌在客户页面里，老版本存活数年，v1 几乎不可删除。
 
-### 2.2 SDK 版本与发布流程（Changesets）
+### 2.2 SDK 版本与发布流程（release-please）
 
-SDK（`@boses/litetrack-sdk`）是唯一发布到 npm 的包，版本由 **Changesets** 管理，发版是**刻意动作**而非每次提交的副作用：
+SDK（`@boses/litetrack-sdk`）是唯一发布到 npm 的包，版本由 **release-please** 依据 **Conventional Commits** 自动维护，发版是**刻意动作**而非每次提交的副作用。配置见仓库根 `release-please-config.json` 与 `.release-please-manifest.json`：
 
-1. 改 SDK 时附一个 changeset（`pnpm changeset`，声明 patch/minor/major + 说明）。
-2. 合并到 master → CI 自动开 **"Version Packages" PR**（算好版本号、生成 CHANGELOG）。
-3. 合并该 PR = 发版：版本号落到 master，CI 把产物写入 `apps/admin/public/sdk/<version>/`（带 SRI 的 CDN 历史）+ 发布到 npm。
+1. 改 SDK 时按 Conventional Commits 提交（`fix:`→patch / `feat:`→minor / `!` 或 `BREAKING CHANGE:`→major）。**归属按文件路径**：只有作用于 `apps/sdk/**` 的提交才计入 SDK 发版。
+2. 推送到 master → release-please 自动开/更新 **release PR**（算好版本号、生成 `apps/sdk/CHANGELOG.md`、bump `package.json`）。
+3. 合并该 PR = 发版：release-please 打 tag（`vX.Y.Z`）+ 建 Release，CI 把产物写入 `apps/admin/public/sdk/<version>/`（带 SRI 的 CDN 历史）+ 发布到 npm。
 
 **关键不变量**：
 
 - **本地/CDN 版本号 == npm 版本号**：二者同源于 `apps/sdk/package.json`，天然一致。
 - **已发布版本不可变（immutable）**：npm 强制不可重发；`publish.mjs` 也冻结已存在的 CDN 版本目录绝不覆盖。原因——客户页面以固定 URL + SRI `integrity` 加载，覆盖字节会令校验失配、脚本被浏览器拒绝执行。改内容必须升新版本号。
-- `manifest.json` 的 `versions[]` 是**不可变历史档案**，`channels`（如 `v1.latest`）是**指向最新版的可变指针**。
-- **禁止手动改版本号**，一律走 changeset，避免误发与版本泛滥。
+- `manifest.json` 的 `versions[]` 是**不可变历史档案**（已登记版本的 integrity/size 永不重算，仅追加新版本），`channels`（如 `v1.latest`）是**指向最新版的可变指针**。
+- **禁止手动改版本号**，一律由 release-please 按 commit 自动提升，避免误发与版本泛滥。
 
 ---
 
@@ -170,7 +170,7 @@ SDK（`@boses/litetrack-sdk`）是唯一发布到 npm 的包，版本由 **Chang
 ### 3.5 SDK 版本管理
 
 - 所有历史版本的 IIFE 均托管在 admin 静态服务（`/sdk/<version>/litetrack.min.js`），已发布版本**不可变**（见 2.2 节）。
-- 版本号由 **Changesets** 管理（禁止手动 bump，流程见 2.2 节）；版本提升 PR 合并后，CI 自动：构建 → 复制到 `apps/admin/public/sdk/<version>/` → 更新 `manifest.json` → 发布至 npm（`@boses/litetrack-sdk`）。
+- 版本号由 **release-please** 依据 Conventional Commits 自动维护（禁止手动 bump，流程见 2.2 节）；release PR 合并后，CI 自动：构建 → 复制到 `apps/admin/public/sdk/<version>/` → 更新 `manifest.json` → 发布至 npm（`@boses/litetrack-sdk`）。
 - Admin 后台"SDK 版本"页面展示所有版本，含 SRI integrity、文件大小、一键复制接入代码。
 - npm 包同时提供 ESM 产物与完整 TypeScript 类型声明，供打包工具（Vite / webpack 等）直接 import 使用。
 
@@ -182,7 +182,7 @@ SDK（`@boses/litetrack-sdk`）是唯一发布到 npm 的包，版本由 **Chang
 - **首次启用需手动一次性配置**（仅一次）：
   1. 本地 `npm login`（账号需对 `@boses` scope 有发布权限）→ `pnpm -C apps/sdk build` → `cd apps/sdk && npm publish --access public` 手动发首版。
   2. 在 npmjs.com 包的 Settings → Trusted Publisher 配置 GitHub Actions：Organization/user = `bosens-China`，Repository = `LiteTrack`，Workflow filename = `docker-and-sdk.yml`。
-- 配置完成后即进入 Changesets 流程：提交 changeset → 合并 "Version Packages" PR 完成版本提升 → CI 自动发版（详见 2.2 节），无需手动改版本号。
+- 配置完成后即进入 release-please 流程：按 Conventional Commits 提交 → 合并 release PR 完成版本提升 → CI 自动发版（详见 2.2 节），无需手动改版本号。
 
 ---
 
