@@ -23,8 +23,7 @@
           <div class="item-top">
             <span class="item-version">v{{ v.version }}</span>
             <div class="item-badges">
-              <span v-if="idx === 0" class="badge badge-latest">最新</span>
-              <span v-if="npmLoading" class="badge badge-npm-loading" />
+              <span v-if="npmLoading" class="badge badge-loading" />
               <span v-else-if="isOnNpm(v.version)" class="badge badge-npm"
                 >npm</span
               >
@@ -189,29 +188,35 @@ function formatBytes(bytes: number): string {
 .item-badges {
   display: flex;
   gap: 4px;
+  margin-left: auto;
 }
 
 .badge {
   display: inline-flex;
   align-items: center;
-  padding: 1px 6px;
+  padding: 1px 7px;
   border-radius: 99px;
   font-size: 10px;
-  font-weight: 700;
+  font-weight: 600;
   line-height: 16px;
 }
 
-.badge-latest {
-  background: var(--accent-blue);
-  color: #fff;
-}
-
+/* npm：中性灰胶囊 + 红色小圆点（保留品牌识别，不用大块彩色） */
 .badge-npm {
-  background: #cc3534;
-  color: #fff;
+  gap: 4px;
+  background: var(--bg-tertiary);
+  color: var(--text-secondary);
 }
 
-.badge-npm-loading {
+.badge-npm::before {
+  content: '';
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--accent-rose);
+}
+
+.badge-loading {
   width: 28px;
   height: 16px;
   background: var(--bg-tertiary);

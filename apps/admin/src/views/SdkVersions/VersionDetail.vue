@@ -6,10 +6,7 @@
         <h2 class="ver-title">v{{ version.version }}</h2>
         <div class="ver-badges">
           <el-tag type="info" size="small">API {{ version.apiVersion }}</el-tag>
-          <el-tag v-if="isOnNpm" type="success" size="small">
-            <Icon icon="mdi:npm" class="tag-icon" />npm 已发布
-          </el-tag>
-          <el-tag v-else-if="!npmLoading" size="small" type="warning"
+          <el-tag v-if="!isOnNpm && !npmLoading" size="small" type="warning"
             >仅 CDN</el-tag
           >
           <span class="ver-size">{{ formatBytes(version.size) }}</span>
@@ -28,8 +25,11 @@
           <!-- npm tab -->
           <el-tab-pane name="npm" :disabled="!isOnNpm && !npmLoading">
             <template #label>
-              <span :class="{ 'tab-disabled': !isOnNpm && !npmLoading }">
-                <Icon icon="mdi:npm" class="tab-icon" />npm
+              <span
+                class="badge-inline"
+                :class="{ 'tab-disabled': !isOnNpm && !npmLoading }"
+              >
+                <Icon icon="mdi:package-variant-closed" class="tab-icon" />npm
               </span>
             </template>
             <div v-if="!isOnNpm && !npmLoading" class="npm-unavailable">
@@ -407,10 +407,12 @@ async function copyDoc() {
   flex-wrap: wrap;
 }
 
-.tag-icon {
-  font-size: 14px;
-  margin-right: 3px;
-  vertical-align: -2px;
+/* 图标 + 文字内联对齐：Tailwind preflight 将 svg 设为 block，
+   需用 inline-flex 容器让块级图标与文字在同一行垂直居中 */
+.badge-inline {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
 }
 
 .ver-size {
@@ -464,8 +466,6 @@ async function copyDoc() {
 
 .tab-icon {
   font-size: 16px;
-  margin-right: 4px;
-  vertical-align: -2px;
 }
 
 .tab-disabled {
