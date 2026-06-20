@@ -1,9 +1,14 @@
-import type { FastifyPluginAsync } from 'fastify'
-import type { ZodTypeProvider } from 'fastify-type-provider-zod'
-import { logsQuerySchema, parseDateBoundary, requireOwnedSite, siteParamsSchema } from './shared.js'
+import type { FastifyPluginAsync } from 'fastify';
+import type { ZodTypeProvider } from 'fastify-type-provider-zod';
+import {
+  logsQuerySchema,
+  parseDateBoundary,
+  requireOwnedSite,
+  siteParamsSchema,
+} from './shared.js';
 
 const logsRoutes: FastifyPluginAsync = async (fastify) => {
-  const typed = fastify.withTypeProvider<ZodTypeProvider>()
+  const typed = fastify.withTypeProvider<ZodTypeProvider>();
 
   typed.get(
     '/:siteId/logs',
@@ -15,41 +20,45 @@ const logsRoutes: FastifyPluginAsync = async (fastify) => {
       },
     },
     async (request) => {
-      await requireOwnedSite(fastify, request.user.userId, request.params.siteId)
+      await requireOwnedSite(
+        fastify,
+        request.user.userId,
+        request.params.siteId,
+      );
 
       const where: {
-        siteId: number
-        path?: { contains: string; mode: 'insensitive' }
-        createdAt?: { gte?: Date; lte?: Date }
+        siteId: number;
+        path?: { contains: string; mode: 'insensitive' };
+        createdAt?: { gte?: Date; lte?: Date };
       } = {
         siteId: request.params.siteId,
-      }
+      };
 
       if (request.query.path) {
-        where.path = { contains: request.query.path, mode: 'insensitive' }
+        where.path = { contains: request.query.path, mode: 'insensitive' };
       }
 
       if (request.query.startDate || request.query.endDate) {
-        where.createdAt = {}
+        where.createdAt = {};
 
         if (request.query.startDate) {
-          const start = parseDateBoundary(request.query.startDate, 'start')
+          const start = parseDateBoundary(request.query.startDate, 'start');
           if (!start) {
-            throw fastify.httpErrors.badRequest('开始日期格式无效')
+            throw fastify.httpErrors.badRequest('开始日期格式无效');
           }
-          where.createdAt.gte = start
+          where.createdAt.gte = start;
         }
 
         if (request.query.endDate) {
-          const end = parseDateBoundary(request.query.endDate, 'end')
+          const end = parseDateBoundary(request.query.endDate, 'end');
           if (!end) {
-            throw fastify.httpErrors.badRequest('结束日期格式无效')
+            throw fastify.httpErrors.badRequest('结束日期格式无效');
           }
-          where.createdAt.lte = end
+          where.createdAt.lte = end;
         }
       }
 
-      const skip = (request.query.page - 1) * request.query.pageSize
+      const skip = (request.query.page - 1) * request.query.pageSize;
       const [total, logs] = await Promise.all([
         fastify.prisma.accessLog.count({ where }),
         fastify.prisma.accessLog.findMany({
@@ -62,15 +71,23 @@ const logsRoutes: FastifyPluginAsync = async (fastify) => {
             path: true,
             title: true,
             ip: true,
+            visitorId: true,
+            sessionId: true,
             userAgent: true,
             deviceType: true,
             browser: true,
             os: true,
             referer: true,
+            language: true,
+            utmSource: true,
+            utmMedium: true,
+            utmCampaign: true,
+            country: true,
+            city: true,
             createdAt: true,
           },
         }),
-      ])
+      ]);
 
       return {
         logs,
@@ -80,9 +97,9 @@ const logsRoutes: FastifyPluginAsync = async (fastify) => {
           pageSize: request.query.pageSize,
           totalPages: Math.ceil(total / request.query.pageSize),
         },
-      }
+      };
     },
-  )
-}
+  );
+};
 
-export default logsRoutes
+export default logsRoutes;

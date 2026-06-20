@@ -377,6 +377,149 @@ const audienceRoutes: FastifyPluginAsync = async (fastify) => {
       };
     },
   );
+
+  // ────────────────────────────────────────────────────────────────────
+  // GET /:siteId/languages  — 访客浏览器语言分布
+  // ────────────────────────────────────────────────────────────────────
+  typed.get(
+    '/:siteId/languages',
+    {
+      onRequest: [fastify.authenticate],
+      schema: {
+        params: siteParamsSchema,
+        querystring: daysQuerySchema,
+      },
+    },
+    async (request) => {
+      await requireOwnedSite(
+        fastify,
+        request.user.userId,
+        request.params.siteId,
+      );
+
+      const startDate = getDateBoundary(request.query.days, 'start');
+      const languages = await fastify.prisma.accessLog.groupBy({
+        by: ['language'],
+        where: {
+          siteId: request.params.siteId,
+          createdAt: { gte: startDate },
+        },
+        _count: { _all: true },
+      });
+
+      return {
+        summary: { days: request.query.days },
+        languages: toSortedBuckets(languages, (row) => row.language),
+      };
+    },
+  );
+
+  // ────────────────────────────────────────────────────────────────────
+  // GET /:siteId/campaigns  — UTM 营销活动维度分布（来源/媒介/活动）
+  // ────────────────────────────────────────────────────────────────────
+  typed.get(
+    '/:siteId/campaigns',
+    {
+      onRequest: [fastify.authenticate],
+      schema: {
+        params: siteParamsSchema,
+        querystring: daysQuerySchema,
+      },
+    },
+    async (request) => {
+      await requireOwnedSite(
+        fastify,
+        request.user.userId,
+        request.params.siteId,
+      );
+
+      const startDate = getDateBoundary(request.query.days, 'start');
+      // 仅统计带任一 UTM 参数的访问，避免「无活动」直访淹没分布
+      const where = {
+        siteId: request.params.siteId,
+        createdAt: { gte: startDate },
+        OR: [
+          { utmSource: { not: null } },
+          { utmMedium: { not: null } },
+          { utmCampaign: { not: null } },
+        ],
+      };
+
+      const [sources, mediums, campaigns] = await Promise.all([
+        fastify.prisma.accessLog.groupBy({
+          by: ['utmSource'],
+          where,
+          _count: { _all: true },
+        }),
+        fastify.prisma.accessLog.groupBy({
+          by: ['utmMedium'],
+          where,
+          _count: { _all: true },
+        }),
+        fastify.prisma.accessLog.groupBy({
+          by: ['utmCampaign'],
+          where,
+          _count: { _all: true },
+        }),
+      ]);
+
+      return {
+        summary: { days: request.query.days },
+        sources: toSortedBuckets(sources, (row) => row.utmSource),
+        mediums: toSortedBuckets(mediums, (row) => row.utmMedium),
+        campaigns: toSortedBuckets(campaigns, (row) => row.utmCampaign),
+      };
+    },
+  );
+
+  // ────────────────────────────────────────────────────────────────────
+  // GET /:siteId/geo  — 访客地理分布（国家/城市，依赖反代注入的地理请求头）
+  // ────────────────────────────────────────────────────────────────────
+  typed.get(
+    '/:siteId/geo',
+    {
+      onRequest: [fastify.authenticate],
+      schema: {
+        params: siteParamsSchema,
+        querystring: daysQuerySchema,
+      },
+    },
+    async (request) => {
+      await requireOwnedSite(
+        fastify,
+        request.user.userId,
+        request.params.siteId,
+      );
+
+      const startDate = getDateBoundary(request.query.days, 'start');
+      const [countries, cities] = await Promise.all([
+        fastify.prisma.accessLog.groupBy({
+          by: ['country'],
+          where: {
+            siteId: request.params.siteId,
+            createdAt: { gte: startDate },
+            country: { not: null },
+          },
+          _count: { _all: true },
+        }),
+        fastify.prisma.accessLog.groupBy({
+          by: ['city'],
+          where: {
+            siteId: request.params.siteId,
+            createdAt: { gte: startDate },
+            city: { not: null },
+          },
+          _count: { _all: true },
+        }),
+      ]);
+
+      return {
+        summary: { days: request.query.days },
+        countries: toSortedBuckets(countries, (row) => row.country),
+        cities: toSortedBuckets(cities, (row) => row.city),
+      };
+    },
+  );
 };
 
 export default audienceRoutes;
