@@ -166,8 +166,8 @@ SDK（`@boses/litetrack-sdk`）是唯一发布到 npm 的包，版本由 **Chang
 
 ### 3.5 SDK 版本管理
 
-- 所有历史版本的 IIFE 均托管在 admin 静态服务（`/sdk/<version>/litetrack.min.js`）。
-- 每次发版由 CI 自动：构建 → 复制到 `apps/admin/public/sdk/<version>/` → 更新 `manifest.json` → 发布至 npm（`@boses/litetrack-sdk`）。
+- 所有历史版本的 IIFE 均托管在 admin 静态服务（`/sdk/<version>/litetrack.min.js`），已发布版本**不可变**（见 2.2 节）。
+- 版本号由 **Changesets** 管理（禁止手动 bump，流程见 2.2 节）；版本提升 PR 合并后，CI 自动：构建 → 复制到 `apps/admin/public/sdk/<version>/` → 更新 `manifest.json` → 发布至 npm（`@boses/litetrack-sdk`）。
 - Admin 后台"SDK 版本"页面展示所有版本，含 SRI integrity、文件大小、一键复制接入代码。
 - npm 包同时提供 ESM 产物与完整 TypeScript 类型声明，供打包工具（Vite / webpack 等）直接 import 使用。
 
@@ -179,7 +179,7 @@ SDK（`@boses/litetrack-sdk`）是唯一发布到 npm 的包，版本由 **Chang
 - **首次启用需手动一次性配置**（仅一次）：
   1. 本地 `npm login`（账号需对 `@boses` scope 有发布权限）→ `pnpm -C apps/sdk build` → `cd apps/sdk && npm publish --access public` 手动发首版。
   2. 在 npmjs.com 包的 Settings → Trusted Publisher 配置 GitHub Actions：Organization/user = `bosens-China`，Repository = `LiteTrack`，Workflow filename = `docker-and-sdk.yml`。
-- 配置完成后，后续只需 bump `apps/sdk/package.json` 版本号并推送至 `master`，CI 即自动发版。
+- 配置完成后即进入 Changesets 流程：提交 changeset → 合并 "Version Packages" PR 完成版本提升 → CI 自动发版（详见 2.2 节），无需手动改版本号。
 
 ---
 

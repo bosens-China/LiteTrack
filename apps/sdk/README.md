@@ -166,7 +166,7 @@ tracker.destroy();
 
 ## 默认请求路径
 
-SDK 会基于 `baseUrl` 加上按版本推导的前缀 `/litetrack/v{major}` 拼出以下接口（以 1.x 为例）：
+SDK 会基于 `baseUrl` 加上 API 契约前缀 `/litetrack/${API_VERSION}`（由 `src/core/version.ts` 显式声明，当前 `v1`，与 SDK 大版本号无关）拼出以下接口：
 
 - 页面访问上报：`${baseUrl}/litetrack/v1/track`
 - 阅读深度上报：`${baseUrl}/litetrack/v1/track/read-progress`
