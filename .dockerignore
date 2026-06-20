@@ -2,7 +2,14 @@ node_modules
 **/node_modules
 **/dist
 **/.turbo
+**/coverage
+**/test
+**/*.log
+**/.env*
 .git
 .gitignore
+.github
 .DS_Store
 Thumbs.db
+**/*.md
+apps/*/Dockerfile

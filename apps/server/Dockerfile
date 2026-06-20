@@ -43,10 +43,18 @@ COPY --from=build /app/apps/server/prisma ./apps/server/prisma
 # 显式复制 prisma.config.ts，确保 prisma db push 能读取到配置
 COPY --from=build /app/apps/server/prisma.config.ts ./apps/server/prisma.config.ts
 
+# 以非 root 用户运行，降低被攻破后的影响面（node 镜像内置 uid 1000 的 node 用户）
+RUN chown -R node:node /app
+USER node
+
 WORKDIR /app/apps/server
 
 EXPOSE 3000
 
-# 启动前自动同步数据库结构（注意：生产环境建议使用 prisma migrate deploy，但需先提交 migration 文件）
-CMD ["sh", "-c", "npx prisma db push && node dist/app.js"]
+# 容器内健康检查：探测不带版本的 /health 端点
+HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
+  CMD wget -qO- http://127.0.0.1:3000/health || exit 1
+
+# 启动前执行数据库迁移（migrations 已纳入版本管理，使用 migrate deploy 而非 db push，避免 schema 漂移丢数据）
+CMD ["sh", "-c", "npx prisma migrate deploy && node dist/app.js"]
 

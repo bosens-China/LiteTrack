@@ -33,5 +33,9 @@ COPY --from=build /app/apps/admin/dist ./
 
 EXPOSE 80
 
+# 容器内健康检查：探测 Nginx 是否正常响应
+HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
+  CMD wget -qO- http://127.0.0.1:80/ || exit 1
+
 CMD ["nginx", "-g", "daemon off;"]
 
