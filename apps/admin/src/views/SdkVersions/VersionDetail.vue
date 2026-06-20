@@ -15,6 +15,9 @@
           <span class="ver-size">{{ formatBytes(version.size) }}</span>
         </div>
       </div>
+      <el-button size="small" class="copy-doc-btn" @click="copyDoc">
+        <Icon icon="mdi:clipboard-text-outline" class="btn-icon" />复制文档
+      </el-button>
     </div>
 
     <div class="detail-body">
@@ -273,6 +276,84 @@ const methods = [
     desc: '销毁追踪器，后续所有调用静默忽略。适合在 SPA 组件卸载时调用。',
   },
 ];
+
+// 将当前版本的接入文档拼成 Markdown，供「复制文档」一键复制
+const docMarkdown = computed(() => {
+  const v = props.version;
+  const lines: string[] = [
+    `# LiteTrack SDK v${v.version}`,
+    '',
+    `- API 契约版本：${v.apiVersion}`,
+    `- 产物体积：${formatBytes(v.size)}`,
+    '',
+    '## 安装方式',
+    '',
+  ];
+
+  // npm 仅在已发布到 npm 时给出，否则只提供 CDN 方式
+  if (props.isOnNpm) {
+    lines.push(
+      '### npm',
+      '',
+      '```bash',
+      npmInstallCmd.value,
+      '```',
+      '',
+      '```typescript',
+      npmUsageCode.value,
+      '```',
+      '',
+    );
+  }
+
+  lines.push(
+    '### CDN 嵌入',
+    '',
+    '```html',
+    cdnSnippet.value,
+    '```',
+    '',
+    '## 配置项',
+    '',
+    '| 参数 | 类型 | 必填 | 说明 |',
+    '| --- | --- | --- | --- |',
+  );
+  for (const opt of configOptions) {
+    lines.push(
+      `| \`${opt.name}\` | \`${opt.type}\` | ${opt.required ? '✓' : '—'} | ${opt.desc} |`,
+    );
+  }
+
+  lines.push('', '## API 方法', '');
+  for (const m of methods) {
+    lines.push(`### \`${m.sig}\``, '', m.desc, '');
+  }
+
+  lines.push(
+    '## SPA 集成示例',
+    '',
+    '在 Vue Router 中自动上报每次路由跳转。',
+    '',
+    '```typescript',
+    spaExample,
+    '```',
+    '',
+    '## 阅读深度追踪',
+    '',
+    '监听滚动位置，上报用户阅读到的百分比。',
+    '',
+    '```typescript',
+    readExample,
+    '```',
+  );
+
+  return lines.join('\n');
+});
+
+async function copyDoc() {
+  await copy(docMarkdown.value);
+  ElMessage.success('文档已复制为 Markdown');
+}
 </script>
 
 <style scoped>
@@ -288,6 +369,20 @@ const methods = [
   padding: 20px 24px 16px;
   border-bottom: 1px solid var(--border-soft);
   flex-shrink: 0;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.copy-doc-btn {
+  flex-shrink: 0;
+}
+
+.btn-icon {
+  font-size: 15px;
+  margin-right: 4px;
+  vertical-align: -2px;
 }
 
 .header-left {
