@@ -166,6 +166,8 @@ const sites: FastifyPluginAsync = async (fastify, _opts): Promise<void> => {
               description: true,
               isActive: true,
               createdAt: true,
+              // 令牌明文随详情返回，支持后台随时复制（令牌以明文存储）
+              token: true,
             },
           },
         },

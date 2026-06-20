@@ -24,9 +24,13 @@
     </el-form>
 
     <div v-else class="space-y-4">
-      <div class="flex items-center gap-2 p-3 rounded-lg bg-amber-50 border border-amber-200">
+      <div
+        class="flex items-center gap-2 p-3 rounded-lg bg-amber-50 border border-amber-200"
+      >
         <Icon icon="mdi:alert-circle" class="text-amber-600 text-lg" />
-        <p class="text-sm text-amber-700">请立即保存此令牌，它只会显示一次。</p>
+        <p class="text-sm text-amber-700">
+          请妥善保管此令牌，后续也可在列表中随时复制。
+        </p>
       </div>
 
       <div class="relative">
@@ -73,73 +77,73 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue'
-import { ElMessage } from 'element-plus'
-import { Icon } from '@iconify/vue'
-import { useClipboard } from '@/composables'
+import { computed, ref, watch } from 'vue';
+import { ElMessage } from 'element-plus';
+import { Icon } from '@iconify/vue';
+import { useClipboard } from '@/composables';
 
 interface Props {
-  show: boolean
-  createdToken: string
-  creating: boolean
+  show: boolean;
+  createdToken: string;
+  creating: boolean;
 }
 
-const props = defineProps<Props>()
+const props = defineProps<Props>();
 
 const emit = defineEmits<{
-  'update:show': [value: boolean]
-  create: [data: { name: string; description?: string }]
-  close: []
-}>()
+  'update:show': [value: boolean];
+  create: [data: { name: string; description?: string }];
+  close: [];
+}>();
 
 const { copy } = useClipboard({
   onSuccess: () => {
-    ElMessage.success('已复制到剪贴板')
+    ElMessage.success('已复制到剪贴板');
   },
   onError: () => {
-    ElMessage.error('复制失败')
+    ElMessage.error('复制失败');
   },
-})
+});
 
 const showModal = computed({
   get: () => props.show,
   set: (value) => emit('update:show', value),
-})
+});
 
 const formData = ref({
   name: '',
   description: '',
-})
+});
 
 function handleCreate() {
-  if (!formData.value.name.trim()) return
+  if (!formData.value.name.trim()) return;
 
   const data = {
     name: formData.value.name.trim(),
     description: formData.value.description || undefined,
-  }
-  emit('create', data)
+  };
+  emit('create', data);
 }
 
 async function copyToken() {
-  await copy(props.createdToken)
+  await copy(props.createdToken);
 }
 
 function handleClose() {
-  emit('close')
-  formData.value.name = ''
-  formData.value.description = ''
+  emit('close');
+  formData.value.name = '';
+  formData.value.description = '';
 }
 
 watch(
   () => props.show,
   (visible) => {
     if (!visible && !props.createdToken) {
-      formData.value.name = ''
-      formData.value.description = ''
+      formData.value.name = '';
+      formData.value.description = '';
     }
   },
-)
+);
 </script>
 
 <style scoped>

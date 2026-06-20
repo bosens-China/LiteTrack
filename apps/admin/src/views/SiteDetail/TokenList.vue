@@ -19,11 +19,17 @@
           <template #default="{ row }">
             <div class="flex items-center gap-2">
               <span class="font-medium text-sm">{{ row.name }}</span>
-              <el-tag :type="row.isActive ? 'success' : 'danger'" size="small" effect="light">
+              <el-tag
+                :type="row.isActive ? 'success' : 'danger'"
+                size="small"
+                effect="light"
+              >
                 {{ row.isActive ? '有效' : '已禁用' }}
               </el-tag>
             </div>
-            <p v-if="row.description" class="token-desc">{{ row.description }}</p>
+            <p v-if="row.description" class="token-desc">
+              {{ row.description }}
+            </p>
           </template>
         </el-table-column>
 
@@ -35,9 +41,14 @@
           </template>
         </el-table-column>
 
-        <el-table-column label="操作" width="120" align="right">
+        <el-table-column label="操作" width="190" align="right">
           <template #default="{ row }">
-            <el-button size="small" text @click="$emit('edit', row)">编辑</el-button>
+            <el-button size="small" text type="primary" @click="copyToken(row)"
+              >复制</el-button
+            >
+            <el-button size="small" text @click="$emit('edit', row)"
+              >编辑</el-button
+            >
             <el-popconfirm
               title="确定删除此令牌？此操作不可撤销。"
               confirm-button-text="删除"
@@ -59,30 +70,45 @@
         :closable="false"
         show-icon
         style="margin-top: 16px"
-        description="令牌用于 SDK 和 API 访问，请妥善保管。明文仅在创建时显示一次。"
+        description="令牌用于 SDK 和 API 访问，请妥善保管。可随时点击「复制」获取明文令牌。"
       />
     </template>
   </el-card>
 </template>
 
 <script setup lang="ts">
-import { Icon } from '@iconify/vue'
-import type { SiteToken } from '@/api/sites'
+import { ElMessage } from 'element-plus';
+import { Icon } from '@iconify/vue';
+import type { SiteToken } from '@/api/sites';
+import { useClipboard } from '@/composables';
 
-defineProps<{ tokens: SiteToken[] }>()
+defineProps<{ tokens: SiteToken[] }>();
 
 defineEmits<{
-  create: []
-  delete: [tokenId: number]
-  edit: [token: SiteToken]
-}>()
+  create: [];
+  delete: [tokenId: number];
+  edit: [token: SiteToken];
+}>();
+
+const { copy } = useClipboard({
+  onSuccess: () => ElMessage.success('令牌已复制到剪贴板'),
+  onError: () => ElMessage.error('复制失败'),
+});
+
+async function copyToken(row: SiteToken) {
+  if (!row.token) {
+    ElMessage.error('未获取到令牌明文');
+    return;
+  }
+  await copy(row.token);
+}
 
 function formatDate(date: string | Date): string {
   return new Date(date).toLocaleDateString('zh-CN', {
     year: 'numeric',
     month: 'short',
     day: 'numeric',
-  })
+  });
 }
 </script>
 
