@@ -1,17 +1,24 @@
 {
   "channels": {
     "v1": {
-      "latest": "1.1.0",
-      "url": "/sdk/1.1.0/litetrack.min.js"
+      "latest": "1.1.1",
+      "url": "/sdk/1.1.1/litetrack.min.js"
     }
   },
   "versions": [
     {
+      "version": "1.1.1",
+      "apiVersion": "v1",
+      "url": "/sdk/1.1.1/litetrack.min.js",
+      "integrity": "sha384-6LDCOLqoIr6ImALY7IK/FRFv0pyzWvzA3Pfg4oMhAUJBc03mBDHg2Vv2xqe6bLoC",
+      "size": 5576
+    },
+    {
       "version": "1.1.0",
       "apiVersion": "v1",
       "url": "/sdk/1.1.0/litetrack.min.js",
-      "integrity": "sha384-PXzUEdEu4puoo2fCLHYU1geEL17GhsAIbo6LVq67GTzptmfdhyJ+reDLShAnybpi",
-      "size": 5576
+      "integrity": "sha384-87AXjIlES7W4OkLJCWvBoKHfhzqRZtIazOis/1q7/zhTRzB1pU39QfGz5CVrQsOH",
+      "size": 9160
     },
     {
       "version": "1.0.0",
