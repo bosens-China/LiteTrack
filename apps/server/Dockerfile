@@ -5,6 +5,9 @@ WORKDIR /app
 # 使用 pnpm（与项目一致）
 RUN corepack enable
 
+# 非交互构建：让 pnpm 以 CI 模式运行（默认 frozen-lockfile、purge 不再要 TTY 确认）
+ENV CI=true
+
 # 安装 openssl (Prisma 在 Alpine 上需要)
 RUN apk add --no-cache openssl
 
@@ -26,7 +29,10 @@ ENV DATABASE_URL="postgresql://user:password@localhost:5432/db"
 RUN pnpm --filter server db:generate
 RUN pnpm --filter server build:ts
 RUN pnpm --filter server deploy --prod --legacy /prod/server
-RUN cd /prod/server && pnpm exec prisma generate
+# 注意：用 `--dir` 让 pnpm 仍从 /app 解析版本（根 packageManager 锁定的 10.32.0），
+# 仅把工作目录指到 /prod/server。若用 `cd /prod/server && pnpm`，该目录无 packageManager
+# 字段，corepack 会拉 pnpm latest（11.8.0），其 exec 前置依赖校验会在无 TTY 时中止构建。
+RUN pnpm --dir /prod/server exec prisma generate
 
 FROM node:22-alpine AS runner
 
