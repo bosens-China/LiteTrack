@@ -124,12 +124,37 @@ export function create(options: LiteTrackCreateOptions): Tracker {
     });
   };
 
-  const handleBeforeUnload = (): void => {
+  // beforeunload 在移动端 Safari / bfcache 常不触发，叠加 pagehide 与
+  // visibilitychange(hidden) 两路兜底，确保切后台 / 关闭标签页时也能 flush。
+  const handleFlushEvent = (): void => {
     if (!destroyed) flushDuration();
   };
 
+  const handleVisibilityChange = (): void => {
+    if (destroyed) return;
+    if (document.visibilityState === 'hidden') {
+      // 切后台：结算当前可见时段（flush 后 pageEntryTime 归零）
+      flushDuration();
+    } else if (lastPath !== null && pageEntryTime === null) {
+      // 切回前台：重新计时，避免再次停留的时长被漏报
+      pageEntryTime = Date.now();
+    }
+  };
+
+  const registerUnloadListeners = (): void => {
+    window.addEventListener('beforeunload', handleFlushEvent);
+    window.addEventListener('pagehide', handleFlushEvent);
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+  };
+
+  const removeUnloadListeners = (): void => {
+    window.removeEventListener('beforeunload', handleFlushEvent);
+    window.removeEventListener('pagehide', handleFlushEvent);
+    document.removeEventListener('visibilitychange', handleVisibilityChange);
+  };
+
   if (isBrowser()) {
-    window.addEventListener('beforeunload', handleBeforeUnload);
+    registerUnloadListeners();
   }
 
   const sendPageview = (input?: PageInput): void => {
@@ -202,7 +227,7 @@ export function create(options: LiteTrackCreateOptions): Tracker {
     destroy() {
       destroyed = true;
       if (isBrowser()) {
-        window.removeEventListener('beforeunload', handleBeforeUnload);
+        removeUnloadListeners();
       }
     },
   };

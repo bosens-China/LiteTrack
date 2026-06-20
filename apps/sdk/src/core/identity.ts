@@ -1,7 +1,4 @@
-import {
-  SESSION_STORAGE_KEY,
-  VISITOR_STORAGE_KEY,
-} from './constants';
+import { SESSION_STORAGE_KEY, VISITOR_STORAGE_KEY } from './constants';
 import { isBrowser } from './env';
 import type { LiteTrackIdentity, StorageLike } from './types';
 
@@ -33,6 +30,8 @@ function getSafeStorage(storage: StorageLike | undefined): StorageLike | null {
   try {
     const probeKey = '__litetrack_probe__';
     storage.setItem(probeKey, '1');
+    // 探测成功后立即清理，避免在用户存储里残留垃圾键
+    storage.removeItem?.(probeKey);
     return storage;
   } catch {
     return null;
@@ -40,7 +39,10 @@ function getSafeStorage(storage: StorageLike | undefined): StorageLike | null {
 }
 
 function createId(prefix: string): string {
-  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+  if (
+    typeof crypto !== 'undefined' &&
+    typeof crypto.randomUUID === 'function'
+  ) {
     return `${prefix}_${crypto.randomUUID()}`;
   }
 
@@ -78,13 +80,15 @@ function getOrCreateIdentity(
   return nextValue;
 }
 
-export function createIdentityStore(initialIdentity?: LiteTrackIdentity): IdentityStore {
-  const visitorStorage =
-    isBrowser() ? getSafeStorage(globalThis.localStorage) ?? memoryLocalStorage : memoryLocalStorage;
-  const sessionStorageRef =
-    isBrowser()
-      ? getSafeStorage(globalThis.sessionStorage) ?? memorySessionStorage
-      : memorySessionStorage;
+export function createIdentityStore(
+  initialIdentity?: LiteTrackIdentity,
+): IdentityStore {
+  const visitorStorage = isBrowser()
+    ? (getSafeStorage(globalThis.localStorage) ?? memoryLocalStorage)
+    : memoryLocalStorage;
+  const sessionStorageRef = isBrowser()
+    ? (getSafeStorage(globalThis.sessionStorage) ?? memorySessionStorage)
+    : memorySessionStorage;
 
   let currentIdentity: LiteTrackIdentity = {
     visitorId: getOrCreateIdentity(
