@@ -48,27 +48,57 @@ LiteTrack 是一款**面向个人开发者的自托管轻量访问统计系统**
         │
         ▼
   Fastify 后端 (server 容器)
-  ├── /litetrack/v1/auth/*     # GitHub OAuth
-  ├── /litetrack/v1/sites/*    # 站点 & Token 管理
-  ├── /litetrack/v1/track/*    # SDK 上报（公开）
-  └── /litetrack/v1/stats/*    # 数据查询（JWT 鉴权）
+  ├── /health                    # 健康检查（不带版本，供容器探活）
+  ├── 【公共契约 · 带版本】
+  │   └── /litetrack/v1/track/*    # SDK 上报 & 公开统计查询
+  └── 【内部接口 · 不带版本】
+      ├── /litetrack/api/auth/*    # GitHub OAuth
+      ├── /litetrack/api/sites/*   # 站点 & Token 管理
+      └── /litetrack/api/stats/*   # 后台数据查询（JWT 鉴权）
         │
    ┌────┴────┐
 PostgreSQL    Redis
 （持久化）   （限流）
 ```
 
-### 2.1 版本契约
+### 2.1 接口分类与版本策略
 
-SDK 大版本号与后端 API 版本前缀绑定：
+后端接口按**受众**分为两类，版本策略截然不同：
 
-| SDK 版本 | 请求前缀        | 兼容后端                         |
-| -------- | --------------- | -------------------------------- |
-| 1.x      | `/litetrack/v1` | 任意后端版本（只要 v1 接口存在） |
-| 2.x      | `/litetrack/v2` | 支持 v2 接口的后端               |
+| 类别         | 前缀             | 调用方   | 版本策略                                                    |
+| ------------ | ---------------- | -------- | ----------------------------------------------------------- |
+| **公共契约** | `/litetrack/v1`  | SDK      | **带版本**。契约稳定，只允许向后兼容改动，破坏性变更才升 v2 |
+| **内部接口** | `/litetrack/api` | 后台前端 | **不带版本**。与前端一起部署，可自由演进，改了前后端一起发  |
 
-- v1 内只允许**向后兼容**的改动（加字段/加接口），不删改现有字段。
-- 升 v2 时后端需**同时保留 v1**，直至确认无 1.x SDK 流量后才可下线。
+**两个版本号刻意解耦**（这是关键设计，避免「SDK 一升大版本就打到不存在的 /v2 → 埋点静默失效」）：
+
+- **SDK 语义化版本**（npm semver）：面向接入方开发者，改 JS 公共 API 就升 major，与后端无关，可自由迭代。
+- **API 契约版本**（`/v1`）：HTTP wire 协议契约，由 SDK 源码 `src/core/version.ts` 的 `API_VERSION` 常量**显式声明**，不从 SDK 大版本号推导。
+
+判断「要不要升 v2」只看一条规则：
+
+| 改动类型                                          | 是否升 v2     | 做法                                                      |
+| ------------------------------------------------- | ------------- | --------------------------------------------------------- |
+| 加可选上报字段 / 加新端点 / 内部重构              | **否**，留 v1 | SDK 升 minor/patch，CI 自动发版                           |
+| 删/改必填字段、改字段语义、改鉴权方式、改响应结构 | **才升 v2**   | 后端新增 v2 路由树（保留 v1），SDK 同 PR 改 `API_VERSION` |
+
+- **Tolerant reader 纪律**：`track` 上报 schema 必须「只增不改」——新字段一律可选、未知字段忽略，让 v1 尽量**永不升级**。
+- 升 v2 时后端需**同时保留 v1**，靠 `X-LiteTrack-SDK` 头观测老版本流量，确认无 1.x 流量后才可下线 v1。埋点 SDK 嵌在客户页面里，老版本存活数年，v1 几乎不可删除。
+
+### 2.2 SDK 版本与发布流程（Changesets）
+
+SDK（`@boses/litetrack-sdk`）是唯一发布到 npm 的包，版本由 **Changesets** 管理，发版是**刻意动作**而非每次提交的副作用：
+
+1. 改 SDK 时附一个 changeset（`pnpm changeset`，声明 patch/minor/major + 说明）。
+2. 合并到 master → CI 自动开 **"Version Packages" PR**（算好版本号、生成 CHANGELOG）。
+3. 合并该 PR = 发版：版本号落到 master，CI 把产物写入 `apps/admin/public/sdk/<version>/`（带 SRI 的 CDN 历史）+ 发布到 npm。
+
+**关键不变量**：
+
+- **本地/CDN 版本号 == npm 版本号**：二者同源于 `apps/sdk/package.json`，天然一致。
+- **已发布版本不可变（immutable）**：npm 强制不可重发；`publish.mjs` 也冻结已存在的 CDN 版本目录绝不覆盖。原因——客户页面以固定 URL + SRI `integrity` 加载，覆盖字节会令校验失配、脚本被浏览器拒绝执行。改内容必须升新版本号。
+- `manifest.json` 的 `versions[]` 是**不可变历史档案**，`channels`（如 `v1.latest`）是**指向最新版的可变指针**。
+- **禁止手动改版本号**，一律走 changeset，避免误发与版本泛滥。
 
 ---
 
