@@ -2,6 +2,15 @@
   "name": "@boses/litetrack-sdk",
   "version": "1.1.1",
   "description": "LiteTrack analytics SDK - lightweight and framework-agnostic",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/bosens-China/LiteTrack.git",
+    "directory": "apps/sdk"
+  },
+  "homepage": "https://github.com/bosens-China/LiteTrack/tree/master/apps/sdk#readme",
+  "bugs": {
+    "url": "https://github.com/bosens-China/LiteTrack/issues"
+  },
   "type": "module",
   "files": [
     "dist"
