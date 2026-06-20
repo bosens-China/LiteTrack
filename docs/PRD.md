@@ -147,6 +147,9 @@ SDK（`@boses/litetrack-sdk`）是唯一发布到 npm 的包，版本由 **Chang
 | `GET /stats/:siteId/referrers` | 流量来源域名 Top 20                    | JWT        |
 | `GET /stats/:siteId/bounce`    | 跳出率 / 总会话数                      | JWT        |
 | `GET /stats/:siteId/duration`  | 页面平均停留时长 Top 20                | JWT        |
+| `GET /stats/:siteId/languages` | 访客浏览器语言分布                     | JWT        |
+| `GET /stats/:siteId/campaigns` | UTM 来源 / 媒介 / 活动分布             | JWT        |
+| `GET /stats/:siteId/geo`       | 访客地理分布（国家 / 城市）            | JWT        |
 | `GET /stats/:siteId/logs`      | 访问日志（分页 / 路径过滤 / 时间范围） | JWT        |
 | `GET /track/stats`             | 公开 PV 查询（供页面展示用）           | Site Token |
 | `POST /track/duration`         | 上报页面停留时长（SDK 内部调用）       | Site Token |
@@ -240,7 +243,7 @@ User
         ├── PageDailyVisitor（页面每日 UV，唯一键：siteId + path + date + visitorId）
         ├── PageReadProgress（阅读进度，唯一键：siteId + path + date + visitorId）
         ├── PageDuration（停留时长，siteId + path + date，无唯一约束，按均值聚合）
-        └── AccessLog（原始日志，含 IP / UA / 设备 / Referer / Language / UTM）
+        └── AccessLog（原始日志，含 IP / UA / 设备 / Referer / Language / UTM / 国家 / 城市）
 ```
 
 ---
@@ -372,7 +375,7 @@ window.addEventListener(
 
 - [ ] Referrer 聚合面板（来源域名统计）
 - [ ] 实时在线人数（WebSocket 或短轮询）
-- [ ] 地理位置统计（IP → 国家/城市，离线数据库）
+- [x] 地理位置统计（国家/城市）：内置离线库 `ip2region`（按 `request.ip` 查询，国内省/市定位准、海外到国家），叠加可信反代头 `CF-IPCountry` / `X-Geo-*` 作为优先覆盖。无外网依赖、无需 license key；前提是开启 `TRUST_PROXY` 以拿到真实客户端 IP
 - [ ] 访问日志导出（CSV）
 
 ### 9.3 长期
