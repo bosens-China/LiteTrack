@@ -74,53 +74,40 @@ jobs:
         if: steps.changes.outputs.server != 'true' && steps.changes.outputs.admin != 'true' && steps.changes.outputs.shared != 'true'
         run: echo "No changes for server/admin/shared, skip building Docker images."
 
-  # 用 changesets 把「发版」做成刻意动作：
-  # - master 上累积了 .changeset/*.md 时，自动开/更新一个 "Version Packages" PR，
-  #   PR 内已算好新版本号、写好 CHANGELOG、删除 changeset 文件；
-  # - 合并该 PR = 正式发版（package.json 版本号被提升），随后由下面 sdk 任务真正发布。
-  # 这里只做版本号 PR，不在此发布，避免与现有 trusted publishing 流程耦合。
-  release-pr:
-    name: Open version bump PR (changesets)
+  # 用 release-please 把「发版」做成刻意动作（依据 Conventional Commits 自动判断版本号）：
+  # - 每次推送 master，release-please 扫描自上次发布以来作用于 apps/sdk 的提交，
+  #   按 feat/fix/feat! 自动算出 minor/patch/major，开/更新一个 "release PR"
+  #   （PR 内已写好版本号与 CHANGELOG，apps/sdk/package.json 已 bump）；
+  # - 合并该 PR = 正式发版：release-please 打 tag、建 GitHub Release，
+  #   并把 apps/sdk--release_created 置为 true，触发下面的 sdk 任务真正发布。
+  # 配置见仓库根的 release-please-config.json 与 .release-please-manifest.json。
+  release-please:
+    name: Release Please (version PR & tag)
     runs-on: ubuntu-latest
     permissions:
       contents: write
       pull-requests: write
-    # 串行化 release，避免两次推送并发开出互相冲突的版本 PR（官方推荐）
-    concurrency: changesets-release-${{ github.ref }}
+    # 串行化 release，避免两次推送并发开出互相冲突的 release PR
+    concurrency: release-please-${{ github.ref }}
+    outputs:
+      # apps/sdk 这一 package 是否在本次推送（合并 release PR）中产生了发布
+      released: ${{ steps.release.outputs['apps/sdk--release_created'] }}
+      version: ${{ steps.release.outputs['apps/sdk--version'] }}
 
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Set up pnpm
-        # 不指定 version，统一由 package.json 的 packageManager(pnpm@10.32.0) 决定，
-        # 避免与之并存触发 ERR_PNPM_BAD_PM_VERSION（多版本冲突）
-        uses: pnpm/action-setup@v4
-
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
+      - name: Run release-please
+        id: release
+        uses: googleapis/release-please-action@v4
         with:
-          node-version: 24
-          cache: pnpm
-
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
-
-      - name: Create or update Version Packages PR
-        uses: changesets/action@v1
-        with:
-          # 默认即 `changeset version`，这里显式走 version-packages 脚本，留出后续扩展空间
-          version: pnpm run version-packages
-          title: 'chore: version packages'
-          commit: 'chore: version packages'
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # 默认读取根目录的 release-please-config.json 与 .release-please-manifest.json
+          token: ${{ secrets.GITHUB_TOKEN }}
 
   sdk:
     name: Build SDK and publish to admin/public
     runs-on: ubuntu-latest
-    # SDK 发版与 Docker 构建并行，互不阻塞；版本号由上面 release-pr 经 changeset 维护，
-    # 此任务幂等：仅当版本号变新（Version PR 合并后）才真正写入 CDN 并发布到 npm。
+    # 仅当 release-please 合并 release PR、真正发布 apps/sdk 时才运行（避免每次推送都跑）。
+    needs: release-please
+    if: needs.release-please.outputs.released == 'true'
     permissions:
       contents: write
       id-token: write  # npm provenance 溯源发布所需
