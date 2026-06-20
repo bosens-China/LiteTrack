@@ -20,11 +20,13 @@ function createTrackApp(options = {}) {
   };
 
   app.decorate('checkRateLimit', async () => true);
+  app.decorate('checkCountRateLimit', async () => true);
   app.decorate('prisma', {
     siteToken: {
       findUnique: async () => ({
         siteId: 1,
         isActive: true,
+        site: { domain: 'example.com' },
       }),
     },
     pageView: {

@@ -22,7 +22,9 @@ const originalLocalStorage = globalThis.localStorage;
 const originalSessionStorage = globalThis.sessionStorage;
 
 function getJsonBody(index: number): Record<string, unknown> {
-  const options = mockFetch.mock.calls[index]?.[1] as { body?: string } | undefined;
+  const options = mockFetch.mock.calls[index]?.[1] as
+    | { body?: string }
+    | undefined;
   if (!options?.body) return {};
   return JSON.parse(options.body) as Record<string, unknown>;
 }
@@ -36,10 +38,15 @@ beforeEach(() => {
 
   globalThis.window = {
     location: { pathname: '/docs/start' },
+    addEventListener: vi.fn(),
+    removeEventListener: vi.fn(),
   } as unknown as Window & typeof globalThis;
 
   globalThis.document = {
     title: 'LiteTrack 文档',
+    visibilityState: 'visible',
+    addEventListener: vi.fn(),
+    removeEventListener: vi.fn(),
   } as unknown as Document;
 
   globalThis.localStorage = localStorageMock as unknown as Storage;
@@ -78,7 +85,9 @@ describe('create', () => {
     tracker.page();
 
     expect(mockFetch).toHaveBeenCalledTimes(1);
-    expect(mockFetch.mock.calls[0][0]).toBe('https://api.example.com/litetrack/v1/track');
+    expect(mockFetch.mock.calls[0][0]).toBe(
+      'https://api.example.com/litetrack/v1/track',
+    );
     expect(getJsonBody(0)).toMatchObject({
       path: '/docs/start',
       title: 'LiteTrack 文档',
@@ -99,21 +108,24 @@ describe('create', () => {
     expect(getJsonBody(0)).toMatchObject({ path: '/about', title: '关于我们' });
   });
 
-  it('read() sends read progress using the last page() path as fallback', () => {
+  it('read() falls back to the current window.location path in real time', () => {
     const tracker = create({
       siteToken: 'st_test',
       baseUrl: 'https://api.example.com',
       identity: { visitorId: 'visitor-1', sessionId: 'session-1' },
     });
 
-    tracker.page({ path: '/posts/hello' });
+    // SPA 导航后 location 变化，read() 不依赖 page() 状态，应实时读取当前路径
+    (
+      globalThis.window as unknown as { location: { pathname: string } }
+    ).location.pathname = '/posts/hello';
     tracker.read(75);
 
-    expect(mockFetch).toHaveBeenCalledTimes(2);
-    expect(mockFetch.mock.calls[1][0]).toBe(
+    expect(mockFetch).toHaveBeenCalledTimes(1);
+    expect(mockFetch.mock.calls[0][0]).toBe(
       'https://api.example.com/litetrack/v1/track/read-progress',
     );
-    expect(getJsonBody(1)).toMatchObject({
+    expect(getJsonBody(0)).toMatchObject({
       path: '/posts/hello',
       maxDepth: 75,
       visitorId: 'visitor-1',
@@ -130,7 +142,10 @@ describe('create', () => {
 
     tracker.read({ path: '/posts/hello', percent: 50 });
 
-    expect(getJsonBody(0)).toMatchObject({ path: '/posts/hello', maxDepth: 50 });
+    expect(getJsonBody(0)).toMatchObject({
+      path: '/posts/hello',
+      maxDepth: 50,
+    });
   });
 
   it('identify() updates the identity used in subsequent calls', () => {
@@ -140,6 +155,10 @@ describe('create', () => {
       identity: { visitorId: 'visitor-1' },
     });
 
+    // read() 实时读取 location，对齐到 /manual 以便聚焦验证身份字段的传递
+    (
+      globalThis.window as unknown as { location: { pathname: string } }
+    ).location.pathname = '/manual';
     tracker.identify({ sessionId: 'session-2' });
     tracker.page({ path: '/manual', title: '手动页面' });
     tracker.read(90);
@@ -163,7 +182,10 @@ describe('create', () => {
     globalThis.localStorage = undefined as unknown as Storage;
     globalThis.sessionStorage = undefined as unknown as Storage;
 
-    const tracker = create({ siteToken: 'st_test', baseUrl: 'https://api.example.com' });
+    const tracker = create({
+      siteToken: 'st_test',
+      baseUrl: 'https://api.example.com',
+    });
 
     tracker.page({ path: '/memory', title: 'Memory Mode' });
     tracker.read({ path: '/memory', percent: 80 });
@@ -186,7 +208,9 @@ describe('create', () => {
     const tracker = create({
       siteToken: 'st_test',
       baseUrl: 'https://api.example.com',
-      onError(error) { errors.push(error); },
+      onError(error) {
+        errors.push(error);
+      },
     });
 
     tracker.page({ path: '/error' });
@@ -199,7 +223,10 @@ describe('create', () => {
   });
 
   it('ignores all calls after destroy()', () => {
-    const tracker = create({ siteToken: 'st_test', baseUrl: 'https://api.example.com' });
+    const tracker = create({
+      siteToken: 'st_test',
+      baseUrl: 'https://api.example.com',
+    });
 
     tracker.destroy();
     tracker.page({ path: '/after-destroy' });
@@ -216,7 +243,10 @@ describe('stats', () => {
       json: async () => ({ totalViews: 100, totalPages: 5 }),
     } as Response);
 
-    const tracker = create({ siteToken: 'st_test', baseUrl: 'https://api.example.com' });
+    const tracker = create({
+      siteToken: 'st_test',
+      baseUrl: 'https://api.example.com',
+    });
     const result = await tracker.stats.site();
 
     expect(mockFetch).toHaveBeenCalledWith(
@@ -238,11 +268,16 @@ describe('stats', () => {
       json: async () => ({ path: '/docs/start', count: 42 }),
     } as Response);
 
-    const tracker = create({ siteToken: 'st_test', baseUrl: 'https://api.example.com' });
+    const tracker = create({
+      siteToken: 'st_test',
+      baseUrl: 'https://api.example.com',
+    });
     const result = await tracker.stats.page('docs/start/');
 
     const [url] = mockFetch.mock.calls[0] ?? [];
-    expect(url).toBe('https://api.example.com/litetrack/v1/track/stats?path=%2Fdocs%2Fstart');
+    expect(url).toBe(
+      'https://api.example.com/litetrack/v1/track/stats?path=%2Fdocs%2Fstart',
+    );
     expect(result).toEqual({ path: '/docs/start', count: 42 });
   });
 
@@ -257,7 +292,9 @@ describe('stats', () => {
     const tracker = create({
       siteToken: 'st_test',
       baseUrl: 'https://api.example.com',
-      onError(error) { errors.push(error); },
+      onError(error) {
+        errors.push(error);
+      },
     });
 
     await expect(tracker.stats.site()).rejects.toMatchObject({
