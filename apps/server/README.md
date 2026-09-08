@@ -50,6 +50,9 @@ GITHUB_CALLBACK_URL="http://localhost:8080/auth/callback"
 
 APP_TIMEZONE="Asia/Shanghai"
 LOG_LEVEL="info"
+TRUST_PROXY="false"
+TRACK_IP_RATE_LIMIT="300"
+TRACK_SITE_RATE_LIMIT="6000"
 ```
 
 ### 4. 初始化数据库
@@ -119,10 +122,19 @@ pnpm dev
 | ---- | ---------------------- | ---------------------- |
 | POST | `/track`               | 页面访问上报           |
 | POST | `/track/read-progress` | 阅读深度上报           |
+| POST | `/track/duration`      | 页面停留时长上报       |
 | GET  | `/track/stats`         | 公开查询站点 / 页面 PV |
 | GET  | `/track/verify`        | 校验 Site Token        |
 
-`POST /track` 与 `POST /track/read-progress` 都要求请求头携带 `X-Site-Token`。
+上述上报接口都要求请求头携带 `X-Site-Token`，实际地址加上 `/litetrack/v1` 前缀。未知请求字段会被忽略。
+
+### 采集语义与限流
+
+- 整个公开 track 路由在解析请求体、查询数据库之前，按客户端 IP 限制每分钟 300 次请求（OPTIONS 除外）；写入接口还按站点限制每分钟 6000 次。分别通过 `TRACK_IP_RATE_LIMIT`、`TRACK_SITE_RATE_LIMIT` 调整。阅读和时长另保留每 IP / 站点每分钟 120、30 次限制。
+- PV 使用站点、归档日期、路径、visitorId 和 sessionId 做 10 秒原子去重；无 visitorId 的旧客户端回退到 IP。共享出口 IP 的不同访客分别计数。
+- 一次 PV 的总量、每日量、UV 和访问日志在同一事务中提交。已提交的重复请求返回 `{ success: true, cached: true }`；仍在处理的重复请求返回 503 和 `Retry-After: 1`。写入失败回滚，并释放本次预留以允许重试。
+- 阅读深度通过数据库原子更新保留最大值；时长写入完成后才返回成功。写入失败返回 500，限流返回 429。
+- 去重是短窗口抑制机制，不是持久化事件幂等协议。进程崩溃、Redis 数据丢失或超出去重窗口的重试仍可能重复计数；SDK 当前不提供可靠重试队列。
 
 ## OAuth 配置说明
 
@@ -130,7 +142,8 @@ pnpm dev
 2. `Homepage URL` 填 `http://localhost:8080`
 3. `Authorization callback URL` 填 `http://localhost:8080/auth/callback`
 4. 保持 GitHub 配置、`apps/admin` 路由、`GITHUB_CALLBACK_URL` 三者一致。
-5. 前端会生成并校验 `state`，后端要求该字段参与登录流程。
+5. 前端会生成并校验 `state`，后端使用 Redis `GETDEL` 原子核销（需要 Redis 6.2+，部署使用 Redis 7）。
+6. 上游请求各有 10 秒超时。后端请求日志与默认 Nginx 访问日志都去除 URL 查询参数，OAuth 错误只记录错误码和上游状态，不记录授权码、客户端密钥和 access token。
 
 ## 项目结构
 
@@ -153,12 +166,25 @@ pnpm check
 pnpm test
 ```
 
-当前已覆盖：
+默认测试使用假配置和 mock，不连接开发数据库；真实集成测试在缺少 `TEST_DATABASE_URL` / `TEST_REDIS_URL` 时跳过。用专用测试库执行全部回归：
 
-- 基础健康检查
-- 统计查询关键场景
-- 上报链路关键场景
-- `buildServer + autoload + prefix` 真实装配链路
+```bash
+export TEST_DATABASE_URL="postgresql://test:test@localhost:5432/litetrack_test"
+export TEST_REDIS_URL="redis://localhost:6379/1"
+DATABASE_URL="$TEST_DATABASE_URL" pnpm db:generate
+DATABASE_URL="$TEST_DATABASE_URL" pnpm exec prisma migrate deploy
+pnpm test
+```
+
+先配置这两个测试连接变量再执行生成和迁移；不要指向生产库。测试只清理自身创建的站点、用户和 Redis 键，不清空数据库。覆盖真实并发去重、事务回滚、阅读深度竞争、限流、OAuth 日志脱敏、state 重放、JWT 与代理信任边界，以及现有统计查询和路由装配。
+
+### 依赖审计
+
+Fastify、JWT、Axios 和 Prisma 已更新，移除未使用的 `fastify-cli`。工作区对 `fast-uri@3` 和 `prisma>mysql2` 使用安全补丁覆盖；上游依赖修正后可移除。
+
+2026-09-08 的生产依赖审计中，server 依赖路径仍有一项 high 公告：[deepmerge-ts 循环对象递归导致拒绝服务](https://github.com/advisories/GHSA-ggr8-5vv4-36mx)。Prisma 7.10 的配置模块固定依赖 7.1.5；本项目仅合并本地可信 Prisma 配置，HTTP 输入不进入该调用链。保留此项可见，不跨主版本强行覆盖；后续随 Prisma 修复更新。
+
+同日核查 npm：Prisma 最新正式版本仍为 7.10.0，`latest` 标签指向 8.0.0-rc.13。升级时检查实际版本与发布状态，避免将候选版作为常规生产补丁；`deepmerge-ts` 的公告修复版本为 8.0.0。
 
 ## Docker
 
@@ -167,3 +193,12 @@ docker build -f apps/server/Dockerfile -t litetrack-server .
 ```
 
 运行前请准备好外部 PostgreSQL、Redis，并传入必需环境变量。
+
+### 代理与客户端 IP
+
+- 直连后端保持 `TRUST_PROXY=false`；反代部署填写实际可信代理 IP / CIDR。Fastify 5.12 不再支持 `TRUST_PROXY=1` 等数字跳数配置，应用会在启动时拒绝。
+- 仓库 Compose 默认 `uniquelocal`，依赖后端只在受控私网暴露、Nginx 是唯一公网入口。自行增加公开端口或共享网络时，应收紧到实际代理地址；避免在可直连环境中使用 `true`。
+- 默认 Nginx 覆盖 `X-Forwarded-For`，并剥离客户端传入的 `CF-IPCountry` / `X-Geo-*`，后端使用离线 IP 定位。外层还有 CDN / 负载均衡时，先在 Nginx 配置明确可信来源的 real-IP 规则，再转发还原后的客户端地址；否则限流会把外层代理视为同一个客户端。
+- 自定义代理若要注入地理头，必须先删除客户端同名头，仅允许可信代理生成。Origin 检查只能约束浏览器来源，非浏览器客户端可以伪造，公开 Site Token 不能作为防刷凭证。
+
+相关官方依据：[代理信任](https://fastify.dev/docs/v5.12.x/Reference/Server/#trustproxy)、[请求生命周期](https://fastify.dev/docs/v5.12.x/Reference/Hooks/)、[日志序列化与脱敏](https://fastify.dev/docs/v5.7.x/Reference/Logging/)、[inject 测试](https://fastify.dev/docs/v5.7.x/Guides/Testing/)。完整配置见 [.env.example](./.env.example)。

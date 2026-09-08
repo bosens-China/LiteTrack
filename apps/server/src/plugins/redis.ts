@@ -1,7 +1,13 @@
 import fp from 'fastify-plugin';
 import Redis from 'ioredis';
+import { randomUUID } from 'node:crypto';
 import type { FastifyInstance } from 'fastify';
 import { config } from '../lib/config.js';
+
+type PageviewReservation =
+  | { status: 'reserved'; owner: string }
+  | { status: 'pending' }
+  | { status: 'cached' };
 
 /**
  * Redis 插件
@@ -17,18 +23,55 @@ async function redisPlugin(fastify: FastifyInstance) {
   fastify.decorate('redis', redis);
 
   fastify.decorate(
-    'checkRateLimit',
-    async (
-      ip: string,
-      siteId: number,
-      path: string,
-      ttlSeconds: number = 10,
-    ): Promise<boolean> => {
-      const key = `rate:${siteId}:${path}:${ip}`;
-      const exists = await redis.exists(key);
-      if (exists) return false;
-      await redis.setex(key, ttlSeconds, '1');
-      return true;
+    'reservePageview',
+    async (key: string): Promise<PageviewReservation> => {
+      const owner = randomUUID();
+      const result = await redis.eval(
+        `
+        local current = redis.call('GET', KEYS[1])
+        if current then return current end
+        redis.call('SET', KEYS[1], ARGV[1], 'EX', 10)
+        return ARGV[1]
+      `,
+        1,
+        key,
+        owner,
+      );
+      if (result === owner) return { status: 'reserved', owner };
+      return { status: result === 'committed' ? 'cached' : 'pending' };
+    },
+  );
+
+  fastify.decorate('commitPageview', async (key: string, owner: string) => {
+    // 数据库提交后才允许返回缓存成功，保留从首次请求起算的去重窗口。
+    await redis.eval(
+      `
+      if redis.call('GET', KEYS[1]) == ARGV[1] then
+        return redis.call('SET', KEYS[1], 'committed', 'KEEPTTL')
+      end
+      return nil
+    `,
+      1,
+      key,
+      owner,
+    );
+  });
+
+  fastify.decorate(
+    'releasePageview',
+    async (key: string, reservation: string) => {
+      // 只释放自己的预留，避免旧请求失败时删除已过期后新请求持有的键。
+      await redis.eval(
+        `
+      if redis.call('GET', KEYS[1]) == ARGV[1] then
+        return redis.call('DEL', KEYS[1])
+      end
+      return 0
+    `,
+        1,
+        key,
+        reservation,
+      );
     },
   );
 
@@ -40,9 +83,20 @@ async function redisPlugin(fastify: FastifyInstance) {
       limit: number,
       ttlSeconds: number,
     ): Promise<boolean> => {
-      const count = await redis.incr(key);
-      if (count === 1) await redis.expire(key, ttlSeconds);
-      return count <= limit;
+      // 计数与过期设置必须原子执行；同时修复旧版本可能遗留的无 TTL 键。
+      const count = await redis.eval(
+        `
+        local count = redis.call('INCR', KEYS[1])
+        if redis.call('TTL', KEYS[1]) < 0 then
+          redis.call('EXPIRE', KEYS[1], ARGV[1])
+        end
+        return count
+      `,
+        1,
+        key,
+        ttlSeconds,
+      );
+      return typeof count === 'number' && count <= limit;
     },
   );
 
@@ -64,12 +118,9 @@ export default fp(redisPlugin, {
 declare module 'fastify' {
   interface FastifyInstance {
     redis: Redis;
-    checkRateLimit: (
-      ip: string,
-      siteId: number,
-      path: string,
-      ttlSeconds?: number,
-    ) => Promise<boolean>;
+    reservePageview: (key: string) => Promise<PageviewReservation>;
+    commitPageview: (key: string, owner: string) => Promise<void>;
+    releasePageview: (key: string, reservation: string) => Promise<void>;
     checkCountRateLimit: (
       key: string,
       limit: number,

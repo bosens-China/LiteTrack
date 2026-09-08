@@ -10,18 +10,21 @@ function createTrackApp(options = {}) {
     accessLogCreate: [],
     dailyVisitorCreateMany: [],
     pageDailyVisitorCreateMany: [],
-    pageReadProgressCreate: [],
-    pageReadProgressUpdate: [],
+    executeRaw: [],
   };
 
-  const existingReadProgress = options.existingReadProgress ?? {
-    id: 1,
-    maxDepth: 50,
-  };
-
-  app.decorate('checkRateLimit', async () => true);
+  app.decorate('reservePageview', async () => ({
+    status: 'reserved',
+    owner: 'reservation',
+  }));
+  app.decorate('commitPageview', async () => {});
+  app.decorate('releasePageview', async () => {});
   app.decorate('checkCountRateLimit', async () => true);
   app.decorate('prisma', {
+    $transaction: async (callback) => callback(app.prisma),
+    $executeRaw: async (...args) => {
+      calls.executeRaw.push(args);
+    },
     siteToken: {
       findUnique: async () => ({
         siteId: 1,
@@ -50,13 +53,9 @@ function createTrackApp(options = {}) {
         calls.accessLogCreate.push(payload);
       },
     },
-    pageReadProgress: {
-      findUnique: async () => existingReadProgress,
-      create: async (payload) => {
-        calls.pageReadProgressCreate.push(payload);
-      },
-      update: async (payload) => {
-        calls.pageReadProgressUpdate.push(payload);
+    pageDuration: {
+      create: async () => {
+        if (options.failDuration) throw new Error('write failed');
       },
     },
   });
@@ -104,8 +103,8 @@ test('POST /track stores visitor identity and parsed device info', async (t) => 
   assert.equal(logPayload.data.os, 'iOS');
 });
 
-test('POST /track/read-progress only updates when max depth increases', async (t) => {
-  const { app, calls } = createTrackApp();
+test('POST /track/duration returns an error when persistence fails', async (t) => {
+  const { app } = createTrackApp({ failDuration: true });
   await app.ready();
 
   t.after(async () => {
@@ -114,19 +113,16 @@ test('POST /track/read-progress only updates when max depth increases', async (t
 
   const res = await app.inject({
     method: 'POST',
-    url: '/track/read-progress',
+    url: '/track/duration',
     headers: {
       'x-site-token': 'site-token',
     },
     payload: {
       path: '/posts/1',
       visitorId: 'visitor-1',
-      maxDepth: 80,
+      duration: 80,
     },
   });
 
-  assert.equal(res.statusCode, 200);
-  assert.equal(calls.pageReadProgressCreate.length, 0);
-  assert.equal(calls.pageReadProgressUpdate.length, 1);
-  assert.equal(calls.pageReadProgressUpdate[0].data.maxDepth, 80);
+  assert.equal(res.statusCode, 500);
 });

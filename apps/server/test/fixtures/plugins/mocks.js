@@ -1,19 +1,28 @@
-import fp from 'fastify-plugin'
-import { serializerCompiler, validatorCompiler } from 'fastify-type-provider-zod'
+import fp from 'fastify-plugin';
+import {
+  serializerCompiler,
+  validatorCompiler,
+} from 'fastify-type-provider-zod';
 
 async function mocksPlugin(fastify) {
-  fastify.setValidatorCompiler(validatorCompiler)
-  fastify.setSerializerCompiler(serializerCompiler)
+  fastify.setValidatorCompiler(validatorCompiler);
+  fastify.setSerializerCompiler(serializerCompiler);
 
   fastify.decorate('authenticate', async (request) => {
     request.user = {
       userId: 1,
       githubId: 'github-user-1',
       username: 'tester',
-    }
-  })
+    };
+  });
 
-  fastify.decorate('checkRateLimit', async () => true)
+  fastify.decorate('reservePageview', async () => ({
+    status: 'reserved',
+    owner: 'reservation',
+  }));
+  fastify.decorate('commitPageview', async () => {});
+  fastify.decorate('releasePageview', async () => {});
+  fastify.decorate('checkCountRateLimit', async () => true);
   fastify.decorate('jwt', {
     sign: () => 'test-token',
     verify: async () => ({
@@ -21,7 +30,7 @@ async function mocksPlugin(fastify) {
       githubId: 'github-user-1',
       username: 'tester',
     }),
-  })
+  });
 
   fastify.decorate('prisma', {
     site: {
@@ -74,9 +83,9 @@ async function mocksPlugin(fastify) {
       create: async () => undefined,
       update: async () => undefined,
     },
-  })
+  });
 }
 
 export default fp(mocksPlugin, {
   name: 'test-mocks-plugin',
-})
+});

@@ -1,5 +1,6 @@
 import type { FastifyPluginAsync, FastifyReply } from 'fastify';
 import { z } from 'zod';
+import { createHash } from 'node:crypto';
 import {
   parseGeoHeaders,
   parseUserAgent,
@@ -8,9 +9,6 @@ import {
 import { config } from '../../lib/config.js';
 import { lookupGeoByIp } from '../../lib/geoip.js';
 import { formatDateInTimeZone, normalizePath } from '../stats/shared.js';
-
-/** 是否经可信反代部署：决定能否信任客户端可控的地理头（与 IP 限流同源） */
-const TRUST_PROXY_HEADERS = config.TRUST_PROXY !== false;
 
 const trackSchema = z.object({
   path: z.string().min(1).max(500),
@@ -41,7 +39,6 @@ async function resolveSiteToken(
   fastify: Parameters<FastifyPluginAsync>[0],
   reply: FastifyReply,
   tokenHeader: string | string[] | undefined,
-  includeSite = false,
 ) {
   const token = typeof tokenHeader === 'string' ? tokenHeader : undefined;
   if (!token) {
@@ -49,17 +46,26 @@ async function resolveSiteToken(
     return null;
   }
 
-  const siteToken = (await fastify.prisma.siteToken.findUnique({
+  const siteToken = await fastify.prisma.siteToken.findUnique({
     where: { token },
-    ...(includeSite ? { include: { site: true } } : {}),
-  })) as
-    | (Awaited<ReturnType<typeof fastify.prisma.siteToken.findUnique>> & {
-        site?: { domain: string };
-      })
-    | null;
+    include: { site: true },
+  });
 
   if (!siteToken || !siteToken.isActive) {
     await reply.code(401).send({ error: '无效的令牌' });
+    return null;
+  }
+
+  const allowed = await fastify.checkCountRateLimit(
+    `track:site:${siteToken.siteId}`,
+    config.TRACK_SITE_RATE_LIMIT,
+    60,
+  );
+  if (!allowed) {
+    await reply
+      .code(429)
+      .header('Retry-After', '60')
+      .send({ error: '请求过于频繁，请稍后再试' });
     return null;
   }
 
@@ -75,12 +81,11 @@ const writeRoutes: FastifyPluginAsync = async (fastify) => {
       fastify,
       reply,
       request.headers['x-site-token'],
-      true,
     );
     if (!siteToken) return;
 
     const origin = request.headers['origin'] as string | undefined;
-    if (!validateOrigin(siteToken.site!.domain, origin)) {
+    if (!validateOrigin(siteToken.site.domain, origin)) {
       return reply.code(403).send({ error: '来源域名不匹配' });
     }
 
@@ -106,69 +111,105 @@ const writeRoutes: FastifyPluginAsync = async (fastify) => {
     const visitorAgent = parseUserAgent(userAgent);
     // 地理信息：可信反代注入的头（如 Cloudflare CF-IPCountry）优先，
     // 缺失字段再用 ip2region 离线库按 IP 补全（国内省/市定位准）。
-    const geoHeaders = parseGeoHeaders(request.headers, TRUST_PROXY_HEADERS);
+    const geoHeaders = parseGeoHeaders(
+      request.headers,
+      Boolean(request.ips && request.ips.length > 1),
+    );
     const geoFromIp = lookupGeoByIp(ip);
     const geo = {
       country: geoHeaders.country ?? geoFromIp.country,
       city: geoHeaders.city ?? geoFromIp.city,
     };
 
-    const allowed = await fastify.checkRateLimit(ip, siteId, path, 10);
-    if (!allowed) return { success: true, cached: true };
-
     const today = formatDateInTimeZone(new Date());
-
-    await fastify.prisma.pageView.upsert({
-      where: { siteId_path: { siteId, path } },
-      create: { siteId, path, title: title || null, count: 1 },
-      update: {
-        count: { increment: 1 },
-        ...(title !== undefined ? { title } : {}),
-      },
-    });
-
-    await fastify.prisma.dailyView.upsert({
-      where: { siteId_date: { siteId, date: today } },
-      create: { siteId, date: today, count: 1 },
-      update: { count: { increment: 1 } },
-    });
-
-    if (visitorId) {
-      await Promise.all([
-        fastify.prisma.dailyVisitor.createMany({
-          data: [{ siteId, date: today, visitorId }],
-          skipDuplicates: true,
-        }),
-        fastify.prisma.pageDailyVisitor.createMany({
-          data: [{ siteId, path, date: today, visitorId }],
-          skipDuplicates: true,
-        }),
-      ]);
+    // 身份与 IP 分开：共享出口的不同访客不应互相去重；旧 SDK 无身份时回退 IP。
+    // 纳入日期和会话，避免跨日或新会话的首次访问被上一条记录吞掉。
+    const identity = visitorId
+      ? ['visitor', visitorId, sessionId ?? null]
+      : ['ip', ip];
+    const digest = createHash('sha256')
+      .update(JSON.stringify([siteId, today, path, identity]))
+      .digest('hex');
+    const key = `pv:${digest}`;
+    const reservation = await fastify.reservePageview(key);
+    if (reservation.status === 'cached') return { success: true, cached: true };
+    if (reservation.status === 'pending') {
+      return reply
+        .code(503)
+        .header('Retry-After', '1')
+        .send({ error: '上报正在处理中，请稍后重试' });
     }
 
-    void fastify.prisma.accessLog
-      .create({
-        data: {
-          siteId,
-          path,
-          title: title || null,
-          ip,
-          visitorId: visitorId || null,
-          sessionId: sessionId || null,
-          userAgent: userAgent || null,
-          deviceType: visitorAgent.deviceType,
-          browser: visitorAgent.browser,
-          os: visitorAgent.os,
-          referer: referer || null,
-          language: language || null,
-          utmSource: utmSource || null,
-          utmMedium: utmMedium || null,
-          utmCampaign: utmCampaign || null,
-          country: geo.country,
-          city: geo.city,
+    try {
+      await fastify.prisma.$transaction(
+        async (tx) => {
+          await tx.pageView.upsert({
+            where: { siteId_path: { siteId, path } },
+            create: { siteId, path, title: title || null, count: 1 },
+            update: {
+              count: { increment: 1 },
+              ...(title !== undefined ? { title } : {}),
+            },
+          });
+
+          await tx.dailyView.upsert({
+            where: { siteId_date: { siteId, date: today } },
+            create: { siteId, date: today, count: 1 },
+            update: { count: { increment: 1 } },
+          });
+
+          if (visitorId) {
+            await Promise.all([
+              tx.dailyVisitor.createMany({
+                data: [{ siteId, date: today, visitorId }],
+                skipDuplicates: true,
+              }),
+              tx.pageDailyVisitor.createMany({
+                data: [{ siteId, path, date: today, visitorId }],
+                skipDuplicates: true,
+              }),
+            ]);
+          }
+
+          await tx.accessLog.create({
+            data: {
+              siteId,
+              path,
+              title: title || null,
+              ip,
+              visitorId: visitorId || null,
+              sessionId: sessionId || null,
+              userAgent: userAgent || null,
+              deviceType: visitorAgent.deviceType,
+              browser: visitorAgent.browser,
+              os: visitorAgent.os,
+              referer: referer || null,
+              language: language || null,
+              utmSource: utmSource || null,
+              utmMedium: utmMedium || null,
+              utmCampaign: utmCampaign || null,
+              country: geo.country,
+              city: geo.city,
+            },
+          });
         },
-      })
-      .catch(() => {});
+        { maxWait: 2000, timeout: 5000 },
+      ); // 总时限短于 Redis 的 10 秒预留窗口。
+    } catch (error) {
+      try {
+        await fastify.releasePageview(key, reservation.owner);
+      } catch (releaseError) {
+        request.log.error({ err: releaseError }, '释放页面去重预留失败');
+      }
+      throw error;
+    }
+
+    try {
+      await fastify.commitPageview(key, reservation.owner);
+    } catch (error) {
+      // 数据库已提交，不释放预留或把这次持久化成功误报为失败。
+      request.log.error({ err: error }, '标记页面去重完成失败');
+    }
 
     return { success: true };
   });
@@ -181,12 +222,11 @@ const writeRoutes: FastifyPluginAsync = async (fastify) => {
       fastify,
       reply,
       request.headers['x-site-token'],
-      true,
     );
     if (!siteToken) return;
 
     const origin = request.headers['origin'] as string | undefined;
-    if (!validateOrigin(siteToken.site!.domain, origin)) {
+    if (!validateOrigin(siteToken.site.domain, origin)) {
       return reply.code(403).send({ error: '来源域名不匹配' });
     }
 
@@ -208,26 +248,14 @@ const writeRoutes: FastifyPluginAsync = async (fastify) => {
     const today = formatDateInTimeZone(new Date());
     const siteId = siteToken.siteId;
 
-    const existing = await fastify.prisma.pageReadProgress.findUnique({
-      where: {
-        siteId_path_date_visitorId: { siteId, path, date: today, visitorId },
-      },
-      select: { id: true, maxDepth: true },
-    });
-
-    if (!existing) {
-      await fastify.prisma.pageReadProgress.create({
-        data: { siteId, path, date: today, visitorId, maxDepth },
-      });
-      return { success: true };
-    }
-
-    if (maxDepth > existing.maxDepth) {
-      await fastify.prisma.pageReadProgress.update({
-        where: { id: existing.id },
-        data: { maxDepth },
-      });
-    }
+    // 在唯一键冲突处理内比较，避免并发首次创建报错或较小值覆盖较大值。
+    await fastify.prisma.$executeRaw`
+      INSERT INTO page_read_progress (site_id, path, date, visitor_id, max_depth, updated_at)
+      VALUES (${siteId}, ${path}, ${today}, ${visitorId}, ${maxDepth}, NOW())
+      ON CONFLICT (site_id, path, date, visitor_id) DO UPDATE
+      SET max_depth = EXCLUDED.max_depth, updated_at = NOW()
+      WHERE page_read_progress.max_depth < EXCLUDED.max_depth
+    `;
 
     return { success: true };
   });
@@ -240,12 +268,11 @@ const writeRoutes: FastifyPluginAsync = async (fastify) => {
       fastify,
       reply,
       request.headers['x-site-token'],
-      true,
     );
     if (!siteToken) return;
 
     const origin = request.headers['origin'] as string | undefined;
-    if (!validateOrigin(siteToken.site!.domain, origin)) {
+    if (!validateOrigin(siteToken.site.domain, origin)) {
       return reply.code(403).send({ error: '来源域名不匹配' });
     }
 
@@ -266,17 +293,15 @@ const writeRoutes: FastifyPluginAsync = async (fastify) => {
     const path = normalizePath(rawPath);
     const today = formatDateInTimeZone(new Date());
 
-    void fastify.prisma.pageDuration
-      .create({
-        data: {
-          siteId: siteToken.siteId,
-          path,
-          date: today,
-          visitorId: visitorId || null,
-          duration,
-        },
-      })
-      .catch(() => {});
+    await fastify.prisma.pageDuration.create({
+      data: {
+        siteId: siteToken.siteId,
+        path,
+        date: today,
+        visitorId: visitorId || null,
+        duration,
+      },
+    });
 
     return { success: true };
   });

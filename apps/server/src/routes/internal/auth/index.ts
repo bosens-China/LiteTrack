@@ -66,13 +66,12 @@ const auth: FastifyPluginAsync = async (fastify, _opts): Promise<void> => {
       const { code, state } = request.query;
 
       // 一次性核销 state：读取并删除，防止重放攻击
-      const stateValue = await fastify.redis.get(`oauth:state:${state}`);
+      const stateValue = await fastify.redis.getdel(`oauth:state:${state}`);
       if (!stateValue) {
         return reply
           .code(400)
           .send({ error: 'OAuth state 无效或已过期，请重新登录' });
       }
-      await fastify.redis.del(`oauth:state:${state}`);
 
       try {
         const tokenRes = await axios.post(
@@ -83,7 +82,7 @@ const auth: FastifyPluginAsync = async (fastify, _opts): Promise<void> => {
             code,
             redirect_uri: config.GITHUB_CALLBACK_URL,
           },
-          { headers: { Accept: 'application/json' } },
+          { headers: { Accept: 'application/json' }, timeout: 10_000 },
         );
 
         const accessToken = tokenRes.data.access_token;
@@ -93,6 +92,7 @@ const auth: FastifyPluginAsync = async (fastify, _opts): Promise<void> => {
 
         const userRes = await axios.get('https://api.github.com/user', {
           headers: { Authorization: `token ${accessToken}` },
+          timeout: 10_000,
         });
         const githubUser = userRes.data;
 
@@ -127,7 +127,16 @@ const auth: FastifyPluginAsync = async (fastify, _opts): Promise<void> => {
           },
         };
       } catch (error) {
-        fastify.log.error(error);
+        // 不传入完整 AxiosError：config.data / headers 会包含 OAuth 凭证。
+        request.log.error(
+          {
+            errorCode: axios.isAxiosError(error) ? error.code : 'AUTH_FAILED',
+            upstreamStatus: axios.isAxiosError(error)
+              ? error.response?.status
+              : undefined,
+          },
+          'GitHub 认证失败',
+        );
         return reply.code(500).send({ error: '认证失败' });
       }
     },

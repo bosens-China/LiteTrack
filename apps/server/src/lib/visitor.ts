@@ -2,7 +2,7 @@ export type DeviceType = 'desktop' | 'mobile' | 'tablet' | 'bot' | 'unknown';
 
 /**
  * 校验请求的 Origin 是否与站点注册域名匹配。
- * 浏览器发起跨域 POST 时必然携带 Origin 头，服务端不可伪造。
+ * 浏览器跨域 POST 携带 Origin；非浏览器客户端可伪造，不能替代总量限流。
  * Origin 缺失时放行（curl、SSR 等合法场景），"null" 时同样放行（隐私模式）。
  */
 export function validateOrigin(

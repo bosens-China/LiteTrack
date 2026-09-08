@@ -1,6 +1,6 @@
 # LiteTrack 产品需求文档（PRD）
 
-> 版本：1.0 · 状态：草稿 · 最后更新：2026-06-19
+> 版本：1.0 · 状态：草稿 · 最后更新：2026-09-08
 
 ---
 
@@ -111,13 +111,14 @@ SDK（`@boses/litetrack-sdk`）是唯一发布到 npm 的包，版本由 **relea
 - SDK **不自动上报**，由接入方在合适时机显式调用 `tracker.page()`。
 - 不传参时自动读取 `window.location.pathname` 和 `document.title`；SPA 场景在路由钩子中调用并传入当前路径。
 - 上报字段：`path`（标准化路径）、`title`、`visitorId`、`sessionId`、`language`（自动读取 `navigator.language`）、`utmSource / utmMedium / utmCampaign`（自动解析 URL query 参数）。
-- 后端基于 `IP + siteId + path + 10s` 窗口限流，防止同一访客重复计数。
+- 后端按站点、归档日期、路径、访客和会话在 10 秒内原子去重；无访客标识时回退 IP，共享出口的不同访客分别计数。
+- PV 聚合、每日量、UV 和访问日志在同一事务中提交；成功响应代表已提交，失败回滚并允许重试，仍在处理的重复上报返回可重试错误。
 
 #### 3.1.2 阅读深度上报
 
 - SDK **不内置滚动监听**，由接入方自行监听滚动事件并在适当时机调用 `tracker.read(percent)`。
 - 上报百分比（0–100），超出范围自动 clamp；路径不传时沿用上一次 `page()` 的路径。
-- 每个访客每天每页只保留最大深度，不重复写入。
+- 每个访客每天每页只保留最大深度，首次并发上报不会冲突，后续较小值不覆盖较大值。
 
 #### 3.1.3 页面停留时长上报
 
@@ -125,6 +126,7 @@ SDK（`@boses/litetrack-sdk`）是唯一发布到 npm 的包，版本由 **relea
 - 计时结束条件：调用下一次 `page()`（SPA 路由切换）或页面触发 `beforeunload`（关闭标签页 / 导航离开）。
 - 自动调用 `POST /track/duration { path, visitorId, duration }` 上报秒级停留时长；时长 < 1 秒的忽略。
 - 调用 `tracker.destroy()` 时自动移除 `beforeunload` 监听器。
+- 后端等待时长记录持久化后才返回成功，写入失败返回错误。
 
 #### 3.1.4 访客识别
 
@@ -253,14 +255,16 @@ User
 ### 6.1 性能
 
 - 上报接口（`POST /track`）为 fire-and-forget，不阻塞页面渲染。
-- 使用 `fetch` + `keepalive: true`，保证页面关闭时上报不丢失。
-- Redis 限流避免高频上报打穿数据库。
+- 使用 `fetch` + `keepalive: true` 尽量完成页面关闭时的上报；浏览器退出或网络故障仍可能丢失。
+- Redis 原子计数与过期控制请求总量：公开接口先按 IP 限流，上报另按站点限流，不因轮换路径或访客 ID 而重置额度。
 
 ### 6.2 安全
 
 - Site Token 为 64 位十六进制随机字符串（`crypto.randomBytes(32)`）。
 - JWT secret 强制通过环境变量注入，不允许空值。
-- 后端使用 Prisma 参数化查询，无 SQL 注入风险。
+- 数据库输入使用 Prisma 参数化查询，原生 SQL 也使用绑定参数。
+- OAuth state 原子核销；日志不记录授权码、令牌、客户端密钥和请求查询参数。
+- 代理信任使用明确 IP / CIDR；默认入口覆盖转发 IP 并剥离客户端地理头，避免伪造信息。
 - 错误响应在生产环境不暴露内部堆栈信息。
 - 开启 Fastify `onProtoPoisoning` / `onConstructorPoisoning` 防原型污染。
 
@@ -353,14 +357,9 @@ window.addEventListener(
 
 ## 8. 已知限制与待解决问题
 
-| 问题                                                  | 严重性 | 现状                                                   |
-| ----------------------------------------------------- | ------ | ------------------------------------------------------ |
-| Track 接口缺少 Origin 校验，Site Token 可被滥用刷数据 | 高     | ✅ 已修复（`validateOrigin` 比对站点域名）             |
-| `/read-progress` 无限流，轮换 visitorId 可无限写入    | 高     | ✅ 已修复（Redis INCR 计数限流 120次/分钟）            |
-| `/track` POST 无细粒度限流                            | 高     | ✅ 已修复（IP+siteId+path 10s 窗口限流）               |
-| 生产 CORS 配置为 `origin: true`（允许所有来源）       | 中     | ✅ 已修复（`CORS_ORIGIN` 环境变量白名单化）            |
-| OAuth state 仅做客户端校验，服务端无一次性比对        | 中     | ✅ 已修复（Redis SETEX 存 state，回调时 GET+DEL 核销） |
-| Sites 路由 params 用 `parseInt` 无 NaN 防护           | 低     | ✅ 已修复（`parseId` 工具函数，非正整数返回 400）      |
+- Site Token 属于公开接入标识，Origin 可被非浏览器客户端伪造；限流降低滥用影响，但不保证数据来源真实。
+- 10 秒去重不能提供跨进程崩溃、Redis 丢失或窗口外重试的持久化幂等保证；SDK 未提供可靠重试队列。
+- 依赖审计、剩余公告适用性、限流阈值与代理部署边界见 [Server 说明](../apps/server/README.md)。
 
 ---
 
@@ -368,14 +367,13 @@ window.addEventListener(
 
 ### 9.1 短期（下一个迭代）
 
-- [x] 修复第 8 节已知安全问题（全部已完成）
 - [ ] 完整部署文档（含 HTTPS / 反向代理 / 域名配置）
 
 ### 9.2 中期
 
 - [ ] Referrer 聚合面板（来源域名统计）
 - [ ] 实时在线人数（WebSocket 或短轮询）
-- [x] 地理位置统计（国家/城市）：内置离线库 `ip2region`（按 `request.ip` 查询，国内省/市定位准、海外到国家），叠加可信反代头 `CF-IPCountry` / `X-Geo-*` 作为优先覆盖。无外网依赖、无需 license key；前提是开启 `TRUST_PROXY` 以拿到真实客户端 IP
+- [x] 地理位置统计（国家/城市）：内置离线库 `ip2region`（按 `request.ip` 查询，国内省/市定位准、海外到国家），叠加可信反代头 `CF-IPCountry` / `X-Geo-*` 作为优先覆盖。无外网依赖、无需 license key；代理必须正确还原客户端 IP，并剥离客户端伪造地理头。默认 Nginx 只使用离线定位
 - [ ] 访问日志导出（CSV）
 
 ### 9.3 长期
@@ -386,27 +384,11 @@ window.addEventListener(
 
 ---
 
-## 附录
+## 附录：配置与技术栈
 
-### A. 环境变量清单
+环境变量、代理信任、限流和验证步骤统一维护在 [Server 说明](../apps/server/README.md) 与 [.env.example](../apps/server/.env.example)。
 
-| 变量                     | 必填 | 默认值                                | 说明                                  |
-| ------------------------ | ---- | ------------------------------------- | ------------------------------------- |
-| `DATABASE_URL`           | ✅   | —                                     | PostgreSQL 连接串                     |
-| `REDIS_URL`              |      | `redis://localhost:6379`              | Redis 连接串                          |
-| `JWT_SECRET`             | ✅   | —                                     | JWT 签名密钥，生产需强随机值          |
-| `JWT_EXPIRES_IN`         |      | `30d`                                 | JWT 有效期                            |
-| `GITHUB_CLIENT_ID`       | ✅   | —                                     | GitHub OAuth App Client ID            |
-| `GITHUB_CLIENT_SECRET`   | ✅   | —                                     | GitHub OAuth App Client Secret        |
-| `GITHUB_CALLBACK_URL`    |      | `http://localhost:8080/auth/callback` | OAuth 回调地址                        |
-| `APP_TIMEZONE`           |      | `Asia/Shanghai`                       | 日期归档时区                          |
-| `PORT`                   |      | `3000`                                | 后端监听端口                          |
-| `HOST`                   |      | `0.0.0.0`                             | 后端监听地址                          |
-| `TRUST_PROXY`            |      | `false`                               | 是否信任代理（Nginx 反代时设 `true`） |
-| `LOG_LEVEL`              |      | `info`                                | 日志级别                              |
-| `LITETRACK_API_UPSTREAM` |      | `server:3000`                         | Admin Nginx 反代目标（compose 内网）  |
-
-### B. 关键技术栈
+### 关键技术栈
 
 | 层       | 技术                                                                      |
 | -------- | ------------------------------------------------------------------------- |

@@ -1,9 +1,10 @@
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import Fastify from 'fastify';
+import Fastify, { type FastifyServerOptions } from 'fastify';
 import autoload from '@fastify/autoload';
 import closeWithGrace from 'close-with-grace';
 import { config } from './lib/config.js';
+import { safeLoggingOptions } from './lib/logging.js';
 
 // 获取当前目录（兼容 ESM 和 CommonJS）
 const __dirname = fileURLToPath(new URL('.', import.meta.url));
@@ -31,7 +32,7 @@ const envToLogger = {
 } as const;
 
 export interface BuildServerOptions {
-  trustProxy?: boolean | string | number;
+  trustProxy?: FastifyServerOptions['trustProxy'];
   pluginsDir?: string;
   routesDir?: string;
   /** 公共 SDK 上报契约前缀（带版本，破坏性变更才升 v2） */
@@ -61,7 +62,7 @@ export function buildServer(options: BuildServerOptions = {}) {
 
   const server = Fastify({
     // Logger 配置
-    logger: envToLogger[config.NODE_ENV],
+    logger: { ...envToLogger[config.NODE_ENV], ...safeLoggingOptions },
 
     // 安全选项
     onProtoPoisoning: 'error',

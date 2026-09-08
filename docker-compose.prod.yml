@@ -66,6 +66,8 @@ services:
       PORT: 3000
       HOST: 0.0.0.0
       NODE_ENV: production
+      # 后端仅暴露在 compose 私网，Nginx 覆盖入站转发头；外部部署请指定代理 IP/CIDR。
+      TRUST_PROXY: ${TRUST_PROXY:-uniquelocal}
     expose:
       # 仅在 compose 内网暴露给 admin(Nginx) 反代
       - "3000"
@@ -90,4 +92,3 @@ services:
 volumes:
   postgres_data:
   redis_data:
-
