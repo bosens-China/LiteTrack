@@ -1,34 +1,27 @@
 services:
   postgres:
     image: postgres:16-alpine
-    container_name: litetrack-postgres
     environment:
       POSTGRES_USER: litetrack
       POSTGRES_PASSWORD: litetrack_password
-      POSTGRES_DB: litetrack
+      POSTGRES_DB: litetrack_core
     ports:
-      - "25432:5432"
+      - '127.0.0.1:25434:5432'
     volumes:
-      - postgres_data:/var/lib/postgresql/data
+      - postgres_core_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U litetrack -d litetrack"]
-      interval: 5s
-      timeout: 5s
-      retries: 5
-
+      test: ['CMD-SHELL', 'pg_isready -U litetrack -d litetrack_core']
+      interval: 3s
+      timeout: 3s
+      retries: 10
   redis:
     image: redis:7-alpine
-    container_name: litetrack-redis
     ports:
-      - "26379:6379"
-    volumes:
-      - redis_data:/data
+      - '127.0.0.1:26381:6379'
     healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
-      interval: 5s
-      timeout: 5s
-      retries: 5
-
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 3s
+      timeout: 3s
+      retries: 10
 volumes:
-  postgres_data:
-  redis_data:
+  postgres_core_data:

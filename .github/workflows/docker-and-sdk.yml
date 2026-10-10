@@ -1,174 +1,197 @@
-name: Build & Publish Docker Images and SDK
-
+name: Verify and Release
 on:
+  pull_request:
   push:
-    branches:
-      - master
-      - main
+    branches: [master, main]
   workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: litetrack-${{ github.ref }}
+  cancel-in-progress: false
 
 jobs:
-  docker:
-    name: Build and push Docker images
+  verify:
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
-
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: litetrack
+          POSTGRES_PASSWORD: test_password
+          POSTGRES_DB: litetrack_test
+        ports: ['5432:5432']
+        options: --health-cmd "pg_isready -U litetrack -d litetrack_test" --health-interval 5s --health-timeout 5s --health-retries 10
+      redis:
+        image: redis:7-alpine
+        ports: ['6379:6379']
+        options: --health-cmd "redis-cli ping" --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      DATABASE_URL: postgresql://litetrack:test_password@127.0.0.1:5432/litetrack_test
+      TEST_DATABASE_URL: postgresql://litetrack:test_password@127.0.0.1:5432/litetrack_test
+      REDIS_URL: redis://127.0.0.1:6379/14
+      TEST_REDIS_URL: redis://127.0.0.1:6379/15
+      JWT_SECRET: ci-test-secret-not-used-in-production-123456
+      PUBLIC_URL: http://localhost:8080
+      HOST: 127.0.0.1
+      PORT: 3000
+      SCREENSHOT_DIR: /tmp/litetrack-browser
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Detect changed paths
-        id: changes
-        uses: dorny/paths-filter@v3
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
         with:
-          filters: |
-            server:
-              - 'apps/server/**'
-            admin:
-              - 'apps/admin/**'
-            shared:
-              - 'pnpm-lock.yaml'
-              - 'pnpm-workspace.yaml'
-              - 'package.json'
-              - '.github/workflows/docker-and-sdk.yml'
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
-      - name: Log in to Docker Hub
-        uses: docker/login-action@v3
+          node-version: 24
+          cache: pnpm
+      - name: Require major version for the rewrite
+        run: node apps/sdk/scripts/check-release.mjs --preview
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter server db:generate
+      - run: pnpm --filter server db:migrate
+      - run: pnpm type-check
+      - run: pnpm lint
+      - run: pnpm audit --prod
+      - run: pnpm test
+      - run: pnpm build
+      - run: pnpm --filter @boses/litetrack-sdk check-package
+      - run: pnpm --filter @boses/litetrack-sdk pack --pack-destination "$RUNNER_TEMP/sdk-package"
+      - uses: actions/upload-artifact@v4
         with:
-          username: ${{ secrets.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_TOKEN }}
-
-      - name: Build and push server image
-        if: steps.changes.outputs.server == 'true' || steps.changes.outputs.shared == 'true'
-        uses: docker/build-push-action@v6
+          name: sdk-package
+          path: ${{ runner.temp }}/sdk-package/*.tgz
+      - run: pnpm --filter server exec playwright install --with-deps chromium
+      - name: Browser acceptance
+        run: |
+          pnpm --filter server start >/tmp/server.log 2>&1 &
+          SERVER_PID=$!
+          pnpm --filter admin exec rsbuild preview --port 8080 >/tmp/admin.log 2>&1 &
+          ADMIN_PID=$!
+          trap 'kill "$SERVER_PID" "$ADMIN_PID" 2>/dev/null || true' EXIT
+          pnpm --filter server test:browser
+      - uses: actions/upload-artifact@v4
         with:
-          context: .
-          file: ./apps/server/Dockerfile
-          platforms: linux/amd64
-          push: true
-          cache-from: type=gha,scope=litetrack-server
-          cache-to: type=gha,mode=max,scope=litetrack-server
-          tags: |
-            boses/litetrack-server:latest
-            boses/litetrack-server:${{ github.sha }}
-
-      - name: Build and push admin image
-        if: steps.changes.outputs.admin == 'true' || steps.changes.outputs.shared == 'true'
-        uses: docker/build-push-action@v6
+          name: sdk-dist
+          path: apps/sdk/dist
+      - uses: actions/upload-artifact@v4
+        if: always()
         with:
-          context: .
-          file: ./apps/admin/Dockerfile
-          platforms: linux/amd64
-          push: true
-          cache-from: type=gha,scope=litetrack-admin
-          cache-to: type=gha,mode=max,scope=litetrack-admin
-          tags: |
-            boses/litetrack-admin:latest
-            boses/litetrack-admin:${{ github.sha }}
+          name: browser-screenshots
+          path: /tmp/litetrack-browser
 
-      - name: Skip Docker build when no relevant changes
-        if: steps.changes.outputs.server != 'true' && steps.changes.outputs.admin != 'true' && steps.changes.outputs.shared != 'true'
-        run: echo "No changes for server/admin/shared, skip building Docker images."
-
-  # 用 release-please 把「发版」做成刻意动作（依据 Conventional Commits 自动判断版本号）：
-  # - 每次推送 master，release-please 扫描自上次发布以来作用于 apps/sdk 的提交，
-  #   按 feat/fix/feat! 自动算出 minor/patch/major，开/更新一个 "release PR"
-  #   （PR 内已写好版本号与 CHANGELOG，apps/sdk/package.json 已 bump）；
-  # - 合并该 PR = 正式发版：release-please 打 tag、建 GitHub Release，
-  #   并把 apps/sdk--release_created 置为 true，触发下面的 sdk 任务真正发布。
-  # 配置见仓库根的 release-please-config.json 与 .release-please-manifest.json。
   release-please:
-    name: Release Please (version PR & tag)
+    needs: verify
+    if: github.event_name != 'pull_request' && github.ref_type == 'branch' && github.ref_name == github.event.repository.default_branch
     runs-on: ubuntu-latest
     permissions:
       contents: write
       pull-requests: write
-    # 串行化 release，避免两次推送并发开出互相冲突的 release PR
-    concurrency: release-please-${{ github.ref }}
     outputs:
-      # apps/sdk 这一 package 是否在本次推送（合并 release PR）中产生了发布
       released: ${{ steps.release.outputs['apps/sdk--release_created'] }}
-      version: ${{ steps.release.outputs['apps/sdk--version'] }}
-
     steps:
-      - name: Run release-please
+      - uses: googleapis/release-please-action@v4
         id: release
-        uses: googleapis/release-please-action@v4
         with:
-          # 默认读取根目录的 release-please-config.json 与 .release-please-manifest.json
           token: ${{ secrets.GITHUB_TOKEN }}
 
-  sdk:
-    name: Build SDK and publish to admin/public
-    runs-on: ubuntu-latest
-    # 仅当 release-please 合并 release PR、真正发布 apps/sdk 时才运行（避免每次推送都跑）。
-    needs: release-please
+  sdk-assets:
+    needs: [verify, release-please]
     if: needs.release-please.outputs.released == 'true'
+    runs-on: ubuntu-latest
     permissions:
       contents: write
-      id-token: write  # npm provenance 溯源发布所需
-
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Set up pnpm
-        # 不指定 version，统一由 package.json 的 packageManager(pnpm@10.32.0) 决定，
-        # 避免与之并存触发 ERR_PNPM_BAD_PM_VERSION（多版本冲突）
-        uses: pnpm/action-setup@v4
-
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
         with:
           node-version: 24
-          cache: pnpm
-          registry-url: 'https://registry.npmjs.org'
-
-      - name: Install dependencies
-        run: pnpm install
-
-      - name: Build SDK
-        run: pnpm -C apps/sdk build
-
-      - name: Read SDK version
-        id: sdk_version
-        run: echo "version=$(node -p "require('./apps/sdk/package.json').version")" >> "$GITHUB_OUTPUT"
-
-      - name: Publish versioned SDK + update manifest
-        run: node apps/sdk/scripts/publish.mjs
-
-      - name: Commit and push if changed
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter @litetrack/contracts build
+      - uses: actions/download-artifact@v4
+        with:
+          name: sdk-dist
+          path: apps/sdk/dist
+      - run: node apps/sdk/scripts/publish.mjs
+      - name: Persist immutable CDN assets
         run: |
-          VERSION="${{ steps.sdk_version.outputs.version }}"
-          if git status --porcelain apps/admin/public/sdk | grep .; then
+          if [ -n "$(git status --porcelain apps/admin/public/sdk)" ]; then
             git config user.name "github-actions[bot]"
             git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
             git add apps/admin/public/sdk
-            git commit -m "chore: publish sdk v${VERSION}"
+            git commit -m "chore: append released sdk assets"
             git push
-          else
-            echo "SDK v${VERSION} already published, skipping commit."
           fi
+      - uses: actions/upload-artifact@v4
+        with:
+          name: sdk-public
+          path: apps/admin/public/sdk
 
-      # OIDC 可信发布需 npm >= 11.5.1，Node 内置版本可能偏旧，这里强制升级
-      - name: Ensure npm supports trusted publishing
-        run: npm install -g npm@latest
+  docker:
+    needs: [verify, release-please, sdk-assets]
+    if: always() && github.event_name != 'pull_request' && needs.verify.result == 'success' && needs.release-please.result == 'success' && (needs.sdk-assets.result == 'success' || needs.sdk-assets.result == 'skipped')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        if: needs.sdk-assets.result == 'success'
+        with:
+          name: sdk-public
+          path: apps/admin/public/sdk
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: apps/server/Dockerfile
+          platforms: linux/amd64
+          push: true
+          tags: boses/litetrack-server:latest,boses/litetrack-server:${{ github.sha }}
+          cache-from: type=gha,scope=litetrack-server
+          cache-to: type=gha,mode=max,scope=litetrack-server
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: apps/admin/Dockerfile
+          platforms: linux/amd64
+          push: true
+          tags: boses/litetrack-admin:latest,boses/litetrack-admin:${{ github.sha }}
+          cache-from: type=gha,scope=litetrack-admin
+          cache-to: type=gha,mode=max,scope=litetrack-admin
 
-      - name: Publish to npm (trusted publishing + provenance)
-        # 走 Trusted Publishing：不传 NODE_AUTH_TOKEN，由 id-token 自动鉴权
-        run: |
-          VERSION="${{ steps.sdk_version.outputs.version }}"
-          PUBLISHED=$(npm view @boses/litetrack-sdk@${VERSION} version 2>/dev/null || echo "")
-          if [ -z "$PUBLISHED" ]; then
-            npm publish --provenance --access public
-            echo "Published @boses/litetrack-sdk@${VERSION} to npm"
-          else
-            echo "@boses/litetrack-sdk@${VERSION} already exists on npm, skipping"
-          fi
-        working-directory: apps/sdk
+  npm:
+    needs: [verify, sdk-assets, docker]
+    if: needs.sdk-assets.result == 'success'
+    runs-on: ubuntu-latest
+    # 为此环境配置 required reviewers；先部署本次 SHA 的镜像，再批准。
+    environment: npm-release
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          registry-url: https://registry.npmjs.org
+      - uses: actions/download-artifact@v4
+        with:
+          name: sdk-dist
+          path: apps/sdk/dist
+      - uses: actions/download-artifact@v4
+        with:
+          name: sdk-public
+          path: apps/admin/public/sdk
+      - name: Verify deployed CDN
+        run: node apps/sdk/scripts/verify-cdn.mjs
+        env:
+          SDK_CDN_ORIGIN: ${{ vars.SDK_CDN_ORIGIN }}
+      - run: npm install --global npm@^11
+      - uses: actions/download-artifact@v4
+        with:
+          name: sdk-package
+          path: /tmp/sdk-package
+      - run: npm publish --dry-run /tmp/sdk-package/*.tgz
+      - run: npm publish /tmp/sdk-package/*.tgz --provenance --access public

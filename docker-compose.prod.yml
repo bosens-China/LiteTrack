@@ -1,94 +1,61 @@
 services:
   postgres:
     image: postgres:16-alpine
-    container_name: litetrack-postgres
     environment:
       POSTGRES_USER: litetrack
-      POSTGRES_PASSWORD: litetrack_password
-      POSTGRES_DB: litetrack
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD}
+      POSTGRES_DB: litetrack_core
     volumes:
-      - postgres_data:/var/lib/postgresql/data
-    restart: unless-stopped
-    # 健康检查：供 server 的 depends_on condition 判断数据库是否就绪
+      - postgres_core_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U litetrack -d litetrack"]
+      test: ['CMD-SHELL', 'pg_isready -U litetrack -d litetrack_core']
       interval: 5s
       timeout: 5s
-      retries: 5
-    # 生产环境通常不需要暴露数据库端口，如需调试可以取消注释
-    # ports:
-    #   - "25432:5432"
-
+      retries: 10
+    restart: unless-stopped
   redis:
     image: redis:7-alpine
-    container_name: litetrack-redis
-    volumes:
-      - redis_data:/data
-    restart: unless-stopped
     healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
+      test: ['CMD', 'redis-cli', 'ping']
       interval: 5s
       timeout: 5s
-      retries: 5
-    # 同样建议仅在内网使用，如需调试可以开放端口
-    # ports:
-    #   - "26379:6379"
-
+      retries: 10
+    restart: unless-stopped
   server:
-    image: boses/litetrack-server:latest
-    # 如需本地构建镜像，可以取消下方 build，并在本地构建：
-    # build:
-    #   context: .
-    #   dockerfile: ./apps/server/Dockerfile
-    # 等待数据库与 Redis 健康后再启动，避免启动即执行 migrate deploy 失败
+    image: ${SERVER_IMAGE:-litetrack-core-server:local}
+    build:
+      context: .
+      dockerfile: apps/server/Dockerfile
     depends_on:
       postgres:
         condition: service_healthy
       redis:
         condition: service_healthy
-    # 敏感变量统一从 .env 读取（JWT_SECRET / GITHUB_* 等）
-    env_file:
-      - .env
     environment:
-      # 数据库（生产环境请改为真实密码）
-      DATABASE_URL: postgresql://litetrack:litetrack_password@postgres:5432/litetrack
-      # Redis
+      DATABASE_URL: postgresql://litetrack:${POSTGRES_PASSWORD}@postgres:5432/litetrack_core
       REDIS_URL: redis://redis:6379
-      # JWT，生产环境务必使用强随机值
-      JWT_SECRET: ${JWT_SECRET}
-      # GitHub OAuth（生产环境必填）
-      GITHUB_CLIENT_ID: ${GITHUB_CLIENT_ID}
-      GITHUB_CLIENT_SECRET: ${GITHUB_CLIENT_SECRET}
-      GITHUB_CALLBACK_URL: ${GITHUB_CALLBACK_URL}
-      # 时区
-      APP_TIMEZONE: Asia/Shanghai
-      # 服务端口
+      JWT_SECRET: ${JWT_SECRET:?Set JWT_SECRET}
+      PUBLIC_URL: ${PUBLIC_URL:?Set PUBLIC_URL}
+      GITHUB_CLIENT_ID: ${GITHUB_CLIENT_ID:-}
+      GITHUB_CLIENT_SECRET: ${GITHUB_CLIENT_SECRET:-}
       PORT: 3000
       HOST: 0.0.0.0
       NODE_ENV: production
-      # 后端仅暴露在 compose 私网，Nginx 覆盖入站转发头；外部部署请指定代理 IP/CIDR。
-      TRUST_PROXY: ${TRUST_PROXY:-uniquelocal}
-    expose:
-      # 仅在 compose 内网暴露给 admin(Nginx) 反代
-      - "3000"
+      # 后端不暴露端口，只信任私网入口；Nginx 覆盖客户端转发链。
+      TRUST_PROXY: uniquelocal
     restart: unless-stopped
-
   admin:
-    image: boses/litetrack-admin:latest
-    # 也可以本地 build：
-    # build:
-    #   context: .
-    #   dockerfile: ./apps/admin/Dockerfile
+    image: ${ADMIN_IMAGE:-litetrack-core-admin:local}
+    build:
+      context: .
+      dockerfile: apps/admin/Dockerfile
     depends_on:
-      - server
+      server:
+        condition: service_healthy
     environment:
-      # Nginx 模板变量：后端上游地址（默认 server:3000）
-      LITETRACK_API_UPSTREAM: ${LITETRACK_API_UPSTREAM:-server:3000}
+      LITETRACK_API_UPSTREAM: server:3000
     ports:
-      # 对外暴露统一入口（前端 + /litetrack 反代）
-      - "8080:80"
+      - '${HTTP_PORT:-8080}:80'
     restart: unless-stopped
-
 volumes:
-  postgres_data:
-  redis_data:
+  postgres_core_data:

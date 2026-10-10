@@ -1,31 +1,39 @@
 import { defineConfig } from '@rsbuild/core';
-import { pluginVue } from '@rsbuild/plugin-vue';
-import { fileURLToPath } from 'url';
-import { dirname, resolve } from 'path';
+import { pluginReact } from '@rsbuild/plugin-react';
+import { readFileSync } from 'node:fs';
+import { existsSync } from 'node:fs';
+import { PROTOCOL_VERSION } from '@litetrack/contracts/protocol';
 
-const __dirname = dirname(fileURLToPath(import.meta.url));
-
-// Docs: https://rsbuild.rs/config/
+const sdk = JSON.parse(
+  readFileSync(new URL('../sdk/package.json', import.meta.url), 'utf8'),
+) as { version: string };
+const currentFile = new URL('./public/sdk/current.json', import.meta.url);
+const current = existsSync(currentFile)
+  ? (JSON.parse(readFileSync(currentFile, 'utf8')) as {
+      version: string;
+      protocolVersion: number;
+      integrity: string;
+    })
+  : undefined;
+const released =
+  current?.version === sdk.version &&
+  current.protocolVersion === PROTOCOL_VERSION;
 export default defineConfig({
-  plugins: [pluginVue()],
-  resolve: {
-    alias: {
-      '@': resolve(__dirname, 'src'),
+  plugins: [pluginReact({ reactCompiler: true })],
+  source: {
+    define: {
+      __SDK_VERSION__: JSON.stringify(released ? sdk.version : 'preview'),
+      __SDK_RELEASED__: JSON.stringify(released),
+      __SDK_INTEGRITY__: JSON.stringify(released ? current.integrity : ''),
     },
   },
   server: {
-    // port: 8080,
-    // 开发时后台接口走 /litetrack/api、SDK 上报走 /litetrack/v1，整段 /litetrack 转发到 Fastify，否则会 404
     proxy: {
       '/litetrack': {
-        target: 'http://localhost:3000',
+        target: process.env.API_UPSTREAM || 'http://127.0.0.1:3000',
         changeOrigin: true,
       },
     },
   },
-  html: {
-    template: './index.html',
-    title: 'LiteTrack',
-    favicon: './public/favicon.svg',
-  },
+  html: { title: 'LiteTrack', favicon: './public/favicon.svg' },
 });

@@ -1,234 +1,134 @@
-import {
-  DURATION_ENDPOINT,
-  READ_PROGRESS_ENDPOINT,
-  STATS_ENDPOINT,
-  TRACK_ENDPOINT,
-} from './constants';
-import {
-  getCurrentPath,
-  getLanguage,
-  getPageTitle,
-  getUtmParams,
-  isBrowser,
-  normalizeBaseUrl,
-  normalizePath,
-} from './env';
-import { createLiteTrackError } from './errors';
-import { createIdentityStore } from './identity';
-import { createTransport } from './transport';
-import type {
-  LiteTrackCreateOptions,
-  PageInput,
-  PageStats,
-  ReadInput,
-  SiteStats,
-  Tracker,
-} from './types';
+import { normalizePath } from '@litetrack/contracts/path';
+import type { CollectInput } from '@litetrack/contracts';
+import { createLiteTrackError, reportLiteTrackError } from './errors';
+import { createId, visitorId } from './identity';
+import { PROTOCOL_VERSION, SDK_VERSION } from './version';
+import type { LiteTrackCreateOptions, LiteTrackError, Tracker } from './types';
 
-interface SiteStatsResponse {
-  totalPages?: number;
-  totalViews?: number;
-}
-
-interface PageStatsResponse {
-  count?: number;
-  path?: string;
-}
-
-function assertCreateOptions(options: LiteTrackCreateOptions): {
-  baseUrl: string;
-  siteToken: string;
-} {
-  const siteToken = options.siteToken.trim();
-  const baseUrl = normalizeBaseUrl(options.baseUrl);
-
-  if (!siteToken) {
-    throw createLiteTrackError({
-      message: 'LiteTrack.create() 需要有效的 siteToken',
-      code: 'INVALID_OPTIONS',
-    });
-  }
-
-  if (!baseUrl) {
-    throw createLiteTrackError({
-      message: 'LiteTrack.create() 需要显式传入 baseUrl',
-      code: 'INVALID_OPTIONS',
-    });
-  }
-
-  return { siteToken, baseUrl };
-}
-
-function parseSiteStatsResponse(response: SiteStatsResponse): SiteStats {
-  return {
-    totalViews:
-      typeof response.totalViews === 'number' ? response.totalViews : 0,
-    totalPages:
-      typeof response.totalPages === 'number' ? response.totalPages : 0,
-  };
-}
-
-function parsePageStatsResponse(
-  response: PageStatsResponse,
-  path: string,
-): PageStats {
-  return {
-    path:
-      typeof response.path === 'string' ? normalizePath(response.path) : path,
-    count: typeof response.count === 'number' ? response.count : 0,
-  };
-}
-
-/**
- * 创建一个 LiteTrack 追踪器实例。
- *
- * 初始化时不会自动发送任何请求，所有上报均需显式调用。
- *
- * @param options 初始化选项，`siteToken` 和 `baseUrl` 为必填项
- * @returns Tracker 实例
- *
- * @example
- * const tracker = create({
- *   siteToken: 'st_abc123',
- *   baseUrl: 'https://your-api.example.com',
- * })
- *
- * // 在路由钩子中上报页面访问
- * router.afterEach(() => tracker.page())
- */
 export function create(options: LiteTrackCreateOptions): Tracker {
-  const validated = assertCreateOptions(options);
-  const transport = createTransport({
-    baseUrl: validated.baseUrl,
-    siteToken: validated.siteToken,
-    debug: options.debug,
-    onError: options.onError,
-  });
-  const identityStore = createIdentityStore(options.identity);
-
-  let destroyed = false;
-  // lastPath/pageEntryTime 仅用于停留时长 flush，不参与路径解析
-  let lastPath: string | null = null;
-  let pageEntryTime: number | null = null;
-
-  const flushDuration = (): void => {
-    if (lastPath === null || pageEntryTime === null) return;
-    const duration = Math.round((Date.now() - pageEntryTime) / 1000);
-    pageEntryTime = null;
-    if (duration < 1) return;
-
-    transport.post(DURATION_ENDPOINT, {
-      path: lastPath,
-      visitorId: identityStore.get().visitorId,
-      duration,
+  let endpoint: string;
+  try {
+    const base = new URL(options.baseUrl);
+    if (
+      !['http:', 'https:'].includes(base.protocol) ||
+      base.username ||
+      base.password ||
+      base.search ||
+      base.hash
+    )
+      throw new Error('baseUrl 必须是 HTTP 地址');
+    if (!/^[a-f0-9]{64}$/.test(options.siteToken))
+      throw new Error('siteToken 必须是 64 位十六进制字符串');
+    if (
+      options.timeoutMs !== undefined &&
+      (!Number.isInteger(options.timeoutMs) || options.timeoutMs <= 0)
+    )
+      throw new Error('timeoutMs 必须是正整数');
+    endpoint = options.baseUrl.replace(/\/+$/, '') + '/litetrack/collect';
+  } catch (cause) {
+    throw createLiteTrackError({
+      code: 'INVALID_OPTIONS',
+      message: 'LiteTrack 初始化参数无效',
+      cause,
     });
-  };
-
-  // beforeunload 在移动端 Safari / bfcache 常不触发，叠加 pagehide 与
-  // visibilitychange(hidden) 两路兜底，确保切后台 / 关闭标签页时也能 flush。
-  const handleFlushEvent = (): void => {
-    if (!destroyed) flushDuration();
-  };
-
-  const handleVisibilityChange = (): void => {
-    if (destroyed) return;
-    if (document.visibilityState === 'hidden') {
-      // 切后台：结算当前可见时段（flush 后 pageEntryTime 归零）
-      flushDuration();
-    } else if (lastPath !== null && pageEntryTime === null) {
-      // 切回前台：重新计时，避免再次停留的时长被漏报
-      pageEntryTime = Date.now();
-    }
-  };
-
-  const registerUnloadListeners = (): void => {
-    window.addEventListener('beforeunload', handleFlushEvent);
-    window.addEventListener('pagehide', handleFlushEvent);
-    document.addEventListener('visibilitychange', handleVisibilityChange);
-  };
-
-  const removeUnloadListeners = (): void => {
-    window.removeEventListener('beforeunload', handleFlushEvent);
-    window.removeEventListener('pagehide', handleFlushEvent);
-    document.removeEventListener('visibilitychange', handleVisibilityChange);
-  };
-
-  if (isBrowser()) {
-    registerUnloadListeners();
   }
-
-  const sendPageview = (input?: PageInput): void => {
-    // 每次都从当前 URL 实时读取，不使用内部缓存——SPA 路由切换后调用无需手动传 path
-    const path = normalizePath(input?.path ?? getCurrentPath());
-
-    flushDuration();
-
-    lastPath = path;
-    pageEntryTime = Date.now();
-
-    const utmParams = getUtmParams();
-    transport.post(TRACK_ENDPOINT, {
-      path,
-      title: getPageTitle(input?.title),
-      visitorId: identityStore.get().visitorId,
-      sessionId: identityStore.get().sessionId,
-      language: getLanguage(),
-      ...utmParams,
+  let destroyed = false;
+  let currentPath: string | undefined;
+  const report = (error: LiteTrackError) =>
+    reportLiteTrackError({
+      error,
+      debug: options.debug,
+      onError: options.onError,
     });
-  };
-
-  const sendReadProgress = (input: ReadInput): void => {
-    // 同样实时读取，不依赖 page() 调用留下的状态
-    const path = normalizePath(input.path ?? getCurrentPath());
-
-    const percent = Math.max(0, Math.min(100, Math.round(input.percent)));
-    const identity = identityStore.get();
-    transport.post(READ_PROGRESS_ENDPOINT, {
-      path,
-      maxDepth: percent,
-      visitorId: identity.visitorId,
-      sessionId: identity.sessionId,
-    });
-  };
-
+  async function send(payload: Omit<CollectInput, 'visitorId'>) {
+    const controller = new AbortController();
+    const timer = setTimeout(
+      () => controller.abort(),
+      options.timeoutMs ?? 10000,
+    );
+    try {
+      const identity = await visitorId(options.siteToken);
+      const response = await fetch(endpoint, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Site-Token': options.siteToken,
+          'X-LiteTrack-SDK': SDK_VERSION,
+        },
+        body: JSON.stringify({ ...payload, visitorId: identity }),
+        keepalive: true,
+        signal: controller.signal,
+      });
+      if (!response.ok)
+        report(
+          createLiteTrackError({
+            code: 'HTTP_ERROR',
+            status: response.status,
+            message: 'LiteTrack 上报失败：' + response.status,
+          }),
+        );
+    } catch (cause) {
+      report(
+        createLiteTrackError({
+          code: controller.signal.aborted ? 'TIMEOUT' : 'NETWORK_ERROR',
+          message: 'LiteTrack 上报未完成',
+          cause,
+        }),
+      );
+    } finally {
+      clearTimeout(timer);
+    }
+  }
   return {
     page(input) {
-      if (destroyed) return;
-      sendPageview(input);
-    },
-    read(input) {
-      if (destroyed) return;
-      if (typeof input === 'number') {
-        sendReadProgress({ percent: input });
+      if (
+        destroyed ||
+        typeof window === 'undefined' ||
+        typeof document === 'undefined'
+      )
         return;
-      }
-      sendReadProgress(input);
-    },
-    identify(identity) {
-      if (destroyed) return;
-      identityStore.set(identity);
-    },
-    stats: {
-      async site() {
-        const response = await transport.get<SiteStatsResponse>(STATS_ENDPOINT);
-        return parseSiteStatsResponse(response);
-      },
-      async page(path) {
-        const normalizedPath = normalizePath(path);
-        const response = await transport.get<PageStatsResponse>(
-          STATS_ENDPOINT,
-          {
-            path: normalizedPath,
-          },
+      try {
+        if (
+          typeof fetch === 'undefined' ||
+          typeof AbortController === 'undefined'
+        ) {
+          report(
+            createLiteTrackError({
+              code: 'ENVIRONMENT_ERROR',
+              message: '当前浏览器需要 fetch 和 AbortController',
+            }),
+          );
+          return;
+        }
+        const rawPath = input?.path ?? window.location.pathname;
+        if (typeof rawPath !== 'string' || rawPath.length > 500)
+          throw new Error('path 无效');
+        const path = normalizePath(rawPath);
+        if (currentPath === path && !input?.newVisit) return;
+        const title = input?.title ?? document.title;
+        if (typeof title !== 'string') throw new Error('title 无效');
+        const payload: Omit<CollectInput, 'visitorId'> = {
+          protocolVersion: PROTOCOL_VERSION,
+          eventId: createId(),
+          path,
+          title: title.slice(0, 500),
+          referrer: document.referrer.slice(0, 2048),
+        };
+        currentPath = path;
+        void send(payload);
+      } catch (cause) {
+        report(
+          createLiteTrackError({
+            code: 'INVALID_OPTIONS',
+            message: 'LiteTrack 页面参数无效',
+            cause,
+          }),
         );
-        return parsePageStatsResponse(response, normalizedPath);
-      },
+      }
     },
     destroy() {
       destroyed = true;
-      if (isBrowser()) {
-        removeUnloadListeners();
-      }
+      currentPath = undefined;
     },
   };
 }

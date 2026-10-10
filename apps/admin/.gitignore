@@ -1,4 +1,5 @@
 dist/
+public/sdk/preview/
 
 # Profile
 .rspack-profile-*/

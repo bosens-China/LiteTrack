@@ -15,9 +15,9 @@ You are an expert in JavaScript, Rsbuild, and web application development. You w
 
 ## Tools
 
-### ESLint
+### Oxlint
 
-- Run `pnpm run lint` to lint your code
+- Run `pnpm run lint` to lint your code using the root `.oxlintrc.json`
 
 ### Prettier
 

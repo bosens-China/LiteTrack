@@ -1,41 +1,23 @@
-FROM node:22-alpine AS build
-
+FROM node:24-alpine AS build
 WORKDIR /app
-
 RUN corepack enable
-
-# 先拷贝工作区配置文件
+ENV CI=true
 COPY pnpm-lock.yaml pnpm-workspace.yaml package.json ./
-
-# 仅拷贝 package.json 先安装依赖（提升缓存复用率）
 COPY apps/admin/package.json ./apps/admin/
-
-# 安装前端依赖（缓存层）
-RUN pnpm install --filter admin... --frozen-lockfile
-
-# 再拷贝源码
+COPY apps/sdk/package.json ./apps/sdk/
+COPY apps/sdk/contracts/package.json ./apps/sdk/contracts/
+RUN pnpm install --filter admin... --filter @boses/litetrack-sdk... --frozen-lockfile
+COPY apps/sdk ./apps/sdk
 COPY apps/admin ./apps/admin
-RUN pnpm --filter admin build
+RUN pnpm --filter @litetrack/contracts build && pnpm --filter @boses/litetrack-sdk build
+RUN node apps/sdk/scripts/publish.mjs --preview && pnpm --filter admin build
 
-
-FROM nginx:1.27-alpine AS runner
-
+FROM nginx:1.29.8-alpine AS runner
 WORKDIR /usr/share/nginx/html
-
-# 默认后端上游地址（可在运行时通过环境变量覆盖）
 ENV LITETRACK_API_UPSTREAM=server:3000
-
-# 使用 Nginx 官方模板机制，启动时自动 envsubst
 COPY apps/admin/nginx.conf /etc/nginx/templates/default.conf.template
-
-# 将构建好的静态文件复制到 Nginx 默认目录
 COPY --from=build /app/apps/admin/dist ./
-
 EXPOSE 80
-
-# 容器内健康检查：探测 Nginx 是否正常响应
-HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
-  CMD wget -qO- http://127.0.0.1:80/ || exit 1
-
+HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 CMD wget -qO- http://127.0.0.1:80/ || exit 1
 CMD ["nginx", "-g", "daemon off;"]
 

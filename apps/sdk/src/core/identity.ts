@@ -1,131 +1,36 @@
-import { SESSION_STORAGE_KEY, VISITOR_STORAGE_KEY } from './constants';
-import { isBrowser } from './env';
-import type { LiteTrackIdentity, StorageLike } from './types';
-
-interface IdentityStore {
-  get(): LiteTrackIdentity;
-  set(identity: LiteTrackIdentity): LiteTrackIdentity;
+const memory = new Map<string, string>();
+export function createId(): string {
+  return (
+    globalThis.crypto?.randomUUID?.() ??
+    Date.now().toString(36) + Math.random().toString(36).slice(2)
+  );
 }
-
-class MemoryStorage implements StorageLike {
-  private readonly values = new Map<string, string>();
-
-  getItem(key: string): string | null {
-    return this.values.get(key) ?? null;
-  }
-
-  setItem(key: string, value: string): void {
-    this.values.set(key, value);
-  }
-}
-
-const memoryLocalStorage = new MemoryStorage();
-const memorySessionStorage = new MemoryStorage();
-
-function getSafeStorage(storage: StorageLike | undefined): StorageLike | null {
-  if (!storage) {
-    return null;
-  }
-
+function readIdentity(key: string): string {
   try {
-    const probeKey = '__litetrack_probe__';
-    storage.setItem(probeKey, '1');
-    // 探测成功后立即清理，避免在用户存储里残留垃圾键
-    storage.removeItem?.(probeKey);
-    return storage;
+    const existing = window.localStorage.getItem(key);
+    if (existing && /^[a-zA-Z0-9_-]{8,100}$/.test(existing)) {
+      memory.set(key, existing);
+      return existing;
+    }
+    const id = memory.get(key) ?? createId();
+    window.localStorage.setItem(key, id);
+    memory.set(key, id);
+    return id;
   } catch {
-    return null;
+    const id = memory.get(key) ?? createId();
+    memory.set(key, id);
+    return id;
   }
 }
-
-function createId(prefix: string): string {
-  if (
-    typeof crypto !== 'undefined' &&
-    typeof crypto.randomUUID === 'function'
-  ) {
-    return `${prefix}_${crypto.randomUUID()}`;
+export async function visitorId(siteToken: string): Promise<string> {
+  const key = 'lt:visitor:' + siteToken;
+  // 首次多标签页共用同一把锁，避免同时写入不同匿名身份。
+  if (typeof navigator !== 'undefined' && navigator.locks) {
+    try {
+      return await navigator.locks.request(key, () => readIdentity(key));
+    } catch {
+      /* 隐私模式允许降级。 */
+    }
   }
-
-  return `${prefix}_${Math.random().toString(36).slice(2, 10)}${Date.now().toString(36)}`;
-}
-
-function normalizeIdentityValue(value?: string): string | undefined {
-  if (typeof value !== 'string') {
-    return undefined;
-  }
-
-  const normalized = value.trim();
-  return normalized || undefined;
-}
-
-function getOrCreateIdentity(
-  storage: StorageLike,
-  key: string,
-  prefix: string,
-  explicitValue?: string,
-): string {
-  const normalizedExplicitValue = normalizeIdentityValue(explicitValue);
-  if (normalizedExplicitValue) {
-    storage.setItem(key, normalizedExplicitValue);
-    return normalizedExplicitValue;
-  }
-
-  const stored = storage.getItem(key);
-  if (stored) {
-    return stored;
-  }
-
-  const nextValue = createId(prefix);
-  storage.setItem(key, nextValue);
-  return nextValue;
-}
-
-export function createIdentityStore(
-  initialIdentity?: LiteTrackIdentity,
-): IdentityStore {
-  const visitorStorage = isBrowser()
-    ? (getSafeStorage(globalThis.localStorage) ?? memoryLocalStorage)
-    : memoryLocalStorage;
-  const sessionStorageRef = isBrowser()
-    ? (getSafeStorage(globalThis.sessionStorage) ?? memorySessionStorage)
-    : memorySessionStorage;
-
-  let currentIdentity: LiteTrackIdentity = {
-    visitorId: getOrCreateIdentity(
-      visitorStorage,
-      VISITOR_STORAGE_KEY,
-      'ltv',
-      initialIdentity?.visitorId,
-    ),
-    sessionId: getOrCreateIdentity(
-      sessionStorageRef,
-      SESSION_STORAGE_KEY,
-      'lts',
-      initialIdentity?.sessionId,
-    ),
-  };
-
-  return {
-    get() {
-      return { ...currentIdentity };
-    },
-    set(identity) {
-      currentIdentity = {
-        visitorId: getOrCreateIdentity(
-          visitorStorage,
-          VISITOR_STORAGE_KEY,
-          'ltv',
-          identity.visitorId ?? currentIdentity.visitorId,
-        ),
-        sessionId: getOrCreateIdentity(
-          sessionStorageRef,
-          SESSION_STORAGE_KEY,
-          'lts',
-          identity.sessionId ?? currentIdentity.sessionId,
-        ),
-      };
-
-      return { ...currentIdentity };
-    },
-  };
+  return readIdentity(key);
 }

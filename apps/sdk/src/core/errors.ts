@@ -35,9 +35,22 @@ export function reportLiteTrackError({
   debug,
   onError,
 }: ReportLiteTrackErrorInput): void {
-  if (debug && typeof console !== 'undefined' && typeof console.error === 'function') {
-    console.error('[LiteTrack]', error);
+  try {
+    if (
+      debug &&
+      typeof console !== 'undefined' &&
+      typeof console.error === 'function'
+    ) {
+      console.error('[LiteTrack]', error);
+    }
+  } catch {
+    // 调试输出失败不能阻止业务接收错误。
   }
-
-  onError?.(error);
+  try {
+    const result: unknown = onError?.(error);
+    // void 回调也允许调用方传入 async 函数，隔离其异步拒绝。
+    if (result) void Promise.resolve(result).catch(() => {});
+  } catch {
+    // 用户回调不能影响宿主，也不能被重新归类为网络失败。
+  }
 }

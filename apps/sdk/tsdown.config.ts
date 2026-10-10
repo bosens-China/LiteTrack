@@ -3,9 +3,12 @@ import { fileURLToPath } from 'node:url';
 import { defineConfig } from 'tsdown';
 
 // 版本号从 package.json 读取，是唯一来源：
-// IIFE 内嵌版本、ESM 版本、请求的 API 前缀、上报头全部自动对齐。
+// IIFE 内嵌版本、ESM 版本与上报版本头对齐；API 前缀独立声明。
 const pkg = JSON.parse(
-  readFileSync(fileURLToPath(new URL('./package.json', import.meta.url)), 'utf8'),
+  readFileSync(
+    fileURLToPath(new URL('./package.json', import.meta.url)),
+    'utf8',
+  ),
 ) as { version: string };
 
 const define = {
