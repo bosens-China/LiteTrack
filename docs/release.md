@@ -6,15 +6,9 @@ SDK 是唯一 npm 包，版本由 release-please 按 Conventional Commits 维护
 
 本轮不兼容旧 SDK，合并实现时必须使用 feat(sdk)! 或等价 BREAKING CHANGE 提交。apps/sdk/contracts 位于 SDK 包目录内，因此共享协议/类型改动也参与 release-please 的路径检测；只改 Server/Admin 不触发 SDK 发版。
 
-本轮明确从 1.1.1 升到 **2.0.0**，不换 npm 包名，不重置 release manifest，不手改 SDK version 或 CHANGELOG。提交或 squash 合并消息应包含：
+当前正式 SDK 为 **2.0.0**，npm 的 `latest` 已指向该版本，附带本仓库 GitHub Actions 的 provenance。参见 [npm 包](https://www.npmjs.com/package/@boses/litetrack-sdk/v/2.0.0) 和 [发布运行](https://github.com/bosens-China/LiteTrack/actions/runs/38367043136)。
 
-```text
-feat(sdk)!: rebuild analytics SDK and collection contract
-
-BREAKING CHANGE: replace the previous SDK API and collection protocol; old SDKs cannot use the new server.
-```
-
-确认 release-please 生成的 release PR 为 2.0.0 后再合并；该 PR 自动更新 package.json、CHANGELOG 与 .release-please-manifest.json，并继续生成 v2.0.0 tag 和 GitHub Release。CI 允许 1.1.1 源码基线验证预览，但阻止新的 1.x release PR 和任何 1.x 静态发布。无需永久设置 release-as；2.0.0 之后仍按 fix/feat/破坏性提交正常升级。参见 [release-please 配置](https://github.com/googleapis/release-please/blob/main/docs/manifest-releaser.md#configfile)。
+release PR 自动更新 package.json、CHANGELOG 与 .release-please-manifest.json，合并后生成 vX.Y.Z tag 和 GitHub Release。CI 阻止新的 1.x release PR 和任何 1.x 静态发布；后续按 fix/feat/破坏性提交正常升级，不永久设置 release-as。参见 [release-please 配置](https://github.com/googleapis/release-please/blob/main/docs/manifest-releaser.md#configfile)。
 
 ## 复用边界
 
@@ -69,7 +63,7 @@ publish.mjs 在已有固定版本字节或历史记录不一致时直接失败�
 
 Admin 镜像固定 Nginx 1.29.8，使用 add_header_inherit merge，避免路径级 Cache-Control 覆盖上层防嵌入、MIME 和 Referrer 安全头。自备 Nginx 至少需要 1.29.3；参见 [Nginx 头部继承规则](https://nginx.org/en/docs/http/ngx_http_headers_module.html#add_header_inherit)。
 
-根 build 只准备预览，不尝试覆盖目前已发布的 1.1.1。新正式版本必须由 release-please 产生。
+根 build 只准备预览，不覆盖任何正式版本。新正式版本必须由 release-please 产生。
 
 ## 切换与恢复
 
