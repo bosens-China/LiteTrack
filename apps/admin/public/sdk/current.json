@@ -1,0 +1,34 @@
+{
+  "version": "2.0.0",
+  "protocolVersion": 1,
+  "url": "/sdk/2.0.0/litetrack.min.js",
+  "integrity": "sha384-+SSkZBCfpZFvdb14EDVeqQjHuoBcSJOeQogvHpshtxiz6yu9ISTRCXNe4+j0MKfz",
+  "size": 2849,
+  "files": {
+    "litetrack.min.js": {
+      "url": "/sdk/2.0.0/litetrack.min.js",
+      "integrity": "sha384-+SSkZBCfpZFvdb14EDVeqQjHuoBcSJOeQogvHpshtxiz6yu9ISTRCXNe4+j0MKfz",
+      "size": 2849
+    },
+    "index.mjs": {
+      "url": "/sdk/2.0.0/index.mjs",
+      "integrity": "sha384-ul4wGY6XHFBFNDNebuo7/xVCo+T8nI5zkWyR5DjL3hMKEttXACJuv8vg7zh3vPIv",
+      "size": 5054
+    },
+    "index.d.mts": {
+      "url": "/sdk/2.0.0/index.d.mts",
+      "integrity": "sha384-tf28idiLeTeLWE1OB3fmzQ4iaw+cnyWuzkrytizF1RYQYlQIOYQI6tj7EKNF4ktz",
+      "size": 1061
+    },
+    "index.mjs.map": {
+      "url": "/sdk/2.0.0/index.mjs.map",
+      "integrity": "sha384-xohTf6HFkmlv6UHdNpDw6w3FdMyEQ1Bpuf1rwGwALzrx0AFQeqIFvrnaKAi2eusa",
+      "size": 10824
+    },
+    "index.d.mts.map": {
+      "url": "/sdk/2.0.0/index.d.mts.map",
+      "integrity": "sha384-bL9u5keRumhsDeLQ2AslN9j9ZbjVkj6CEmMiW8KgeQE4fOugggWX6dUPL6BEIqkD",
+      "size": 512
+    }
+  }
+}
