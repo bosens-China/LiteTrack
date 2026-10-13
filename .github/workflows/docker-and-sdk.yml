@@ -153,6 +153,8 @@ jobs:
             git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
             git add apps/admin/public/sdk
             git commit -m "chore: append released sdk assets"
+            node apps/sdk/scripts/publish.mjs
+            git diff --exit-code -- apps/admin/public/sdk
             git push
           fi
       - uses: actions/upload-artifact@v4

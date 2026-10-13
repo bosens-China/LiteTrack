@@ -63,6 +63,8 @@ release-please 使用独立的组件发布 PR，避免聚合 PR 的无组件分�
 
 publish.mjs 在已有固定版本字节或历史记录不一致时直接失败；不能跳过复制后继续发布不同 npm 内容。固定目录包含 litetrack.min.js、index.mjs、index.d.mts、index.mjs.map 和 index.d.mts.map，新增版本通过 files 字段记录每个文件的 URL、大小与 SHA-384，部署后验收逐一验证。manifest 的历史 versions 记录原样保留，只追加；current.json 是唯一当前版本指针，不维护多 major 渠道。不能给已发布版本补写类型文件或改元数据，必须发新版本。
 
+整个 `apps/admin/public/sdk/` 生成目录由 Prettier 忽略；CI 在静态资源提交后再次执行不可变校验，防止提交钩子改动字节。2.0.0 首次静态提交中的 `.mjs` 和 `.mts` 曾被钩子格式化，在 npm/CDN 正式发布前按原 CI 产物恢复至已登记 SRI 的字节，历史 integrity/size 保持不变。
+
 开发用 publish.mjs --preview 写入 /sdk/preview，既不改历史 manifest，也不占用正式版本。预览文件禁止长期缓存；正式固定文件启用 immutable 和跨域 SRI 所需 CORS。Nginx 为 mjs 显式配置 JavaScript MIME，mts 按纯文本提供，避免浏览器模块加载被拒绝；参见 [Nginx types](https://nginx.org/en/docs/http/ngx_http_core_module.html#types)。
 
 Admin 镜像固定 Nginx 1.29.8，使用 add_header_inherit merge，避免路径级 Cache-Control 覆盖上层防嵌入、MIME 和 Referrer 安全头。自备 Nginx 至少需要 1.29.3；参见 [Nginx 头部继承规则](https://nginx.org/en/docs/http/ngx_http_headers_module.html#add_header_inherit)。
