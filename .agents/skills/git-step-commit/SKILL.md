@@ -1,192 +1,131 @@
 ---
 name: git-step-commit
-description: Analyze Git working tree and staged changes, propose one or more coherent commit batches for user approval, infer commit message style from repository history, then run git add/git commit only for approved batches. Use when the user asks for git commit, commit changes, git 分步提交, 分批提交, staged commit cleanup, or wants current changes committed with sensible messages.
+description: Review Git changes, organize and create coherent commits, manage explicit and learned commit preferences, and safely synchronize and push branches. Use for 提交、按推荐提交、审查提交计划、提交并推送、设置或个性化提交偏好、指定提交语言, or closing supplied GitHub issues through commits.
 ---
 
 # Git Step Commit
 
-使用这个技能把当前 Git 更改整理成清晰、可审查、可回滚的提交。
+把当前 Git 更改整理成清晰、可审查、可回滚的提交；只有用户要求时才推送。
 
-## 核心流程
+## 偏好与优先级
 
-先出计划，再提交。触发后不要立刻提交，除非用户已经明确给出“按这个计划提交”“提交第一批”等确认指令。
+提交模式按以下优先级解析：
 
-1. 确认当前目录位于 Git 仓库中：
-   ```bash
-   git rev-parse --show-toplevel
-   git status --short
-   ```
-2. 同时检查暂存区和工作区：
-   ```bash
-   git diff --stat
-   git diff --cached --stat
-   git diff --name-status
-   git diff --cached --name-status
-   ```
-   如果当前对话中已经明确这些变更全部由当前 agent/AI 刚刚完成，并且已经了解每个文件的修改意图，可以不重复阅读文件正文；仍需用上述状态和统计命令确认实际变更范围。
-   如果变更来源不明确、包含用户已有修改、包含暂存区旧内容，或无法确定每个文件的修改意图，就继续用 `git diff -- <path>` 和 `git diff --cached -- <path>` 查看文件级 diff，必要时阅读相关文件。
-3. 如果已经有暂存文件，先分析暂存内容。除非用户明确要求保留当前暂存状态，否则在规划前把暂存内容退回工作区：
-   ```bash
-   git restore --staged .
-   ```
-   这不会丢弃文件内容，只是为了后续按批次重新暂存。
-   如果 `git status --short` 显示所有更改都在暂存区，也同样先退回工作区，再按计划重新分批暂存。
-4. 查看最近提交信息，推断仓库的提交风格：
-   ```bash
-   git log -12 --pretty=format:%s
-   ```
-   优先匹配仓库历史里的语言、前缀、scope、大小写和语气。
-5. 如果历史没有明确风格，使用简洁的 Conventional Commit：
-   - `feat: ...` 用于新能力或用户可见行为
-   - `fix: ...` 用于 bug 修复
-   - `refactor: ...` 用于不改变行为的内部重构
-   - `test: ...` 用于测试变更
-   - `docs: ...` 用于文档变更
-   - `chore: ...` 用于工具、CI、依赖、生成产物或仓库维护
-6. 如果用户指定了提交格式、语言、前缀或消息风格，后续都按用户指定的方式执行，除非用户之后又修改要求。
-7. 确认测试状态：
-   - 如果本轮对话已经运行过相关测试或验证，在提交大纲中复述测试命令和结果。
-   - 如果还没有运行测试，判断是否需要先运行；需要且成本合理时先运行。
-   - 如果不运行测试，在提交大纲和最终回复中说明原因。
+1. 当前对话中用户最近一次明确指定
+2. 当前仓库配置
+3. 全局 Git 配置
+4. 当前项目的个性化记忆
+5. 内置默认
 
-## 提交大纲
+消息语言不使用个性化记忆，优先级仍为当前对话、当前仓库配置、全局 Git 配置、内置默认。
 
-分析完成后，先向用户输出提交大纲并等待确认。大纲应包含：
+对话偏好在后续请求中继续生效，但不写入 Git 配置；用户重新指定时覆盖。只有用户明确说“仅这次”时才不延续。不要把一次确认某个计划误记为长期偏好。
+
+配置键：
+
+- `git-step-commit.mode`：`default`、`review`、`direct`
+- `git-step-commit.language`：`auto` 或合法 BCP 47 标识，如 `zh-CN`、`en`、`ja`
+
+模式含义：
+
+- `review`：先输出审查报告并等待确认
+- `direct`：按推荐方案直接提交
+- `default`：普通提交走 `review`；用户说“按推荐提交”“直接提交”“无需确认”时走 `direct`
+
+“提交并推送”本身不算用户明确指定模式，也不形成对话偏好；仅当按上述优先级得到的有效模式为 `default` 时，本次按 `direct`（推荐模式）执行。
+
+每次提交前按优先级逐层解析，命中后立即停止，不读取更低优先级的来源：先使用当前对话偏好；否则读取当前仓库配置；仓库配置缺失时读取全局配置；两层配置均缺失时才读取个性化记忆。项目级或全局的 `default`/`auto` 是明确值，会阻止继续回退。无效配置不执行，报告问题与来源。
+
+用户要求设置、查看或删除持久偏好时，只操作 Git 配置，不检查或提交工作树：
+
+- 当前仓库：`git config --local`
+- 全局：`git config --global`
+- 写入使用 `--replace-all`，删除使用 `--unset-all` 或 `--remove-section`
+
+修改前必须知道作用域，只改用户指定字段，完成后读回验证。读取偏好但未指定作用域时，显示有效值及来源。
+
+## 个性化记忆
+
+个性化记忆是用户选择启用的项目级推断状态，只学习提交模式 `direct`，不写入 Git 配置。使用 `scripts/` 下匹配当前操作系统和 CPU 架构的 `commit-memory-*` 二进制管理；Linux/macOS 首次运行前确保二进制可执行。状态写入 `${XDG_STATE_HOME:-$HOME/.local/state}/git-step-commit`；若设置 `GIT_STEP_COMMIT_STATE_DIR`，则使用该目录。不要手工拼接、改写或读取状态 JSON。
+
+二进制对应关系：
+
+- Windows amd64：`commit-memory-windows-amd64.exe`
+- Linux amd64：`commit-memory-linux-amd64`
+- Linux arm64：`commit-memory-linux-arm64`
+- macOS amd64：`commit-memory-darwin-amd64`
+- macOS arm64：`commit-memory-darwin-arm64`
+
+用户要求开启、关闭、查看或忘记个性化记忆时，只执行相应脚本命令，不检查或提交工作树：
 
 ```text
-建议提交计划：
-变更来源：本轮 agent 修改 / 用户已有修改 / 混合 / 不确定
-额外阅读：已了解修改意图，未重复阅读文件 / 已阅读 diff / 已阅读相关文件
-验证状态：已运行 <command> / 建议先运行 <command> / 未运行，原因：...
-
-1. <commit message>
-   - 文件：path/a, path/b
-   - 目的：...
-   - 备注：是否包含生成产物、测试、文档等
-2. <commit message>
-   - 文件：path/c
-   - 目的：...
-
-请确认：全部提交、只提交某几批，或调整批次/消息。
+<memory-bin> enable
+<memory-bin> disable
+<memory-bin> status --repo <repo>
+<memory-bin> record-direct --repo <repo>
+<memory-bin> forget --repo <repo>
 ```
 
-用户确认前不要运行 `git add` 或 `git commit`。用户可能会：
+记忆默认关闭。`disable` 保留已有项目状态但停止读取和学习；`forget` 只删除当前项目的状态。状态缺失、关闭或尚未达到阈值时不产生模式偏好。达到阈值后，模式为 `direct`，来源显示为“本项目个性化记忆”。
 
-- 确认全部批次：按大纲顺序逐批提交。
-- 只要求提交第一批或指定批次：只提交用户指定的批次，其他更改保持未提交。
-- 修改批次划分：按用户修改后的批次重新暂存和提交。
-- 修改提交信息：使用用户指定的消息或格式。
-- 要求重新规划：重新分析当前 diff 并输出新的大纲。
+一次提交请求结束后，只有同时满足以下条件才运行 `record-direct`，并且一次请求最多记录一次：
 
-## 批次划分
+- 用户在本次请求中明确说“按推荐提交”“直接提交”或“无需确认”
+- 至少一个提交实际成功
+- 用户没有说“仅这次”
 
-按“意图”分组，不要只按文件类型分组。一个好的批次通常能回答一个审查问题：
+不要记录对审查计划的确认、仅由先前对话偏好延续的 `direct`、由 Git 配置得到的 `direct`、由“提交并推送”特殊规则得到的 `direct`，或失败及未执行的提交。脚本累计三次合格成功后才学习 `direct`；达到阈值后的 `record-direct` 是无写入的幂等操作，并返回 `recorded: false`。同一次请求内复用已经读取的状态，不重复读取。写入失败不改变已经完成的 Git 结果，应分别准确报告。
 
-- “迁移 skill 仓库目录结构”
-- “新增 git 分步提交 skill”
-- “更新 CI 以适配 packages 路径”
-- “刷新打包二进制”
+## 分析与审查报告
 
-通常一批提交即可的情况：
+先一次性检查仓库根目录、工作树/暂存区、提交历史、作者历史、当前分支与 upstream，以及两层配置。没有更改时直接说明。
 
-- 所有更改服务于同一个目的
-- 这些更改应该一起审查、一起回滚
-- 拆开后任一提交无法独立成立
+按需阅读 diff 和未跟踪文件；不要覆盖或顺手提交无关修改。按单一意图划分批次，让每个提交可以独立审查和回滚。复用本轮已有验证，否则运行与改动风险相称的测试。
 
-应该拆成多批的情况：
+消息语言和格式遵循用户本轮明确要求。语言为 `auto` 时，优先沿用当前 Git 作者的历史；其次沿用仓库主要历史；仍无依据时使用简洁 Conventional Commit，摘要语言跟随当前对话。不要混用不同历史层级的语言和格式，也不要猜测身份或国籍。
 
-- 不同功能或不同问题混在一起
-- 行为变更、测试、文档、工具配置之间可以独立审查
-- 生成产物 diff 很大，会遮挡源码变更
-- 有自然顺序，例如基础设施先于功能实现
+凡是输出审查/计划，必须先显示当前有效模式及来源，例如：
 
-推荐顺序：
+```text
+当前模式：推荐直提（来源：当前对话）
+消息配置：中文 Conventional Commit（来源：作者历史）
+验证：<结果或未运行原因>
 
-1. 共享基础设施、目录结构、构建配置
-2. 具体实现或功能变更
-3. 测试
-4. 文档
-5. 生成产物或打包二进制
+建议提交：
+1. <message>
+   - 文件：...
+   - 目的：...
+```
 
-如果仓库历史习惯把测试和实现放在同一提交里，就遵循历史习惯。生成产物如果是仓库正常运行所必需，通常跟产生它的源码变更放在一起；如果体积很大或历史上单独提交，则单独成批。
-
-不要把明显无关的脏文件顺手提交。看起来无关的文件保持未暂存，并在最终回复里说明。
+若有效模式为 `review`，等待用户确认；若为 `direct`，报告可以简短，并继续执行。用户只询问建议或审查时，无论模式为何都不提交。
 
 ## 执行提交
 
-用户确认后，按确认的批次顺序执行。
+每个文件整体属于一个批次时，使用精确 pathspec 暂存并提交，可把多批操作放进一条以 `&&` 连接的命令链。需要拆分同一文件、保留已有暂存内容或意图不清时，逐批检查并使用交互式暂存或临时 index。使用 `git add -p` 后，`git commit` 不得再带 pathspec 或 `--only`，否则会绕过 hunk 选择并提交文件的完整工作区状态。
 
-目标是少交互、少工具调用地完成“按计划分批提交”。默认使用紧凑命令链，不要为了重复确认而拆成多次工具调用。
+提交前防止凭据、本地缓存、编辑器文件和意外构建产物进入提交。默认不添加 AI 署名或 `Co-authored-by`。
 
-每一批默认执行：
+只有用户明确给出 Issue 编号时才在相关提交 body 中添加 `Closes #123`；不要从 diff 或分支名猜测。不要声称本地提交已经关闭 Issue。
 
-```bash
-git add <path>... && git commit -m "<message>" && git status --short
-```
+遇到疑似凭据、无法判断归属、必要测试失败、冲突或异常 hook 时停止并说明。不要使用会丢失内容或改写历史的命令，也不要 amend、force push 或交互式 rebase，除非用户明确要求。
 
-如果需要在提交前保留暂存摘要，可以使用：
+## 同步与推送
 
-```bash
-git add <path>... && git diff --cached --stat && git commit -m "<message>" && git status --short
-```
+只有用户明确要求推送时才推送当前分支。目标优先使用用户指定值，其次使用 upstream；没有 upstream 时，仅在 `origin/<当前分支>` 可唯一确定时使用它，否则询问。
 
-Windows PowerShell 可使用：
+普通分支推送前检查进行中的 Git 操作、冲突和工作树。用户仅要求推送时，不得自动暂存、提交或 stash 未提交更改；它们阻碍安全同步时停止并说明。已有远端分支时先 `git pull --rebase` 再普通 `git push`；远端尚无同名分支时用 `git push -u` 建立 upstream。一次重试后仍被拒绝就停止。绝不默认强推。
 
-```powershell
-git add <path>...; if ($LASTEXITCODE -eq 0) { git commit -m "<message>" }; if ($LASTEXITCODE -eq 0) { git status --short }
-```
+rebase 冲突时保留现场，检查正在重放的提交和冲突语义。只有意图明确时才合并双方内容、验证并继续；否则让用户选择。不要用 abort、hard reset、checkout 或 clean 绕过冲突。
 
-只在以下情况拆开执行并检查暂存内容：
+## 结果
 
-- 同一个文件包含多个无关 hunk，需要 `git add -p`。
-- 变更来源不明确，或包含用户已有修改和 agent 修改的混合内容。
-- 批次文件很多，容易误包含无关文件。
-- 用户明确要求提交前展示暂存内容。
-- 上一次提交失败、hook 修改了文件，或状态输出和计划不一致。
+仅根据命令结果报告成功。列出每个提交的短 hash、消息、验证、剩余未提交更改；推送后再说明远程、分支和同步结果。
 
-拆开执行时，使用：
+如果能从实际使用的远程地址可靠得到仓库主页，额外输出一个可点击的 Markdown 链接，例如 `仓库主页：[owner/repo](https://github.com/owner/repo)`：
 
-1. 暂存当前批次：
-   ```bash
-   git add <path>...
-   ```
-2. 检查暂存内容：
-   ```bash
-   git diff --cached --stat
-   git diff --cached --name-status
-   ```
-   如果暂存内容包含其他批次或无关文件，先修正暂存区，不要继续提交。
-3. 提交：
-   ```bash
-   git commit -m "<message>"
-   ```
-4. 查看状态：
-   ```bash
-   git status --short
-   ```
+- 去掉末尾 `.git`
+- 把常见 SSH 地址（如 `git@github.com:owner/repo.git`）转换为对应 HTTPS 主页
+- 绝不输出 URL 中的凭据
+- 本地路径、无法可靠转换或来源不确定时省略链接
 
-如果用户只确认部分批次，只提交这些批次。剩余批次保持工作区未提交状态，不要自动继续。
-
-## 安全规则
-
-- 不要使用 `git reset --hard`、`git checkout -- <path>`、`git clean` 这类会丢弃内容的命令，除非用户明确要求。
-- 不要改写历史、amend、rebase 或 force push，除非用户明确要求。
-- 不要提交密钥、凭据、本地缓存、编辑器文件或非预期构建产物。
-- 测试相关且成本合理时，在提交前或最终提交前运行测试；如果没有运行测试，最终回复要说明。
-- 如果 commit hook 修改了文件，检查新增 diff；如果属于本批次，重新暂存并重试同一提交。
-
-## 最终回复
-
-提交完成后，报告已创建的提交短 hash 和消息：
-
-```text
-已创建提交：
-- abc1234 feat: add git step commit skill
-- def5678 chore: update skill repository layout
-```
-
-同时说明：
-
-- 是否还有未提交文件
-- 是否只提交了用户指定的部分批次
-- 运行了哪些测试，或为什么没有运行
+提交或推送失败时不要打印成功链接，也不要假设操作已经完成。

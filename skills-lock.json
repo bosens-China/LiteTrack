@@ -1,6 +1,12 @@
 {
   "version": 1,
   "skills": {
+    "apply-yliu-product-development-practices": {
+      "source": "bosens-China/my-skills",
+      "sourceType": "github",
+      "skillPath": "skills/apply-yliu-product-development-practices/SKILL.md",
+      "computedHash": "ace9deb587d7bb1a1bef187f09aa473b364b4c2c8e1cdd00029e1fc618e8e9ff"
+    },
     "chinese-article-writing": {
       "source": "bosens-China/my-skills",
       "sourceType": "github",
@@ -21,7 +27,7 @@
       "source": "bosens-China/my-skills",
       "sourceType": "github",
       "skillPath": "skills/file-line-audit/SKILL.md",
-      "computedHash": "f859258e1f97a9b491fa895a0f75613473bf869f99e425dfafe25696b59e9e4a"
+      "computedHash": "a35b472406988fcc52e16d4597be382c32b38ab57ad3198b529da13bf41e2698"
     },
     "frontend-design": {
       "source": "anthropics/claude-plugins-official",
@@ -33,7 +39,19 @@
       "source": "bosens-China/my-skills",
       "sourceType": "github",
       "skillPath": "skills/git-step-commit/SKILL.md",
-      "computedHash": "0a88f3826abe50f009d67ac758249d7d485453eabc98d997627e562b886eca03"
+      "computedHash": "fe6bfca80d905d833b9db15ecf465753203d108e6c7b116a76faa4061244e8cf"
+    },
+    "manage-prd-docs": {
+      "source": "bosens-China/my-skills",
+      "sourceType": "github",
+      "skillPath": "skills/manage-prd-docs/SKILL.md",
+      "computedHash": "44f36df488557580b3958fc10cfe1b1859018e9759364033c5da58cc52a6cc85"
+    },
+    "publish-npm-packages": {
+      "source": "bosens-China/my-skills",
+      "sourceType": "github",
+      "skillPath": "skills/publish-npm-packages/SKILL.md",
+      "computedHash": "e819d4f1f80afed4c2942f3db1bb55b01ab0c884b53e28006949be8367708a97"
     },
     "vue-best-practices": {
       "source": "vuejs-ai/skills",
