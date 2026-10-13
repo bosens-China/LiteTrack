@@ -6,6 +6,8 @@ import { SignJWT } from 'jose';
 import { configSchema } from '../src/lib/config.js';
 import { createResources } from '../src/lib/resources.js';
 import type { Tracker } from '../../sdk/src/core/types.js';
+import { auditAdminNavigation } from './browser/admin-navigation.mjs';
+import { auditNpmRelease } from './browser/npm-release.mjs';
 declare global {
   interface Window {
     LiteTrack: {
@@ -49,6 +51,11 @@ try {
       { timeout: 20000 },
     )
     .toBe(200);
+  await page.route('https://registry.npmjs.org/**', (route) =>
+    route.fulfill({
+      json: { 'dist-tags': { latest: '1.1.1' }, versions: { '1.1.1': {} } },
+    }),
+  );
   await page.goto(origin);
   await expect(
     page.getByRole('link', { name: '使用 GitHub 登录' }),
@@ -72,29 +79,64 @@ try {
   ]);
   await page.reload();
   await expect(page.getByText('还没有项目')).toBeVisible();
+  await page.goto(origin + '/integration');
+  await expect(
+    page.getByRole('tab', { name: 'AI Skills', exact: true }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole('link', { name: '下载 index.d.mts', exact: true }),
+  ).toBeVisible();
+  await expect(page.getByRole('tabpanel').locator('code').last()).toContainText(
+    'YOUR_API_KEY',
+  );
+  await page.getByRole('menuitem', { name: '项目管理', exact: true }).click();
+  await page
+    .getByRole('link', { name: '项目列表', exact: true })
+    .first()
+    .click();
+  await expect(page).toHaveURL(/\/sites$/);
+  await expect(
+    page.getByRole('heading', { name: '项目列表', exact: true }),
+  ).toBeVisible();
   await page.getByRole('button', { name: '新建项目' }).first().click();
   await page.getByLabel('项目名称').fill('浏览器验收项目');
   await page.getByLabel('域名', { exact: true }).fill(new URL(origin).host);
   await page.getByRole('button', { name: '保存项目' }).click();
-  await expect(page).toHaveURL(/\/sites\/\d+\/settings/);
-  const settingsUrl = page.url();
-  const siteId = Number(settingsUrl.split('/sites/')[1].split('/')[0]);
-  await page.getByRole('button', { name: '创建 API Key' }).click();
-  await page.getByLabel('API Key 名称').fill('浏览器采集');
-  await page.getByRole('button', { name: /^创\s*建$/ }).click();
-  const tokenInput = page.getByLabel('API Key 浏览器采集', { exact: true });
-  await expect(tokenInput).toBeVisible();
-  const token = await tokenInput.inputValue();
+  await expect(page.getByText('项目创建成功', { exact: true })).toBeVisible();
+  await page.getByRole('button', { name: '前往接入指南' }).click();
+  await expect(page).toHaveURL(/\/integration\?project=\d+/);
+  const integrationUrl = page.url();
+  const siteId = Number(new URL(integrationUrl).searchParams.get('project'));
+  const settingsUrl = origin + '/sites/' + siteId + '/settings';
+  await page.goto(settingsUrl);
+  const tokenText = page.locator('.api-key').first();
+  await expect(tokenText).toBeVisible();
+  const token = (await tokenText.locator('code').textContent())!;
   assert.match(token, /^[a-f0-9]{64}$/);
+  assert.equal(await resources.db.siteToken.count({ where: { siteId } }), 1);
   await page.reload();
-  await expect(tokenInput).toHaveValue(token);
-  await expect(tokenInput).toHaveAttribute('type', 'password');
-  await page
-    .getByRole('button', { name: '复制 API Key 浏览器采集', exact: true })
-    .click();
+  await expect(tokenText).toContainText(token);
+  await expect(page.locator('input[type="password"]')).toHaveCount(0);
+  await tokenText.getByRole('button').click();
   await expect
     .poll(() => page.evaluate(() => navigator.clipboard.readText()))
     .toBe(token);
+  await expect(
+    page.getByRole('button', { name: '创建 API Key', exact: true }),
+  ).toHaveCount(0);
+  await expect(
+    page.getByRole('tab', { name: 'Script', exact: true }),
+  ).toHaveCount(0);
+  await page
+    .getByRole('link', { name: '接入指南', exact: true })
+    .last()
+    .click();
+  await expect(page).toHaveURL(integrationUrl);
+  await auditNpmRelease(page);
+  await page.getByRole('tab', { name: 'Script', exact: true }).click();
+  await expect(
+    page.getByRole('tabpanel').locator('.syntax-keyword'),
+  ).not.toHaveCount(0);
   await page.getByRole('tab', { name: 'AI Skills', exact: true }).click();
   await page
     .getByRole('tabpanel')
@@ -118,7 +160,7 @@ try {
     .getByRole('button', { name: '复制代码', exact: true })
     .boundingBox();
   assert.ok(
-    commandBox && copyBox && commandBox.x + commandBox.width <= copyBox.x,
+    commandBox && copyBox && copyBox.y + copyBox.height <= commandBox.y,
   );
   await page.screenshot({
     path: screenshots + '/skills-mobile.png',
@@ -147,8 +189,9 @@ try {
     await readFile((await download.path())!, 'utf8'),
     await (await fetch(origin + '/sdk/preview/index.d.mts')).text(),
   );
+  await expect(page.locator('.ant-message-notice')).toHaveCount(0);
   await page.screenshot({
-    path: screenshots + '/settings.png',
+    path: screenshots + '/integration.png',
     fullPage: true,
   });
   await page.setViewportSize({ width: 390, height: 844 });
@@ -156,7 +199,7 @@ try {
     .poll(() => page.evaluate(() => document.documentElement.scrollWidth))
     .toBe(390);
   await page.screenshot({
-    path: screenshots + '/settings-mobile.png',
+    path: screenshots + '/integration-mobile.png',
     fullPage: true,
   });
   await page.setViewportSize({ width: 1440, height: 1000 });
@@ -206,7 +249,12 @@ try {
     .toBe(6);
   await second.close();
   await page.goto(origin + '/sites/' + siteId);
-  await expect(page.locator('.metric strong')).toHaveText(['6', '2', '2']);
+  await expect(page).toHaveURL(origin + '/?project=' + siteId);
+  await expect(page.locator('.ant-statistic-content-value')).toHaveText([
+    '6',
+    '2',
+    '2',
+  ]);
   await expect(page.locator('canvas')).toBeVisible();
   await expect
     .poll(() =>
@@ -244,12 +292,56 @@ try {
     '窄屏不允许整页横向溢出',
   );
   await page.setViewportSize({ width: 1440, height: 1000 });
+  await page.goto(origin);
+  await expect(page.locator('.ant-statistic-content-value')).toHaveText([
+    '1',
+    '6',
+    '2',
+    '2',
+  ]);
+  await expect(page.getByText('项目访问排行', { exact: true })).toBeVisible();
+  await page.screenshot({
+    path: screenshots + '/dashboard.png',
+    fullPage: true,
+  });
+  await page.setViewportSize({ width: 390, height: 844 });
+  await expect
+    .poll(() => page.evaluate(() => document.documentElement.scrollWidth))
+    .toBe(390);
+  await page.getByRole('button', { name: '打开导航', exact: true }).click();
+  await expect(page.getByRole('dialog')).toBeVisible();
+  await page
+    .getByRole('dialog')
+    .getByRole('menuitem', { name: '项目管理', exact: true })
+    .click();
+  await expect(page.getByRole('dialog')).toBeVisible();
+  await page
+    .getByRole('dialog')
+    .getByRole('link', { name: '项目列表', exact: true })
+    .click();
+  await expect(page).toHaveURL(/\/sites$/);
+  await expect(page.getByRole('dialog')).not.toBeVisible();
+  await page.goto(origin);
+  await page.screenshot({
+    path: screenshots + '/dashboard-mobile.png',
+    fullPage: true,
+  });
+  await page.setViewportSize({ width: 1440, height: 1000 });
+  await auditAdminNavigation({
+    page,
+    origin,
+    resources,
+    userId: user.id,
+    siteId,
+    token,
+    screenshots,
+  });
   await page.goto(settingsUrl);
   await page.getByRole('button', { name: '编辑项目' }).click();
   await page.getByLabel('项目名称').fill('验收项目已编辑');
   await page.getByRole('button', { name: '保存项目' }).click();
   await expect(page.locator('.site-details')).toContainText('验收项目已编辑');
-  await page.getByRole('switch', { name: '启用 浏览器采集' }).click();
+  await page.getByRole('switch', { name: '启用 默认 API Key' }).click();
   await expect
     .poll(
       async () =>
@@ -267,6 +359,15 @@ try {
     },
   });
   assert.equal(disabled.status(), 401);
+  await page.goto(integrationUrl);
+  await expect(
+    page.getByText('该项目暂无启用的 API Key', { exact: true }),
+  ).toBeVisible();
+  await page.getByRole('tab', { name: 'Script', exact: true }).click();
+  await expect(page.getByRole('tabpanel').locator('code')).toContainText(
+    'YOUR_API_KEY',
+  );
+  await page.goto(settingsUrl);
   await page.getByRole('button', { name: '删除项目', exact: true }).click();
   await page.getByRole('button', { name: '永久删除', exact: true }).click();
   await expect(page.getByText('还没有项目')).toBeVisible();
@@ -276,7 +377,7 @@ try {
   );
   assert.deepEqual(errors, []);
   console.log(
-    '浏览器验收通过：项目/API Key 取回复制、JS/类型复制下载、ESM/IIFE 采集、指标、图表和桌面/窄屏',
+    '浏览器验收通过：独立接入指南、全局/项目切换、二级菜单、历史/日期/分页、Key 隔离、SDK 采集与桌面/窄屏',
   );
 } finally {
   await browser.close();

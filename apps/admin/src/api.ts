@@ -10,6 +10,7 @@ import type {
   SiteToken,
   TrendPoint,
   User,
+  Dashboard,
 } from '@litetrack/contracts';
 
 export class ApiError extends Error {
@@ -45,6 +46,8 @@ export const getUser = (signal?: AbortSignal) =>
 export const logout = () => request<null>('/auth/logout', json('POST'));
 export const getSites = (signal?: AbortSignal) =>
   request<SiteSummary[]>('/sites', { signal });
+export const getDashboard = (range: DateRange, signal?: AbortSignal) =>
+  request<Dashboard>('/sites/summary' + query(range), { signal });
 export const getSite = (id: number, signal?: AbortSignal) =>
   request<Site>('/sites/' + id, { signal });
 export const createSite = (input: SiteInput) =>

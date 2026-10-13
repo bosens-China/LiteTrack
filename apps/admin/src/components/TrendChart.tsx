@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react';
+import { theme } from 'antd';
 import * as echarts from 'echarts/core';
 import { LineChart } from 'echarts/charts';
 import {
@@ -16,45 +17,68 @@ echarts.use([
   LegendComponent,
   CanvasRenderer,
 ]);
-export function TrendChart({ data }: { data: TrendPoint[] }) {
+export function TrendChart({
+  data,
+  aggregate = false,
+}: {
+  data: TrendPoint[];
+  aggregate?: boolean;
+}) {
+  const { token } = theme.useToken();
   const element = useRef<HTMLDivElement>(null);
   useEffect(() => {
     if (!element.current) return;
     const chart = echarts.init(element.current);
     chart.setOption({
-      color: ['#008577', '#ce5a86'],
+      color: [token.colorPrimary, token.purple, token.cyan],
+      aria: { enabled: true },
       animation: false,
       tooltip: { trigger: 'axis' },
-      legend: { top: 0, right: 12, icon: 'circle', itemWidth: 8 },
+      legend: {
+        top: 0,
+        right: 12,
+        itemWidth: 16,
+        textStyle: { color: token.colorText },
+      },
       grid: { left: 44, right: 20, top: 44, bottom: 32 },
       xAxis: {
         type: 'category',
         data: data.map((p) => p.date.slice(5)),
         boundaryGap: false,
-        axisLine: { lineStyle: { color: '#d7dde1' } },
-        axisLabel: { color: '#69757c' },
+        axisLine: { lineStyle: { color: token.colorBorder } },
+        axisLabel: { color: token.colorTextSecondary },
       },
       yAxis: {
         type: 'value',
         minInterval: 1,
-        splitLine: { lineStyle: { color: '#edf0f2' } },
+        axisLabel: { color: token.colorTextSecondary },
+        splitLine: { lineStyle: { color: token.colorBorderSecondary } },
       },
+      // UV 与访问次数经常相等，访问次数用虚线叠在上层，重合时两条线仍可分辨
       series: [
         {
           name: 'PV',
           type: 'line',
           data: data.map((p) => p.pv),
-          smooth: false,
-          symbolSize: 5,
+          symbol: 'circle',
+          symbolSize: 6,
           lineStyle: { width: 2 },
         },
         {
-          name: 'UV',
+          name: aggregate ? '项目 UV 合计' : 'UV',
           type: 'line',
           data: data.map((p) => p.uv),
-          smooth: false,
-          symbolSize: 5,
-          lineStyle: { width: 2 },
+          symbol: 'emptyCircle',
+          symbolSize: 8,
+          lineStyle: { width: 3 },
+        },
+        {
+          name: '访问次数',
+          type: 'line',
+          data: data.map((p) => p.visits),
+          symbol: 'diamond',
+          symbolSize: 6,
+          lineStyle: { width: 2, type: 'dashed' },
         },
       ],
     });
@@ -64,13 +88,27 @@ export function TrendChart({ data }: { data: TrendPoint[] }) {
       observer.disconnect();
       chart.dispose();
     };
-  }, [data]);
+  }, [
+    data,
+    aggregate,
+    token.colorPrimary,
+    token.purple,
+    token.cyan,
+    token.colorText,
+    token.colorTextSecondary,
+    token.colorBorder,
+    token.colorBorderSecondary,
+  ]);
   return (
     <div
       ref={element}
       className="trend-chart"
       role="img"
-      aria-label="页面浏览量与独立访客趋势"
+      aria-label={
+        aggregate
+          ? '页面浏览量、项目访客合计与访问次数趋势'
+          : '页面浏览量、独立访客与访问次数趋势'
+      }
     />
   );
 }

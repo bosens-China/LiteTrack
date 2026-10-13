@@ -1,23 +1,28 @@
 import { useState } from 'react';
-import { Link, useNavigate } from 'react-router';
-import { App, Button, Empty, Table, Tooltip, Typography } from 'antd';
+import { Link, useNavigate, useSearchParams } from 'react-router';
+import { App, Button, Card, Empty, Modal, Table, Typography } from 'antd';
 import {
-  ArrowUpRight,
-  Plus,
-  RefreshCw,
-  Globe,
-  Eye,
-  Users,
-  Route,
-} from 'lucide-react';
+  GlobalOutlined,
+  PlusOutlined,
+  ReloadOutlined,
+} from '@ant-design/icons';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type { SiteSummary } from '@litetrack/contracts';
-import { createSite, getSites } from '../api';
+import { createSite, getSites, getTokens } from '../api';
 import { QueryError } from '../components/QueryError';
 import { SiteForm } from '../components/SiteForm';
+import { analyticsUrl, projectId } from '../navigation';
 
 export default function Sites() {
-  const [open, setOpen] = useState(false);
+  const [created, setCreated] = useState<{ id: number; token: string }>();
+  const [params, setParams] = useSearchParams();
+  const [open, setOpen] = useState(params.get('create') === '1');
+  const closeForm = () => {
+    setOpen(false);
+    const update = new URLSearchParams(params);
+    update.delete('create');
+    setParams(update, { replace: true });
+  };
   const { message } = App.useApp();
   const navigate = useNavigate();
   const client = useQueryClient();
@@ -27,40 +32,40 @@ export default function Sites() {
   });
   const create = useMutation({
     mutationFn: createSite,
-    onSuccess: (site) => {
-      setOpen(false);
+    onSuccess: async (site) => {
+      closeForm();
       void client.invalidateQueries({ queryKey: ['sites'] });
-      navigate('/sites/' + site.id + '/settings');
+      void client.invalidateQueries({ queryKey: ['dashboard'] });
+      try {
+        const tokens = await getTokens(site.id);
+        setCreated({ id: site.id, token: tokens[0]?.token || '' });
+      } catch {
+        void message.success('项目已创建，默认 API Key 可在项目设置中查看');
+        navigate('/sites/' + site.id + '/settings');
+      }
     },
     onError: (error) => message.error(error.message),
   });
-  const sum = sites.data?.reduce(
-    (total, site) => ({
-      pv: total.pv + site.today.pv,
-      uv: total.uv + site.today.uv,
-      visits: total.visits + site.today.visits,
-    }),
-    { pv: 0, uv: 0, visits: 0 },
-  );
   return (
     <>
       <div className="page-heading">
         <div>
-          <span className="eyebrow">项目总览</span>
-          <h1>我的项目</h1>
+          <h1>项目列表</h1>
+          <Typography.Text type="secondary">
+            管理网站项目、查看访问统计与接入配置
+          </Typography.Text>
         </div>
         <div className="heading-actions">
-          <Tooltip title="刷新">
-            <Button
-              aria-label="刷新项目"
-              icon={<RefreshCw size={16} />}
-              loading={sites.isFetching}
-              onClick={() => void sites.refetch()}
-            />
-          </Tooltip>
+          <Button
+            icon={<ReloadOutlined aria-hidden />}
+            loading={sites.isFetching}
+            onClick={() => void sites.refetch()}
+          >
+            刷新
+          </Button>
           <Button
             type="primary"
-            icon={<Plus size={16} />}
+            icon={<PlusOutlined aria-hidden />}
             onClick={() => setOpen(true)}
           >
             新建项目
@@ -68,35 +73,31 @@ export default function Sites() {
         </div>
       </div>
       <QueryError error={sites.error} retry={() => void sites.refetch()} />
-      <div className="metrics-strip">
-        {[
-          { label: '今日浏览量', value: sum?.pv, icon: Eye },
-          { label: '今日项目访客合计', value: sum?.uv, icon: Users },
-          { label: '今日访问次数', value: sum?.visits, icon: Route },
-        ].map(({ label, value, icon: Icon }) => (
-          <div className="metric" key={label}>
-            <span>
-              <Icon size={16} />
-              {label}
-            </span>
-            <strong>
-              {sites.isPending ? '...' : (value?.toLocaleString() ?? '—')}
-            </strong>
-          </div>
-        ))}
-      </div>
-      <section className="data-section">
+      <Card>
         <div className="section-heading">
           <h2>
             全部项目 <span>{sites.data?.length ?? 0}</span>
           </h2>
-          <span className="muted">今日 · Asia/Shanghai</span>
+          <span className="muted">指标为今日数据 · Asia/Shanghai</span>
         </div>
         <Table<SiteSummary>
           rowKey="id"
           loading={sites.isPending}
           dataSource={sites.data}
-          pagination={false}
+          pagination={{
+            pageSize: 10,
+            current: Math.min(
+              projectId(params.get('page')) ?? 1,
+              Math.max(1, Math.ceil((sites.data?.length || 0) / 10)),
+            ),
+            onChange: (page) => {
+              const update = new URLSearchParams(params);
+              update.set('page', String(page));
+              setParams(update);
+            },
+            showSizeChanger: false,
+            hideOnSinglePage: true,
+          }}
           scroll={{ x: 650 }}
           locale={{
             emptyText: (
@@ -114,10 +115,10 @@ export default function Sites() {
               render: (_, site) => (
                 <div className="site-cell">
                   <span className="site-mark">
-                    <Globe size={20} />
+                    <GlobalOutlined aria-hidden />
                   </span>
                   <div>
-                    <Link className="site-name" to={'/sites/' + site.id}>
+                    <Link className="site-name" to={analyticsUrl(site.id)}>
                       {site.title}
                     </Link>
                     <Typography.Text type="secondary" className="domain">
@@ -128,41 +129,71 @@ export default function Sites() {
               ),
             },
             {
-              title: 'PV',
+              title: '今日 PV',
               align: 'right',
               render: (_, site) => site.today.pv.toLocaleString(),
             },
             {
-              title: 'UV',
+              title: '今日 UV',
               align: 'right',
               render: (_, site) => site.today.uv.toLocaleString(),
             },
             {
-              title: 'Visits',
+              title: '今日访问次数',
               align: 'right',
               render: (_, site) => site.today.visits.toLocaleString(),
             },
             {
-              title: '',
-              width: 60,
+              title: '操作',
+              width: 180,
               render: (_, site) => (
-                <Tooltip title="查看统计">
-                  <Link
-                    aria-label={'查看 ' + site.title}
-                    to={'/sites/' + site.id}
-                  >
-                    <ArrowUpRight size={18} />
-                  </Link>
-                </Tooltip>
+                <div className="heading-actions">
+                  <Link to={analyticsUrl(site.id)}>访问统计</Link>
+                  <Link to={'/sites/' + site.id + '/settings'}>项目设置</Link>
+                </div>
               ),
             },
           ]}
         />
-      </section>
+      </Card>
+      <Modal
+        title="项目创建成功"
+        open={Boolean(created)}
+        onCancel={() => setCreated(undefined)}
+        footer={[
+          <Button key="close" onClick={() => setCreated(undefined)}>
+            稍后接入
+          </Button>,
+          <Button
+            key="access"
+            type="primary"
+            onClick={() => {
+              if (created) navigate('/integration?project=' + created.id);
+            }}
+          >
+            前往接入指南
+          </Button>,
+        ]}
+      >
+        <Typography.Paragraph>
+          默认 API Key 已自动生成。复制后即可用于 SDK
+          采集，也可以随时在项目设置中查看。
+        </Typography.Paragraph>
+        <Typography.Paragraph
+          code
+          copyable={{
+            text: created?.token,
+            tooltips: ['复制 API Key', '已复制'],
+          }}
+          className="api-key"
+        >
+          {created?.token}
+        </Typography.Paragraph>
+      </Modal>
       <SiteForm
         open={open}
         loading={create.isPending}
-        onCancel={() => setOpen(false)}
+        onCancel={closeForm}
         onSave={(input) => create.mutate(input)}
       />
     </>
