@@ -199,7 +199,7 @@ jobs:
     needs: [verify, sdk-assets, docker]
     if: needs.sdk-assets.result == 'success'
     runs-on: ubuntu-latest
-    # 为此环境配置 required reviewers；先部署本次 SHA 的镜像，再批准。
+    # 保留 OIDC 发布身份；此环境不等待服务器部署审批。
     environment: npm-release
     permissions:
       contents: read
@@ -210,18 +210,6 @@ jobs:
         with:
           node-version: 24
           registry-url: https://registry.npmjs.org
-      - uses: actions/download-artifact@v4
-        with:
-          name: sdk-dist
-          path: apps/sdk/dist
-      - uses: actions/download-artifact@v4
-        with:
-          name: sdk-public
-          path: apps/admin/public/sdk
-      - name: Verify deployed CDN
-        run: node apps/sdk/scripts/verify-cdn.mjs
-        env:
-          SDK_CDN_ORIGIN: ${{ vars.SDK_CDN_ORIGIN }}
       - run: npm install --global npm@^11
       - uses: actions/download-artifact@v4
         with:

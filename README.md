@@ -78,7 +78,7 @@ docker compose -p litetrack-core -f docker-compose.prod.yml up -d --build --wait
 
 公网必须配置 HTTPS；生产登录 Cookie 使用 Secure。CI 镜像部署时同时设置 `SERVER_IMAGE` 和 `ADMIN_IMAGE` 为同一个 Git SHA 标签，并使用 `--no-build`。升级 SDK 的接入项目也需要重新部署。
 
-本轮不执行生产切换或实际 npm 发布。正式发版由 release-please 提升主版本，流程和 npm OIDC/CDN 门禁见 [发布说明](./docs/release.md)。
+正式发版由 release-please 维护版本，CI 发布 npm 并构建镜像，维护者随后更新生产服务器并验收 CDN。流程和 npm OIDC 配置见 [发布说明](./docs/release.md)。
 
 ## 文档
 
