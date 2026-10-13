@@ -91,7 +91,7 @@ jobs:
       contents: write
       pull-requests: write
     outputs:
-      released: ${{ steps.release.outputs['apps/sdk--release_created'] || steps.resume.outputs.released }}
+      released: ${{ steps.release.outputs['apps/sdk--release_created'] == 'true' || steps.resume.outputs.released == 'true' }}
     steps:
       - uses: googleapis/release-please-action@v4
         id: release
