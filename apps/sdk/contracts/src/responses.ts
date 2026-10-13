@@ -39,6 +39,12 @@ export const referrerRowSchema = z.object({
   domain: z.string(),
   visits: count,
 });
+export const dashboardSchema = z.object({
+  overview: metricsSchema,
+  projects: siteSchema.extend({ metrics: metricsSchema }).array(),
+  trend: trendPointSchema.array(),
+  referrers: referrerRowSchema.array(),
+});
 export const envelopeSchema = <T extends z.ZodType>(data: T) =>
   z.object({ data, message: z.string(), code: z.string() });
 export type User = z.infer<typeof userSchema>;
@@ -50,6 +56,7 @@ export type TrendPoint = z.infer<typeof trendPointSchema>;
 export type PageRow = z.infer<typeof pageRowSchema>;
 export type PagesResult = z.infer<typeof pagesResultSchema>;
 export type ReferrerRow = z.infer<typeof referrerRowSchema>;
+export type Dashboard = z.infer<typeof dashboardSchema>;
 export interface ApiEnvelope<T> {
   data: T;
   message: string;
