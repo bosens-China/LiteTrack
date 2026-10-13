@@ -110,7 +110,7 @@ jobs:
           VERSION=$(node -p "require('./apps/sdk/package.json').version")
           TAG="v$VERSION"
           test "$(gh release view "$TAG" --json isDraft,isPrerelease --jq '.isDraft == false and .isPrerelease == false')" = true
-          git fetch origin "tag $TAG" --depth=1
+          git fetch --depth=1 origin "refs/tags/$TAG:refs/tags/$TAG"
           # 不能以旧版本号发布 tag 之后改动过的 SDK。
           git diff --exit-code "$TAG" HEAD -- apps/sdk pnpm-lock.yaml
           echo 'released=true' >> "$GITHUB_OUTPUT"
