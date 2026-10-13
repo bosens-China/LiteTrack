@@ -4,6 +4,11 @@ on:
   push:
     branches: [master, main]
   workflow_dispatch:
+    inputs:
+      publish_sdk:
+        description: '恢复当前 SDK 版本的发布（必须已有正式 GitHub Release）'
+        type: boolean
+        default: false
 permissions:
   contents: read
 concurrency:
@@ -86,12 +91,41 @@ jobs:
       contents: write
       pull-requests: write
     outputs:
-      released: ${{ steps.release.outputs['apps/sdk--release_created'] }}
+      released: ${{ steps.release.outputs['apps/sdk--release_created'] == 'true' || steps.resume.outputs.released == 'true' }}
     steps:
       - uses: googleapis/release-please-action@v4
         id: release
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
+          skip-github-pull-request: ${{ inputs.publish_sdk || false }}
+      - uses: actions/checkout@v4
+      - name: Resume an existing SDK release
+        id: resume
+        if: inputs.publish_sdk && steps.release.outputs['apps/sdk--release_created'] != 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          node apps/sdk/scripts/check-release.mjs
+          VERSION=$(node -p "require('./apps/sdk/package.json').version")
+          TAG="v$VERSION"
+          test "$(gh release view "$TAG" --json isDraft,isPrerelease --jq '.isDraft == false and .isPrerelease == false')" = true
+          git fetch origin "tag $TAG" --depth=1
+          # 不能以旧版本号发布 tag 之后改动过的 SDK。
+          git diff --exit-code "$TAG" HEAD -- apps/sdk pnpm-lock.yaml
+          echo 'released=true' >> "$GITHUB_OUTPUT"
+      - name: Reject untagged merged release PRs
+        if: steps.release.outputs['apps/sdk--release_created'] != 'true' && steps.resume.outputs.released != 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+        run: |
+          PENDING=$(gh pr list --state merged --base "$DEFAULT_BRANCH" --label 'autorelease: pending' --limit 1 --json number --jq length)
+          if [ "$PENDING" != 0 ]; then
+            echo '::error::Merged release PR has no tag/Release; recover release-please before publishing.'
+            exit 1
+          fi
 
   sdk-assets:
     needs: [verify, release-please]

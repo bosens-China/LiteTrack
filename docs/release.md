@@ -37,9 +37,13 @@ protocolVersion 独立于 npm SemVer，只接受当前值。新 SDK 不能自动
 
 GitHub Release 创建不等于 npm/CDN 全部成功。检查 workflow 的各发布任务；失败时修复后重跑失败任务，不重新覆盖版本，也不把 npm 查询失败当作“版本不存在”。
 
+若 Release 已存在但整个工作流需要重新启动，在默认分支手动运行 `Verify and Release` 并勾选 `publish_sdk`。恢复入口要求当前 package.json 对应的正式 Release 已存在，且 SDK 源码和锁文件与 tag 一致，再走相同的静态产物、镜像、部署审批和 npm 链路。普通手动运行不会恢复 npm 发布。
+
+release-please 使用独立的组件发布 PR，避免聚合 PR 的无组件分支无法匹配 SDK。已合并但仍有 `autorelease: pending` 的 PR 若未生成 Release，CI 必须失败，不能将跳过静态资源和 npm 误报为发布成功。
+
 ## 一次性平台配置
 
-这些配置不由本轮本地重构自动修改：
+发布前必须检查这些平台配置：
 
 - GitHub Actions 允许创建 PR；Docker Hub 设置 DOCKERHUB_USERNAME 与 DOCKERHUB_TOKEN。
 - 为 GitHub environment npm-release 配置 required reviewers，审批前部署本次 SHA。
@@ -47,7 +51,7 @@ GitHub Release 创建不等于 npm/CDN 全部成功。检查 workflow 的各发�
 - npm 包的 Trusted Publisher：GitHub Actions，owner bosens-China、repo LiteTrack、workflow docker-and-sdk.yml、environment npm-release；允许 npm publish。
 - 发布 runner 使用 GitHub-hosted Ubuntu、Node 24、npm 11 和 id-token:write，不传 NPM_TOKEN 或 NODE_AUTH_TOKEN。
 
-已有包无需再次首发。这里只配置和验证发布准备，不执行 npm publish，也不创建/修改 npm 网站权限。
+已有包无需再次首发。恢复发布沿用已有 Trusted Publisher，不重新建立 npm token 或擅自修改 npm 网站权限。
 
 ## 不可变产物
 
