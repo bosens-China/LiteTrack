@@ -35,21 +35,23 @@ export async function metrics(
 }
 export async function trend(
   db: Resources['db'],
-  siteId: number,
+  siteId: number | number[],
   range: DateRange,
 ): Promise<TrendPoint[]> {
+  const ids = Array.isArray(siteId) ? siteId : [siteId];
+  if (!ids.length) return [];
   const { start, end } = boundaries(range);
   const rows = await db.$queryRaw<TrendPoint[]>(Prisma.sql`
     SELECT to_char("receivedAt" AT TIME ZONE 'Asia/Shanghai', 'YYYY-MM-DD') AS date,
-      COUNT(*)::int AS pv, COUNT(DISTINCT "visitorId")::int AS uv, 0::int AS visits
-    FROM "PageviewEvent" WHERE "siteId"=${siteId} AND "receivedAt">=${start} AND "receivedAt"<${end}
+      COUNT(*)::int AS pv, COUNT(DISTINCT ("siteId", "visitorId"))::int AS uv, 0::int AS visits
+    FROM "PageviewEvent" WHERE "siteId" IN (${Prisma.join(ids)}) AND "receivedAt">=${start} AND "receivedAt"<${end}
     GROUP BY date ORDER BY date
   `);
   const sessions = await db.$queryRaw<
     { date: string; visits: number }[]
   >(Prisma.sql`
     SELECT to_char("startedAt" AT TIME ZONE 'Asia/Shanghai', 'YYYY-MM-DD') AS date, COUNT(*)::int AS visits
-    FROM "Session" WHERE "siteId"=${siteId} AND "startedAt">=${start} AND "startedAt"<${end} GROUP BY date
+    FROM "Session" WHERE "siteId" IN (${Prisma.join(ids)}) AND "startedAt">=${start} AND "startedAt"<${end} GROUP BY date
   `);
   const eventsByDate = new Map(rows.map((r) => [r.date, r]));
   const visitsByDate = new Map(sessions.map((r) => [r.date, r.visits]));
@@ -85,13 +87,15 @@ export async function pages(
 }
 export async function referrers(
   db: Resources['db'],
-  siteId: number,
+  siteId: number | number[],
   range: DateRange,
 ): Promise<ReferrerRow[]> {
+  const ids = Array.isArray(siteId) ? siteId : [siteId];
+  if (!ids.length) return [];
   const { start, end } = boundaries(range);
   return db.$queryRaw<ReferrerRow[]>(Prisma.sql`
     SELECT "referrerDomain" AS domain, COUNT(*)::int AS visits FROM "Session"
-    WHERE "siteId"=${siteId} AND "startedAt">=${start} AND "startedAt"<${end}
+    WHERE "siteId" IN (${Prisma.join(ids)}) AND "startedAt">=${start} AND "startedAt"<${end}
     GROUP BY "referrerDomain" ORDER BY visits DESC, domain ASC LIMIT 20
   `);
 }

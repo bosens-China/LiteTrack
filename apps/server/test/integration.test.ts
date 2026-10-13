@@ -121,6 +121,90 @@ describe.skipIf(!database)('真实 PostgreSQL / Redis', () => {
     const top = await pages(resources.db, site.id, range, 1);
     expect(top.items.reduce((sum, p) => sum + p.pv, 0)).toBe(10);
   });
+  it('创建项目原子生成默认 Key，且禁止缓存 Key', async () => {
+    const created = await app.request('/litetrack/api/sites', {
+      method: 'POST',
+      headers: { Cookie: cookie, 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        title: '自动 Key',
+        domain: 'auto.example.com',
+        description: '',
+      }),
+    });
+    expect(created.status).toBe(200);
+    const { data: project } = await created.json();
+    try {
+      const response = await app.request(
+        '/litetrack/api/sites/' + project.id + '/tokens',
+        { headers: { Cookie: cookie } },
+      );
+      const { data: tokens } = await response.json();
+      expect(tokens).toHaveLength(1);
+      expect(tokens[0]).toMatchObject({ name: '默认 API Key', isActive: true });
+      expect(tokens[0].token).toMatch(/^[a-f0-9]{64}$/);
+      expect(response.headers.get('Cache-Control')).toBe('no-store');
+    } finally {
+      await resources.db.site.delete({ where: { id: project.id } });
+    }
+  });
+  it('总览隔离用户，按项目统计区间 UV，聚合趋势与来源', async () => {
+    const second = await resources.db.site.create({
+      data: { userId, title: 'second', domain: 'second.example.com' },
+    });
+    const other = await resources.db.user.create({
+      data: {
+        githubId: randomUUID(),
+        username: 'other-summary',
+        sites: { create: { title: 'other', domain: 'other.example.com' } },
+      },
+      include: { sites: true },
+    });
+    try {
+      await collect(
+        resources.db,
+        second,
+        event('visitor-first'),
+        new Date('2026-10-10T01:00:00Z'),
+      );
+      await collect(
+        resources.db,
+        second,
+        event('visitor-first'),
+        new Date('2026-10-11T01:00:00Z'),
+      );
+      await collect(
+        resources.db,
+        other.sites[0],
+        event('visitor-first'),
+        new Date('2026-10-10T01:00:00Z'),
+      );
+      const path =
+        '/litetrack/api/sites/summary?start=2026-10-10&end=2026-10-11';
+      const response = await app.request(path, { headers: { Cookie: cookie } });
+      expect(response.status).toBe(200);
+      const { data } = await response.json();
+      expect(data.overview).toEqual({ pv: 12, uv: 3, visits: 5 });
+      expect(
+        data.projects.map((project: { id: number }) => project.id).sort(),
+      ).toEqual([site.id, second.id].sort());
+      expect(data.trend.map((point: { uv: number }) => point.uv)).toEqual([
+        3, 1,
+      ]);
+      expect(data.referrers).toEqual([{ domain: 'github.com', visits: 5 }]);
+      expect((await app.request(path)).status).toBe(401);
+      expect(
+        (
+          await app.request(
+            '/litetrack/api/sites/summary?start=2026-10-11&end=2026-10-10',
+            { headers: { Cookie: cookie } },
+          )
+        ).status,
+      ).toBe(400);
+    } finally {
+      await resources.db.site.delete({ where: { id: second.id } });
+      await resources.db.user.delete({ where: { id: other.id } });
+    }
+  });
   it('并发首次写入与重放只生成一个会话', async () => {
     const payloads = Array.from({ length: 8 }, () => event('visitor-parallel'));
     await Promise.all(

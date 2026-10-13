@@ -37,26 +37,29 @@ Compose 后端不暴露公网端口，只信任私网 Nginx。Nginx 覆盖 X-For
 
 ## 接口
 
-| 路径                                     | 职责                           |
-| ---------------------------------------- | ------------------------------ |
-| GET /health                              | 同时检测 PostgreSQL 和 Redis   |
-| POST /litetrack/collect                  | 当前协议页面事件；X-Site-Token |
-| GET /litetrack/api/auth/github           | 发起 OAuth                     |
-| GET /litetrack/api/auth/github/callback  | OAuth 回调                     |
-| GET /litetrack/api/auth/me               | 当前用户                       |
-| POST /litetrack/api/auth/logout          | 退出                           |
-| /litetrack/api/sites                     | 项目列表、创建                 |
-| /litetrack/api/sites/:id                 | 查询、更新、删除项目           |
-| /litetrack/api/sites/:id/tokens          | API Key 列表（含原值）、创建   |
-| /litetrack/api/sites/:id/tokens/:tokenId | 启停、删除 Token               |
-| /litetrack/api/sites/:id/overview        | PV、UV、Visits                 |
-| /litetrack/api/sites/:id/trend           | 补零的每日趋势                 |
-| /litetrack/api/sites/:id/pages           | 热门页面，20 条分页            |
-| /litetrack/api/sites/:id/referrers       | 来源 Visits，前 20 项          |
+| 路径                                     | 职责                                         |
+| ---------------------------------------- | -------------------------------------------- |
+| GET /health                              | 同时检测 PostgreSQL 和 Redis                 |
+| POST /litetrack/collect                  | 当前协议页面事件；X-Site-Token               |
+| GET /litetrack/api/auth/github           | 发起 OAuth                                   |
+| GET /litetrack/api/auth/github/callback  | OAuth 回调                                   |
+| GET /litetrack/api/auth/me               | 当前用户                                     |
+| POST /litetrack/api/auth/logout          | 退出                                         |
+| /litetrack/api/sites                     | 项目列表、创建（同时生成默认 Key）           |
+| GET /litetrack/api/sites/summary         | 当前用户项目的日期范围聚合、排名、趋势和来源 |
+| /litetrack/api/sites/:id                 | 查询、更新、删除项目                         |
+| /litetrack/api/sites/:id/tokens          | API Key 列表（含原值）、创建                 |
+| /litetrack/api/sites/:id/tokens/:tokenId | 启停、删除 Token                             |
+| /litetrack/api/sites/:id/overview        | PV、UV、Visits                               |
+| /litetrack/api/sites/:id/trend           | 补零的每日趋势                               |
+| /litetrack/api/sites/:id/pages           | 热门页面，20 条分页                          |
+| /litetrack/api/sites/:id/referrers       | 来源 Visits，前 20 项                        |
 
 统计查询使用 `start=YYYY-MM-DD&end=YYYY-MM-DD`，包含首尾日，最多 366 天，日期不早于 1970；页面查询另带 `page`。按 Asia/Shanghai 转换为 UTC 左闭右开区间。区间 UV 直接去重，不累加每日 UV。
 
 接口说明：[http://localhost:3000/litetrack/api/docs](http://localhost:3000/litetrack/api/docs)。请求校验、DTO 和 OpenAPI 响应结构共用 [contracts](../sdk/contracts/src/index.ts)；ORM 模型不作为 SDK 类型导出。
+
+创建项目时通过嵌套写入原子生成默认 API Key，无需额外创建请求。聚合总览只查询当前用户的项目，区间 UV 按项目分别去重后相加，每日趋势同样按项目去重；不累加每日 UV 作为区间 UV。
 
 项目沿用 Site/SiteToken 模型；API Key 仅为采集凭据，不授予后台权限。列表和创建接口仅允许已登录的项目所有者访问，返回 Cache-Control: no-store，支持遗失后再次取回复制。
 

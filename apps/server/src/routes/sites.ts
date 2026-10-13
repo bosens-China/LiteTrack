@@ -14,6 +14,7 @@ import {
   trendPointSchema,
   referrerRowSchema,
   pagesResultSchema,
+  dashboardSchema,
 } from '@litetrack/contracts';
 import {
   authenticate,
@@ -31,6 +32,7 @@ import {
   todayRange,
   trend,
 } from '../modules/stats.js';
+import { dashboard } from '../modules/dashboard.js';
 
 const tokenParams = idSchema.extend({ tokenId: idSchema.shape.id });
 export function siteRoutes(deps: Dependencies) {
@@ -41,6 +43,16 @@ export function siteRoutes(deps: Dependencies) {
     },
   });
   app.use('*', authenticate(config));
+  app.openapi(
+    createRoute({
+      method: 'get',
+      path: '/summary',
+      request: { query: rangeSchema },
+      responses: response(dashboardSchema),
+    }),
+    async (c) =>
+      success(c, await dashboard(db, c.get('userId'), c.req.valid('query'))),
+  );
   app.openapi(
     createRoute({
       method: 'get',
@@ -76,7 +88,16 @@ export function siteRoutes(deps: Dependencies) {
     async (c) => {
       const input = c.req.valid('json');
       const site = await db.site.create({
-        data: { ...input, userId: c.get('userId') },
+        data: {
+          ...input,
+          userId: c.get('userId'),
+          tokens: {
+            create: {
+              name: '默认 API Key',
+              token: randomBytes(32).toString('hex'),
+            },
+          },
+        },
       });
       return success(c, site);
     },
