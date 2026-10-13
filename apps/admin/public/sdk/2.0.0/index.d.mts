@@ -1,10 +1,5 @@
 //#region src/core/types.d.ts
-type LiteTrackErrorCode =
-  | 'INVALID_OPTIONS'
-  | 'ENVIRONMENT_ERROR'
-  | 'NETWORK_ERROR'
-  | 'HTTP_ERROR'
-  | 'TIMEOUT';
+type LiteTrackErrorCode = 'INVALID_OPTIONS' | 'ENVIRONMENT_ERROR' | 'NETWORK_ERROR' | 'HTTP_ERROR' | 'TIMEOUT';
 interface LiteTrackError extends Error {
   code: LiteTrackErrorCode;
   status?: number;
@@ -35,13 +30,5 @@ declare function create(options: LiteTrackCreateOptions): Tracker;
 //#region src/core/version.d.ts
 declare const SDK_VERSION: string;
 //#endregion
-export {
-  type LiteTrackCreateOptions,
-  type LiteTrackError,
-  type LiteTrackErrorCode,
-  type PageInput,
-  type Tracker,
-  create,
-  SDK_VERSION as version,
-};
+export { type LiteTrackCreateOptions, type LiteTrackError, type LiteTrackErrorCode, type PageInput, type Tracker, create, SDK_VERSION as version };
 //# sourceMappingURL=index.d.mts.map

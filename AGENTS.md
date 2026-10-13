@@ -39,6 +39,6 @@ SDK（`@boses/litetrack-sdk`，唯一发布到 npm 的包）版本由 **release-
    - **归属按文件路径**：release-please 统计 `apps/sdk/**`，包括私有共享契约 `apps/sdk/contracts`（只动 server/admin 不会触发 SDK 发版）；scope 写 `(sdk)` 是习惯，真正生效的是路径。
    - 与采集协议版本（`PROTOCOL_VERSION`）无关，二者解耦。
 2. 推送到 master 后，release-please 自动开/更新一个 **release PR**（已算好版本号、生成 `apps/sdk/CHANGELOG.md`、bump `apps/sdk/package.json`）。
-3. **合并该 PR = 启动正式发版**：release-please 打 git tag（`vX.Y.Z`）并建 GitHub Release，CI 的 sdk-assets 任务追加 `apps/admin/public/sdk/<version>/`，Docker 任务构建配套镜像；通过 npm-release 部署审批和 CDN 校验后才发布 npm。详见 `docs/release.md`。
+3. **合并该 PR = 启动正式发版**：release-please 打 git tag（`vX.Y.Z`）并建 GitHub Release，CI 的 sdk-assets 任务追加 `apps/admin/public/sdk/<version>/`，Docker 任务构建配套镜像，并通过 OIDC 发布 npm；npm 不等待生产部署。维护者更新服务器后再执行 CDN 验收。详见 `docs/release.md`。
 
 **已发布版本的产物不可变**：`publish.mjs` 会冻结已存在的版本目录，绝不覆盖；`manifest.json` 同样**只增不改**——已登记版本的 integrity/size 不重算，仅追加新版本（客户页面用固定 URL + SRI 加载，任何字节/记录变化都会破坏 integrity）。要发新内容必须升版本号。
